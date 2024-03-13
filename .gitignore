@@ -1,0 +1,16 @@
+documents
+!documents/vklady--v-belorusskih-rublyah_full.txt
+langfuse
+models
+scripts/.idea
+scripts/.ipynb_checkpoints
+scripts/.vscode
+scripts/*.ipynb
+scripts/archive
+scripts/*.py
+!scripts/mixtral_works.py
+!scripts/works.py
+langfuse schema
+.idea
+.ipynb_checkpoints
+.vscode
