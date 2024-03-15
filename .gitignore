@@ -14,3 +14,8 @@ langfuse schema
 .idea
 .ipynb_checkpoints
 .vscode
+scripts/api/*.json
+scripts/api/*.xlsx
+scripts/api/*.ipynb
+scripts/api/__pycache__
+scripts/api/api_docs_examples

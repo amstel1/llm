@@ -56,7 +56,7 @@ langfuse_callback_handler = CallbackHandler(trace_name=trace_name)
 
  
 # Optional, verify that Langfuse is configured correctly
-assert langfuse.auth_check()
+# assert langfuse.auth_check()
 # assert langfuse_callback_handler.auth_check()
 
 def format_docs(docs):
