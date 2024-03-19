@@ -41,24 +41,24 @@ os.environ["LANGFUSE_SECRET_KEY"] = "sk-lf-26acbd19-74af-4cb4-93e1-919526c13921"
 # import gc
 # import torch
 
-# from langfuse import Langfuse
-# from langfuse.callback import CallbackHandler
+from langfuse import Langfuse
+from langfuse.callback import CallbackHandler
  
 # Initialize Langfuse client (prompt management)
-# langfuse = Langfuse()
-# langfuse_callback_handler = CallbackHandler(trace_name=trace_name)    
+langfuse = Langfuse()
+langfuse_callback_handler = CallbackHandler(trace_name=trace_name)    
 
 # Initialize Langfuse CallbackHandler for Langchain (tracing)
-# langfuse_callback_handler = CallbackHandler(
-#     secret_key="sk-lf-26acbd19-74af-4cb4-93e1-919526c13921",
-#     public_key="pk-lf-a45f2a3d-4085-4170-b337-8cc2f1921aef",
-#     host="http://localhost:3000",
-# )
+langfuse_callback_handler = CallbackHandler(
+    secret_key="sk-lf-26acbd19-74af-4cb4-93e1-919526c13921",
+    public_key="pk-lf-a45f2a3d-4085-4170-b337-8cc2f1921aef",
+    host="http://localhost:3000",
+)
 
  
 # Optional, verify that Langfuse is configured correctly
 # assert langfuse.auth_check()
-# assert langfuse_callback_handler.auth_check()
+assert langfuse_callback_handler.auth_check()
 
 def format_docs(docs):
     return "\n\n".join(doc.page_content for doc in docs)
@@ -69,7 +69,7 @@ def retrieve_docs_for_query(query: str) -> List[str]:
     # fake retrieval result
     loader = TextLoader("../documents/vklady--v-belorusskih-rublyah_full.txt")
     docs = loader.load()
-    logger.warning(docs)
+    # logger.warning(docs)
     return docs
 
 dummy_retriever = RunnableLambda(retrieve_docs_for_query)
@@ -88,36 +88,36 @@ physics_template = """ Ты - профессор физики. Ты специа
 
 Ответ: """
 
-math_template = """<s> [INST] <<SYS>>
- Ты - математик. При ответе учитывай историю и контекст. Кратко отвечай на вопросы. \
+math_template = """ Ты - математик. При ответе учитывай историю. Кратко отвечай на вопросы. \
 Отвечай на вопрос ровно один раз.
 
-Контекст:
-{context}
 
 История:
 {history}
 
+
 Вопрос:
-{query} [/INST]
+{query}
 
 
 Ответ: """
 
-banking_template = """<s> [INST] <<SYS>>
-Ты - сотрудник банка, который консультирует клиента о банковских продуктах и сервисах. \
-Вежливо и полно отвечай на вопросы клиента. \
+banking_template = """ Ты - сотрудник банка, который консультирует клиента о банковских продуктах и сервисах. \
+Вежливо и кратко отвечай на вопросы клиента. \
 Предлагай банковские продукты, которые помогут удовлетворить потребности клиента наилучшим образом. \
-При ответе на вопросы опирайся на контекст ниже. <</SYS>>
+При ответе на вопросы опирайся на контекст ниже.
+
 
 Контекст:
 {context}
 
+
 История:
 {history}
 
+
 Вопрос:
-{query} [/INST]
+{query}
 
 
 Ответ: """
@@ -147,7 +147,7 @@ def prompt_router(input):
     query_embedding = embeddings.embed_query(input["query"])
     similarity = cosine_similarity([query_embedding], prompt_embeddings)[0]
     most_similar = prompt_templates[similarity.argmax()]
-    most_similar = prompt_templates[2]  # DEBUG - ONLY FINANCIAL ASSISTANT
+    # most_similar = prompt_templates[2]  # DEBUG - ONLY FINANCIAL ASSISTANT
     logger.debug(f'most similar:: {most_similar} -- type: {type(most_similar)}')
     logger.info(f'similarity: {similarity, similarity.argmax()}')
     # add context only if similarity.argmax() >= 2 <=> banking template, so we must do RAG
@@ -199,29 +199,32 @@ with_message_history = RunnableWithMessageHistory(
 
 # print(
 #     with_message_history.invoke(
-#         {'query': 'Что такое полярные координаты с точки зрения математики?'}, 
-#         {'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}}
+#     input={'query': 'Что такое полярные координаты с точки зрения математики?'}, 
+#     config={'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}, "callbacks":[langfuse_callback_handler]}
 #     )
 # )
 
-# print(
-#     with_message_history.invoke(
-#         {'query': 'Что такое математика?'}, 
-#         {'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}}
-#     )
-# )
+
+print(
+    with_message_history.invoke(
+        input={'query': ' Что такое физика?'}, 
+        config={'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}, "callbacks":[langfuse_callback_handler]}
+    )
+)
 
 # print(
 #     with_message_history.invoke(
-#         {'query': ' Что такое физика?'}, 
-#         {'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}}
+#         input={'query': ' Что такое математика?'}, 
+#         config={'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}, "callbacks":[langfuse_callback_handler]}
 #     )
 # )
 
+#########################################################################################
+
 # print(
 #     with_message_history.invoke(
-#         {'query': ' Что такое математика?'}, 
-#         {'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}}
+#         input={'query': 'Что такое банк?'}, 
+#         config={'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}, "callbacks":[langfuse_callback_handler]}
 #     )
 # )
 
@@ -273,10 +276,30 @@ with_message_history = RunnableWithMessageHistory(
 
 print(
     with_message_history.invoke(
-        {'query': 'Как накопить ребёнку на образование?'}, 
+        {'query': 'Что такое математика?'}, 
         config={
             'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}, 
-            # "callbacks":[langfuse_callback_handler]
+            "callbacks":[langfuse_callback_handler]
+        }
+    )
+)
+
+print(
+    with_message_history.invoke(
+        {'query': 'Какой вопрос я задал только что?'}, 
+        config={
+            'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}, 
+            "callbacks":[langfuse_callback_handler]
+        }
+    )
+)
+
+print(
+    with_message_history.invoke(
+        {'query': 'Повтори мой первый вопрос'}, 
+        config={
+            'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}, 
+            "callbacks":[langfuse_callback_handler]
         }
     )
 )

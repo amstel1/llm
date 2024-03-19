@@ -16,4 +16,5 @@ async def create_item(item: str):
     logger.info(f'item: {item}')
     payment_details = lookup_json.get(item)
     logger.info(f'payment_details: {payment_details}')
+    logger.warning('api called successfully')
     return {'results':payment_details}
