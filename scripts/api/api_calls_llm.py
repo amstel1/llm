@@ -66,7 +66,7 @@ llm = LlamaCpp(
     # model_path='../models/mixtral-8x7b-moe-rp-story.Q4_K_M.gguf',
     # n_gpu_layers=8,  # 28 for llama2 13b, 10 for mixtral
 
-    model_path='../models/model-q4_K(2).gguf',
+    model_path='/home/amstel/llm/models/model-q4_K(2).gguf',
     n_gpu_layers=28,  # 28 for llama2 13b, 10 for mixtral
     max_tokens=500,
     n_batch=128,
@@ -84,7 +84,7 @@ llm = LlamaCpp(
 
 from langchain.chains import APIChain
 from langchain.chains.api import open_meteo_docs
-from api import payment_docs
+import payment_docs
 
 # see
 # api_request_chain

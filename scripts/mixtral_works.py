@@ -48,16 +48,16 @@ from langfuse.callback import CallbackHandler
 langfuse = Langfuse()
 langfuse_callback_handler = CallbackHandler(trace_name=trace_name)    
 # Initialize Langfuse CallbackHandler for Langchain (tracing)
-# langfuse_callback_handler = CallbackHandler(
-#     secret_key="sk-lf-26acbd19-74af-4cb4-93e1-919526c13921",
-#     public_key="pk-lf-a45f2a3d-4085-4170-b337-8cc2f1921aef",
-#     host="http://localhost:3000",
-# )
+langfuse_callback_handler = CallbackHandler(
+    secret_key="sk-lf-26acbd19-74af-4cb4-93e1-919526c13921",
+    public_key="pk-lf-a45f2a3d-4085-4170-b337-8cc2f1921aef",
+    host="http://localhost:3000",
+)
 
  
 # Optional, verify that Langfuse is configured correctly
 # assert langfuse.auth_check()
-# assert langfuse_callback_handler.auth_check()
+assert langfuse_callback_handler.auth_check()
 
 def format_docs(docs):
     return "\n\n".join(doc.page_content for doc in docs)
@@ -68,13 +68,13 @@ def retrieve_docs_for_query(query: str) -> List[str]:
     # fake retrieval result
     loader = TextLoader("../documents/vklady--v-belorusskih-rublyah_full.txt")
     docs = loader.load()
-    logger.warning(docs)
+    # logger.warning(docs)
     return docs
 
 dummy_retriever = RunnableLambda(retrieve_docs_for_query)
 
 
-physics_template = """ Ты - профессор физики. Ты специализируешься на квантовой механике и термодинамике. \
+physics_template = """<s> [INST] Ты - профессор физики. Ты специализируешься на квантовой механике и термодинамике. \
 При ответе учитывай историю. Кратко отвечай на вопросы. \
 Отвечай на вопрос ровно один раз.
 
@@ -82,21 +82,18 @@ physics_template = """ Ты - профессор физики. Ты специа
 {history}.
 
 Вопрос:
-{query}
+{query}[/INST] </s>
 
 Ответ: """
 
-math_template = """ Ты - математик. При ответе учитывай историю и контекст. Кратко отвечай на вопросы. \
+math_template = """<s> [INST] Ты - математик. При ответе учитывай историю и контекст. Кратко отвечай на вопросы. \
 Отвечай на вопрос ровно один раз.
-
-Контекст:
-{context}.
 
 История:
 {history}.
 
 Вопрос:
-{query}
+{query}[/INST] </s>
 
 Ответ: """
 
@@ -111,7 +108,7 @@ banking_template = """<s> [INST] Ты - финансовый помощник. �
 {history}.
 
 Вопрос:
-{query} [/INST] </s>
+{query}[/INST] </s>
 
 Ответ: """
 
@@ -163,7 +160,6 @@ query_and_context = RunnablePassthrough.assign(context=context).assign(query=que
 runnable = query_and_context | RunnableLambda(prompt_router) | RunnableLambda(func_logger) | chat_model  #
 
 
-
 with_message_history = RunnableWithMessageHistory(
     runnable,
     get_session_history,
@@ -191,33 +187,22 @@ with_message_history = RunnableWithMessageHistory(
 
 # print(
 #     with_message_history.invoke(
-#         {'query': 'Что такое полярные координаты с точки зрения математики?'}, 
-#         {'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}}
+#     input={'query': 'Что такое полярные координаты с точки зрения математики?'}, 
+#     config={'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}, "callbacks":[langfuse_callback_handler]}
 #     )
 # )
+
 
 # print(
 #     with_message_history.invoke(
-#         {'query': 'Что такое математика?'}, 
-#         {'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}}
+#         input={'query': ' Что такое физика?'}, 
+#         config={'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}, "callbacks":[langfuse_callback_handler]}
 #     )
 # )
 
-# print(
-#     with_message_history.invoke(
-#         {'query': ' Что такое физика?'}, 
-#         {'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}}
-#     )
-# )
 
-# print(
-#     with_message_history.invoke(
-#         {'query': ' Что такое математика?'}, 
-#         {'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}}
-#     )
-# )
 
-##########################################################################################
+# #########################################################################################
 
 # print(
 #     with_message_history.invoke(
@@ -225,6 +210,30 @@ with_message_history = RunnableWithMessageHistory(
 #         config={'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}, "callbacks":[langfuse_callback_handler]}
 #     )
 # )
+
+# print(
+#     with_message_history.invoke(
+#         {'query': ' Как банк может помочь накопить на образование ребенку?'}, 
+#         config={'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}, "callbacks":[langfuse_callback_handler]}
+#     )
+# )
+
+print(
+    with_message_history.invoke(
+        input={'query': ' Что такое математика?'}, 
+        config={'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}, "callbacks":[langfuse_callback_handler]}
+    )
+)
+
+print(
+    with_message_history.invoke(
+        {'query': ' Какой вопрос я задал только что?'}, 
+        config={
+            'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}, 
+            "callbacks":[langfuse_callback_handler]
+        }
+    )
+)
 
 # ##########################################################################################
 
@@ -263,11 +272,7 @@ with_message_history = RunnableWithMessageHistory(
 #     )
 # )
 
-print(
-    with_message_history.invoke(
-        {'query': ' Как накопить на образование ребенку?'}, 
-        config={'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}, "callbacks":[langfuse_callback_handler]}
-    )
-)
+
+
 
 print('success'.upper())
