@@ -86,8 +86,7 @@ physics_template = """<s> [INST] Ты - профессор физики. Ты с
 
 Ответ: """
 
-math_template = """<s> [INST] Ты - математик. При ответе учитывай историю и контекст. Кратко отвечай на вопросы. \
-Отвечай на вопрос ровно один раз.
+math_template = """<s> [INST] Ты - математик. Очень кратко отвечай на вопросы. Отвечай не больше чем 20 слов.
 
 История:
 {history}.
@@ -211,29 +210,29 @@ with_message_history = RunnableWithMessageHistory(
 #     )
 # )
 
-# print(
-#     with_message_history.invoke(
-#         {'query': ' Как банк может помочь накопить на образование ребенку?'}, 
-#         config={'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}, "callbacks":[langfuse_callback_handler]}
-#     )
-# )
-
 print(
     with_message_history.invoke(
-        input={'query': ' Что такое математика?'}, 
+        {'query': ' Как банк может помочь накопить на образование ребенку?'}, 
         config={'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}, "callbacks":[langfuse_callback_handler]}
     )
 )
 
-print(
-    with_message_history.invoke(
-        {'query': ' Какой вопрос я задал только что?'}, 
-        config={
-            'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}, 
-            "callbacks":[langfuse_callback_handler]
-        }
-    )
-)
+# print(
+#     with_message_history.invoke(
+#         input={'query': ' Что такое математика?'}, 
+#         config={'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}, "callbacks":[langfuse_callback_handler]}
+#     )
+# )
+
+# print(
+#     with_message_history.invoke(
+#         {'query': ' Какой вопрос я задал только что?'}, 
+#         config={
+#             'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'}, 
+#             "callbacks":[langfuse_callback_handler]
+#         }
+#     )
+# )
 
 # ##########################################################################################
 
