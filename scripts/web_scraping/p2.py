@@ -6,12 +6,14 @@ from langchain_community.tools.ddg_search.tool import DuckDuckGoSearchRun
 import requests
 from bs4 import BeautifulSoup
 
-url = 'https://yandex.by/search/'
+url = 'https://duckduckgo.com/'
 params={
-        'text':'Xiaomi 14',
-        'lr':157,
-        'search_source':'yaby_desktop_common',
-        'src':'suggest_B',
+        't':'h_',
+        'q':'Xiaomi 14',
+        'ia':'web',
+        # 'lr':157,
+        # 'search_source':'yaby_desktop_common',
+        # 'src':'suggest_B',
     }
 
 for i, (k,v ) in enumerate(params.items()):
