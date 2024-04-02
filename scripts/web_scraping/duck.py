@@ -1,4 +1,4 @@
-enable_langfuse = True
+enable_langfuse = False
 
 from datetime import datetime
 from langchain_community.document_loaders import TextLoader
@@ -75,10 +75,10 @@ chat_model = LlamaCpp(
     # llama 13b saiga: -- '../models/model-q4_K(2).gguf'
     # roleplay - mixtral moe 8x7b: -- mixtral-8x7b-moe-rp-story.Q4_K_M
     # mixtral-8x7b-v0.1.Q4_K_M
-    model_path='../models/model-q4_K(2).gguf',
-    n_gpu_layers=28,  # 28 for llama2 13b, 10 for mixtral
+    model_path='/home/amstel/llm/models/saiga_mistral_7b.gguf',
+    n_gpu_layers=32,  # 28 for llama2 13b, 10 for mixtral
     max_tokens=500,
-    n_batch=128,
+    n_batch=8,
     n_ctx=2048,
     f16_kv=True,  # MUST set to True, otherwise you will run into problem after a couple of calls
     verbose=False,
@@ -97,7 +97,7 @@ context = query | searching_tool # | format_docs
 query_and_context = RunnablePassthrough.assign(context=context).assign(query=query)
 runnable = query_and_context | PromptTemplate.from_template(template) | chat_model  # RunnableLambda
 
-google_search_query = 'https://www.google.com/search?q=%D0%BB%D1%83%D1%87%D1%88%D0%B8%D0%B5+%D1%82%D0%B5%D0%BB%D0%B5%D1%84%D0%BE%D0%BD%D1%8B+%D0%B4%D0%BE+1300+%D1%80%D1%83%D0%B1%D0%BB%D0%B5%D0%B9+%D0%BC%D0%B8%D0%BD%D1%81%D0%BA&oq=%D0%BB%D1%83%D1%87%D1%88%D0%B8%D0%B5+%D1%82%D0%B5%D0%BB%D0%B5%D1%84%D0%BE%D0%BD%D1%8B+%D0%B4%D0%BE+1300+%D1%80%D1%83%D0%B1%D0%BB%D0%B5%D0%B9+%D0%BC%D0%B8%D0%BD%D1%81%D0%BA'
+# google_search_query = 'https://www.google.com/search?q=%D0%BB%D1%83%D1%87%D1%88%D0%B8%D0%B5+%D1%82%D0%B5%D0%BB%D0%B5%D1%84%D0%BE%D0%BD%D1%8B+%D0%B4%D0%BE+1300+%D1%80%D1%83%D0%B1%D0%BB%D0%B5%D0%B9+%D0%BC%D0%B8%D0%BD%D1%81%D0%BA&oq=%D0%BB%D1%83%D1%87%D1%88%D0%B8%D0%B5+%D1%82%D0%B5%D0%BB%D0%B5%D1%84%D0%BE%D0%BD%D1%8B+%D0%B4%D0%BE+1300+%D1%80%D1%83%D0%B1%D0%BB%D0%B5%D0%B9+%D0%BC%D0%B8%D0%BD%D1%81%D0%BA'
 
 with_message_history = RunnableWithMessageHistory(
     runnable,
@@ -124,6 +124,9 @@ with_message_history = RunnableWithMessageHistory(
     ],
 )
 
+item_name = 'Xiaomi 14'
+item_name = 'Смартфон Apple iPhone 15 Pro Max 256GB (природный титан)'
+
 if enable_langfuse:
     print(
         with_message_history.invoke(
@@ -135,7 +138,7 @@ if enable_langfuse:
 else:
     print(
         with_message_history.invoke(
-            {'query': 'лучшие телефоны до 1300 рублей минск'},
+            {'query': f'яндекс маркет отзывы {item_name}'},
             config={'configurable': {'user_id': '1-1S8209H', 'conversation_id': 'conv_1'},
                     }
         )

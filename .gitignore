@@ -22,3 +22,4 @@ scripts/api/api_docs_examples
 scripts/sql2text
 scripts/fake_sbol.db
 scripts/trash/
+*/**/__pycache__
