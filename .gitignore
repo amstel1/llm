@@ -33,3 +33,4 @@ scripts/trash/
 *.pkl
 *.xlsx
 *.bin
+*/**/__pycache__
