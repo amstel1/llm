@@ -34,3 +34,6 @@ scripts/trash/
 *.xlsx
 *.bin
 */**/__pycache__
+*.png
+scripts/web_scraping/
+plan
