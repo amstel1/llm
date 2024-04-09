@@ -37,3 +37,5 @@ scripts/trash/
 *.png
 scripts/web_scraping/
 plan
+out
+scripts/web_scraping/*.ipynb
