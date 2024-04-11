@@ -42,3 +42,4 @@ scripts/web_scraping/*.ipynb
 scripts
 backup_instruct
 backup
+src/git-filter-repo
