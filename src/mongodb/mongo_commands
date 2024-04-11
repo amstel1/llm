@@ -1,0 +1,32 @@
+# docker exec -it mongo-docker mongosh
+
+use admin
+
+db.auth("mongoadmin", "mongoadmin")
+
+db.createUser(
+  {
+    user: "writer",
+    pwd: "writer",
+    roles: [
+      { role: "readWrite", db: "scraped_data" }
+    ]
+  }
+)
+
+db.createUser(
+  {
+    user: "reader",
+    pwd: "reader",
+    roles: [
+      { role: "read", db: "scraped_data" }
+    ]
+  }
+)
+
+use scraped_data
+
+db.createCollection('product_details')
+
+db.createCollection('product_reviews')
+

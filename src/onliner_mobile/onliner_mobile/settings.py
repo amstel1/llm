@@ -7,7 +7,7 @@
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
-ROOT_PROJECT = '/home/amstel/llm/scripts/'
+ROOT_PROJECT = '/home/amstel/llm/src/'
 BOT_NAME = "onliner_mobile"
 import os
 SPIDER_MODULES = ["onliner_mobile.spiders"]
