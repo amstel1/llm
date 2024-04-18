@@ -2,7 +2,7 @@ import sys
 import os
 sys.path.append('/home/amstel/llm/src')
 from typing import Dict, Tuple, List
-from mongodb.utils import MongoConnector
+from mongodb.mongo_utils import MongoConnector
 import pickle
 from loguru import logger
 
@@ -44,7 +44,11 @@ if __name__ == '__main__':
         pairs = pickle.load(f)
     product_details, reviews_details = YandexMarketProcessor.process(data=pairs)
 
-    cursor = MongoConnector(operation='write', db_name='scraped_data', collection_name='product_details')
-    cursor.write_many(product_details)
+    # cursor = MongoConnector(operation='write', db_name='scraped_data', collection_name='product_details')
+    # cursor.write_many(product_details)
 
-    logger.info('success')
+    # cursor = MongoConnector(operation='write', db_name='scraped_data', collection_name='product_reviews')
+    # cursor.write_many(reviews_details)
+    # logger.info('success')
+
+

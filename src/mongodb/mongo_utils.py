@@ -59,9 +59,9 @@ class MongoConnector:
         output_document = self.collection.find_one(key_value)
         return output_document
 
-    def read_many(self, key_value: Dict[str, str]):
-        output_documents = self.collection.find(key_value)
-        return output_documents
+    def read_many(self, key_value: Dict[str, str]) -> pymongo.cursor.Cursor:
+        cursor = self.collection.find(key_value)
+        return cursor
 
 
 

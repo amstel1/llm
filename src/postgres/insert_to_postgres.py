@@ -7,7 +7,7 @@ import itertools
 CRAWL_ID = 2
 if __name__ == '__main__':
 
-    with open('../src/web_scraping/output.pkl', 'rb') as f:
+    with open('/home/amstel/llm/out/shop_list.pkl', 'rb') as f:
         # tuple of 3 elements: product_page, breadcrumbs, item_list
         # we need item_list
         data = pickle.load(f)
