@@ -1,9 +1,14 @@
 import sys
 sys.path.append('/home/amstel/llm')
-
-import sys
 sys.path.append('/home/amstel/llm/src')
-from mongodb.mongo_utils import MongoConnector
+
+# prod_name = 'Стиральная машина LG F2V5GS0W'
+# prod_name = 'Стиральная машина BEKO WSPE7H616W'
+# prod_name = "Стиральная машина LG F2V3GS6W"
+# prod_name = "Стиральная машина Renova WS-30ET"
+# prod_name = "Стиральная машина BEKO WRE 6512 BWW (BY)"
+prod_name = 'Стиральная машина ATLANT СМА 80С1214-01'
+import sys
 
 from langchain_community.llms import LlamaCpp
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate, ChatMessagePromptTemplate
@@ -11,10 +16,8 @@ from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
 from src.mongodb.mongo_utils import MongoConnector
-import sys
-sys.path.append('/home/amstel/llm')
-prod_name = "Стиральная машина LG F2V3GS6W"
-# prod_name = "Стиральная машина Renova WS-30ET"
+
+
 mc = MongoConnector('read', 'scraped_data', 'product_reviews')
 resp = mc.read_one({prod_name:{'$exists': True}})
 descriptions_list = [x['review_description'] for x in resp[prod_name]]
@@ -36,7 +39,10 @@ def def_debugger(inp):
 # mixtral_raw_template_context = f" [INST] Reviews: {context} [/INST]\n\n"
 
 # mistral_raw_template_system = '<s> [INST] \n Ты эксперт мирового уровня по анализу отзывов на товары. Выдели главные преимущества и недостатки товара из отзывов ниже. Отвечай только на русском языке. Ты всегда должен сформировать ответ в виде JSON с ключами "advantages" и "disadvantages".\n [/INST]' \
-mistral_raw_template_system = '<s> [INST] Ты эксперт мирового уровня по анализу отзывов на товары. В качестве ответа ты должен вернуть только JSON. JSON должен содержать ровно два ключа: "достоинства", "недостатки". Значения должны содержать список достоинств и недостатков данного товара, которые указаны в отзывах. [/INST] </s> \n\n'
+# mistral_raw_template_system = '<s> [INST] Ты эксперт мирового уровня по анализу отзывов на товары. В формате JSON верни главные достоинства и недостатки товара. JSON должен иметь ровно два ключа: "достоинства", "недостатки". Значения должны содержать список достоинств и недостатков данного товара, которые указаны в отзывах. [/INST] </s> \n\n'
+
+# best
+# mistral_raw_template_system = '<s> [INST] Ты эксперт мирового уровня по анализу отзывов на товары. В качестве ответа ты должен вернуть только JSON с ровно двумя ключами: "достоинства", "недостатки". Значения должны содержать список достоинств и недостатков данного товара, которые указаны в отзывах. [/INST] </s> \n\n'
 
 mistral_raw_template_context = (f"<s> [INST] Отзывы: {context}. [/INST] </s> \n\n")
 
@@ -65,7 +71,7 @@ template = ChatPromptTemplate.from_messages(
     [
         SystemMessage(content=mistral_raw_template_system),
         HumanMessage(content=mistral_raw_template_context),
-        AIMessage(content=' JSON:'),
+        AIMessage(content=' Ответ в JSON формате:'),
     ]
 )
 
@@ -77,4 +83,3 @@ chain = (template |
          )
 
 print(chain.invoke(input={}))
-
