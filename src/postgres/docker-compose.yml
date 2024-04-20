@@ -40,8 +40,10 @@ services:
       POSTGRES_USER: "scraperuser"
       POSTGRES_PASSWORD: "scraperpassword"
       PGDATA: "/var/lib/postgresql/data"
+      POSTGRES_HOST_AUTH_METHOD: "trust"
     volumes:
       - scraperdb-data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "6432:5432"
     # healthcheck:
