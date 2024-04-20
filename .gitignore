@@ -38,8 +38,6 @@ src/trash/
 src/web_scraping/
 plan
 out
-scripts/web_scraping/*.ipynb
-scripts
 backup_instruct
 backup
 src/git-filter-repo
