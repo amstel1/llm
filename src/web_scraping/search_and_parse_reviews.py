@@ -9,7 +9,7 @@ from typing import Dict, List, Callable
 from bs4 import BeautifulSoup
 from typing import Dict
 import extruct
-from db import select_from_db
+from src.postgres.select_from_postgres import select_from_db
 import rapidfuzz
 ua = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 

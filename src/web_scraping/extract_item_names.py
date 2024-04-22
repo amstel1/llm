@@ -10,7 +10,7 @@ chat_model = LlamaCpp(
     # roleplay - mixtral moe 8x7b: -- mixtral-8x7b-moe-rp-story.Q4_K_M
     # mixtral-8x7b-v0.1.Q4_K_M
     model_path='/home/amstel/llm/models/saiga_mistral_7b.gguf',
-    n_gpu_layers=10,  # 28 for llama2 13b, 10 for mixtral
+    n_gpu_layers=0,  # 28 for llama2 13b, 10 for mixtral
     max_tokens=500,
     n_batch=32,
     n_ctx=1024,
