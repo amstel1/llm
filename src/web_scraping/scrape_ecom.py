@@ -1,7 +1,7 @@
+# todo: ? save html bodies to mongo
 
-
-# url = 'https://shop.by/stiralnye_mashiny/?page_id=1'
-# shop_url = 'https://shop.by/stiralnye_mashiny/'
+import sys
+sys.path.append('/home/amstel/llm')
 base_url = 'https://shop.by'
 from scrapy.crawler import CrawlerProcess
 from loguru import logger
@@ -14,7 +14,7 @@ from typing import Dict, List
 from scrapy.exceptions import CloseSpider
 import logging
 import pickle
-from db.select_from_db import select_data
+from src.postgres.postgres_utils import select_data
 ua = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 from abc import abstractmethod
 
@@ -123,7 +123,11 @@ class MicrodataExtractor:
 
 # todo: extend MicrodataExtractor for other sites
 class HtmlExtractor:
-    def __init__(self, product_type_url, product_type_name):
+    def __init__(self, product_type_url: str | List[str], product_type_name):
+        '''
+        :param product_type_url: str or list of str -- links to parse. Pages must contain item lists
+        :param product_type_name:
+        '''
         self.product_type_url = product_type_url
         self.product_type_name = product_type_name
 
@@ -212,7 +216,6 @@ class ShopByExtractor(HtmlExtractor):
         return results
 
 
-
 class ItemListSpider(CrawlSpider):
     name = "item_list"
 
@@ -239,9 +242,11 @@ class ItemListSpider(CrawlSpider):
             assert extractor_instance.product_type_url
             if isinstance(extractor_instance.product_type_url, str):
                 urls.append(extractor_instance.product_type_url)
+                self.url_2_extractor_instance[extractor_instance.product_type_url] = extractor_instance
             elif isinstance(extractor_instance.product_type_url, list):
                 urls.extend(extractor_instance.product_type_url)
-            self.url_2_extractor_instance[extractor_instance.product_type_url] = extractor_instance
+                for extractor_instance_product_type_url in extractor_instance.product_type_url:
+                    self.url_2_extractor_instance[extractor_instance_product_type_url] = extractor_instance
 
         for url in urls:
             self.current_url = url
@@ -369,19 +374,20 @@ if __name__ == '__main__':
         product_type_name='Стиральная машина'
     )
     shopby_extractor = ShopByExtractor(
-        product_type_url='https://shop.by/stiralnye_mashiny/',
+        product_type_url=[f'https://shop.by/stiralnye_mashiny/?page_id={i}' for i in range (1,30)],
         product_type_name='Стиральная машина',
     )
     # ItemList
     out = crawl_static(
         ItemListSpider,
         extractor_instances=[
-            # shopby_extractor,
+            shopby_extractor,
             # onliner_extractor,
-            vek_21_extractor
+            # vek_21_extractor
         ]
     )
-    with open('output_items.pkl', 'wb') as f:
+
+    with open('/home/amstel/llm/out/ItemListSpider.pkl', 'wb') as f:
         pickle.dump(out, f)
     logger.info(len(out))
     logger.info(out)

@@ -1,10 +1,11 @@
 import sys
 import os
-sys.path.append('/home/amstel/llm/src')
+sys.path.append('/')
 from typing import Dict, Tuple, List
 from mongodb.mongo_utils import MongoConnector
 import pickle
 from loguru import logger
+import os
 
 class YandexMarketProcessor:
     """product details and reviews"""
@@ -12,7 +13,7 @@ class YandexMarketProcessor:
     @staticmethod
     def process(data: Dict) -> Tuple[List[Dict[str, Dict]], List[Dict[str, List[Dict]]]]:
         '''
-        returns tuple(products, reviews)
+        returns ? (products, reviews)
         insert the result to mongo
         '''
         product_details_output = []
@@ -40,15 +41,18 @@ class YandexMarketProcessor:
 
 if __name__ == '__main__':
     # parsed yandex market, insert to pymongo
-    with open('/home/amstel/llm/out/future_pairs.pkl', 'rb') as f:
-        pairs = pickle.load(f)
-    product_details, reviews_details = YandexMarketProcessor.process(data=pairs)
+    # raise AttributeError  # launch with caution
+    with open('/home/amstel/llm/out/QueryDetailsReviews.pkl', 'rb') as f:
+        triplets = pickle.load(f)
+    product_details, reviews_details = YandexMarketProcessor.process(data=triplets)
 
-    # cursor = MongoConnector(operation='write', db_name='scraped_data', collection_name='product_details')
-    # cursor.write_many(product_details)
+    cursor = MongoConnector(operation='write', db_name='scraped_data', collection_name='product_details')
+    cursor.write_many(product_details)
 
-    # cursor = MongoConnector(operation='write', db_name='scraped_data', collection_name='product_reviews')
-    # cursor.write_many(reviews_details)
-    # logger.info('success')
+    cursor = MongoConnector(operation='write', db_name='scraped_data', collection_name='product_reviews')
+    cursor.write_many(reviews_details)
+    logger.info('success')
+    os.remove('/home/amstel/llm/out/QueryDetailsReviews.pkl')
+    logger.warning(len(reviews_details))
 
 

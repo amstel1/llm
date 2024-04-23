@@ -38,10 +38,9 @@ llm = LlamaCpp(
     # roleplay - mixtral moe 8x7b: -- mixtral-8x7b-moe-rp-story.Q4_K_M
     # mixtral-8x7b-v0.1.Q4_K_M
 
-    model_path='/home/amstel/llm/models/mixtral-8x7b-moe-rp-story.Q4_K_M.gguf',
+    model_path='/home/amstel/llm/models/Publisher/Repository/mixtral-8x7b-moe-rp-story.Q4_K_M.gguf',
     n_gpu_layers=8,  # 28 for llama2 13b, 10 for mixtral
-
-    # model_path='/home/amstel/llm/models/nsql-llama-2-7b.Q5_K_S.gguf',
+    # model_path='/home/amstel/llm/models/Publisher/Repository/nsql-llama-2-7b.Q5_K_S.gguf',
 
     # model_path='/home/amstel/llm/models/model-q4_K(2).gguf',
     # n_gpu_layers=28,  # 28 for llama2 13b, 10 for mixtral
@@ -196,7 +195,7 @@ chain = (
 # response = write_query.invoke({"question": "Get top 5 clients by then number of transactions"}, config={"callbacks":[langfuse_callback_handler]})
 # response = write_query.invoke({"question": "How much money did client 2778777 spend in total?"}, config={"callbacks":[langfuse_callback_handler]})
 response = write_query.invoke({
-    "question": "what are the top 10 spending months in the last 4 months by the sum of operation and the respective sums",
+    "question": "what are the top 10 spending months in the last four months by the sum of operation and the respective sums",
     "dialect":dialect,
     "table_info":table_info,
     "top_k":top_k,

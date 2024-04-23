@@ -19,7 +19,7 @@ scripts/api/*.xlsx
 scripts/api/*.ipynb
 src/api/__pycache__
 src/api/api_docs_examples
-src/sql2text
+src/text2sql
 src/fake_sbol.db
 src/trash/
 */__pycache__
@@ -41,3 +41,4 @@ out
 backup_instruct
 backup
 src/git-filter-repo
+/scripts/

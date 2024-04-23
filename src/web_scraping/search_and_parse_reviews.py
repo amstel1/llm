@@ -1,3 +1,10 @@
+# todo: ? save html bodies to mongo
+IS_HEADLESS = True
+BROWSER_SELECT = 'firefox'
+import os
+
+import sys
+sys.path.append('/home/amstel/llm')
 import asyncio
 import concurrent.futures
 import pickle
@@ -9,12 +16,19 @@ from loguru import logger
 from typing import Dict, List, Callable, Any
 from bs4 import BeautifulSoup
 import extruct
-from src.postgres.select_from_postgres import select_from_db
+from src.postgres.postgres_utils import select_data
 import rapidfuzz
 import concurrent.futures as pool
 Url = str
 import random
-import numpy as np
+import numpy as np50
+import sys
+sys.path.append('/home/amstel/llm/src')
+from mongodb.mongo_utils import MongoConnector
+from postgres.postgres_utils import insert_data
+import pandas as pd
+from datetime import datetime
+
 # with open('desktop_user_agent.txt', 'r') as f:
 #     uas = f.readlines()
 # print(len(uas))
@@ -24,8 +38,8 @@ uas = [
     # 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36',
     # 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.106 Safari/537.36 OPR/38.0.2220.41',
 
-    # 'Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.0.0 Safari/537.36',
-    'Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.1234.56 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.0.0 Safari/537.36',
+    # 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
     # 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.0.0 Safari/537.36',
     # 'Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.0.0 Safari/537.36',
     # 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.0.0 Safari/537.36',
@@ -84,11 +98,16 @@ def parse_reviews(mdata) ->  List[dict[str, Any]]:
                 if hasattr(_reviews, '__iter__'):
                     for review in _reviews:
                         review_details = {}
-                        review_details['review_date_published'] = review.get('properties').get('datePublished')
-                        review_details['review_description'] = review.get('properties').get('description')
-                        _review_rating_properties = review.get('properties').get('reviewRating').get('properties')
-                        review_details['review_ratng_value'] = _review_rating_properties.get('ratingValue')
-                        review_details['review_best_rating'] = _review_rating_properties.get('bestRating')
+                        if 'properties' in review:
+                            _review_properties = review.get('properties')
+                            review_details['review_date_published'] = _review_properties.get('datePublished')
+                            review_details['review_description'] = _review_properties.get('description')
+                            if 'reviewRating' in _review_properties:
+                                _review_properties_rating = _review_properties.get('reviewRating')
+                                if 'properties' in _review_properties_rating:
+                                    _review_rating_properties = _review_properties_rating.get('properties')
+                                    review_details['review_ratng_value'] = _review_rating_properties.get('ratingValue')
+                                    review_details['review_best_rating'] = _review_rating_properties.get('bestRating')
                         total_reviews.append(review_details)
                 return total_reviews
 
@@ -97,20 +116,33 @@ def scrape_page_playwright(url_path: Url, parse_func: Callable) -> List[tuple[Ur
     parsing_output = []
     with sync_playwright() as p:
         browser_select = random.sample(['firefox',], 1)[0]  #  'firefox',
+        browser_select = BROWSER_SELECT
         if browser_select == 'chromium':
-            browser = p.chromium.launch(headless=False)
+            browser = p.chromium.launch(headless=IS_HEADLESS)
         elif browser_select == 'firefox':
-            browser = p.firefox.launch(headless=False)
+            browser = p.firefox.launch(headless=IS_HEADLESS)
         ua = random.sample(uas, 1)[0]
-        context = browser.new_context(user_agent=ua)
+        context = browser.new_context(
+            user_agent=ua,
+            #
+            java_script_enabled=False,  # ?
+            bypass_csp=True,
+            # extra_http_headers={},
+        )
         logger.warning(ua)
         context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         page = context.new_page()
-        page.wait_for_timeout(int(np.random.uniform(0, 1000, 1)[0]))
-        page.goto(url_path)
-        page.wait_for_timeout(int(np.random.uniform(2500, 5000, 1)[0]))
+        # page.wait_for_timeout(int(np.random.uniform(0, 1000, 1)[0]))
+        page.goto(url_path, referer='https://yandex.by/',)
+
+        # page.wait_for_timeout(int(np.random.uniform(2500, 5000, 1)[0]))
         # page.screenshot(path="now.png")
         content = page.content()
+        try:
+            with open(f"/home/amstel/llm/out/htmls/{url_path.replace('/', '-')}.html", 'w') as f:
+                f.write(content)
+        except:
+            pass
         soup = BeautifulSoup(content, "html.parser")
         mdata = extruct.extract(soup.prettify(), syntaxes=['microdata']).get('microdata')
         # if parse_func==parse_product: parsing_output -> Dict
@@ -216,22 +248,29 @@ def search_google(user_query: str) -> str:
         url += prefix + str(k) + '=' + str(v).replace(' ', '+')
 
     with sync_playwright() as p:
-        browser_select = random.sample(['firefox',], 1)[0]  # 'firefox'
+        # browser_select = random.sample(['firefox',], 1)[0]  # 'firefox'
+        browser_select = BROWSER_SELECT
         if browser_select == 'chromium':
-            browser = p.chromium.launch(headless=False)
+            browser = p.chromium.launch(headless=IS_HEADLESS)
         else:
-            browser = p.firefox.launch(headless=False)
+            browser = p.firefox.launch(headless=IS_HEADLESS)
         ua = random.sample(uas, 1)[0]
-        context = browser.new_context(user_agent=ua)
+        context = browser.new_context(
+            user_agent=ua,
+            #
+            java_script_enabled=False,  # ?
+            bypass_csp=True,
+            # extra_http_headers={},
+        )
         logger.warning(ua)
         context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         page = context.new_page()
-        page.wait_for_timeout(int(np.random.uniform(0, 1000, 1)[0]))
-        page.goto(url)
-        page.wait_for_timeout(int(np.random.uniform(2500, 5000, 1)[0]))
+        # page.wait_for_timeout(int(np.random.uniform(0, 1000, 1)[0]))
+        page.goto(url, referer='https://yandex.by/',)
+        # page.wait_for_timeout(int(np.random.uniform(2500, 5000, 1)[0]))
         content = page.content()
         try:
-            with open(f"./htmls/{user_query.replace('/', '-')}.html", 'w') as f:
+            with open(f"/home/amstel/llm/out/htmls/{user_query.replace('/', '-')}.html", 'w') as f:
                 f.write(content)
         except:
             pass
@@ -295,29 +334,69 @@ def thread_work(user_query):
 
 
 if __name__ == '__main__':
+    # todo: save raw parsed body to mongo
+    # todo: save attempts to mongo
+    # todo: update candidates logic below with mongo
+
+    # steps:
+    # 1. get product_details & product_reviews - we do not need to query them again
+    con_product_reviews = MongoConnector(operation='read', db_name='scraped_data', collection_name='product_reviews')
+    cursor_product_reviews = con_product_reviews.read_many({})
+    product_reviews = list(cursor_product_reviews)
+
+    con_product_details = MongoConnector(operation='read', db_name='scraped_data', collection_name='product_details')
+    cursor_product_details = con_product_details.read_many({})
+    product_details = list(cursor_product_details)
+
+    already_scraped_names = []
+    for data in product_reviews:
+        already_scraped_names.extend([key for key in data.keys() if key != '_id'])
+    for data in product_details:
+        already_scraped_names.extend([key for key in data.keys() if key != '_id'])
+    already_scraped_names = list(set(already_scraped_names))
+
+    # 2. query postgres
     sql_from_table = ' scraped_data.product_item_list '
-    where_clause = " crawl_id >= 1 limit 8 "
-    df = select_from_db.select_data(table=sql_from_table, where=where_clause)
-    df = df.sample(frac=1.0)
+    where_clause = " product_position = 1 limit 70"
+    df = select_data(table=sql_from_table, where=where_clause)
+    assert df.shape[0] > 0
+    # df = df.sample(frac=1.0)
+    logger.debug(df.columns)
     product_names = df['product_name'].values.tolist()
 
+    # 2.5 get attempts
+    attempts_df = select_data(table=' scraped_data.product_query_attempts ')
+    attempt_product_names = attempts_df['attempt_product_name'].values.tolist()
+    # attempt_product_names = []
+
+    # 3. exclude (1) from (2)
+    product_names_to_scrape = set([x for x in product_names if x not in already_scraped_names and x not in attempt_product_names])
+    assert len(product_names_to_scrape) > 0
     ex = pool.ThreadPoolExecutor(max_workers=1,
                                  thread_name_prefix='thread_',
                                  initializer=None, initargs=())
 
     with ex as executor:
-        future_to_url = {executor.submit(thread_work, user_query): user_query for user_query in product_names}
-    pairs = {}
+        future_to_url = {executor.submit(thread_work, user_query): user_query for user_query in product_names_to_scrape}
+    triplets = {}
     for future in concurrent.futures.as_completed(future_to_url):
         url = future_to_url[future]
         try:
             data = future.result()
-            pairs[url] = data
+            triplets[url] = data
         except Exception as exc:
             print(f'{url} сгенерировано исключение: {exc}')
 
-    logger.info(type(pairs))
+    attempts_df = pd.DataFrame(product_names_to_scrape, columns=['attempt_product_name'])
+    attempts_df['attempt_datetime'] = datetime.now()
+    insert_data(attempts_df, schema_name='scraped_data', table_name='product_query_attempts')
+    logger.info(type(triplets))
     logger.info(type(data))
-    logger.info(len(pairs))
-    with open('../out/future_pairs2.pkl', 'wb') as f:
-        pickle.dump(pairs, f)
+    new_path = '/home/amstel/llm/out/QueryDetailsReviews.pkl'
+    if os.path.exists(new_path):
+        new_path = new_path.replace('.pkl', '')+'1'+'.pkl'
+    with open(new_path, 'wb') as f:
+        pickle.dump(triplets, f)
+        logger.debug(f'saved to: {new_path}')
+    logger.info(len(triplets))
+
