@@ -44,7 +44,8 @@ def def_debugger(inp):
 # best
 # mistral_raw_template_system = '<s> [INST] Ты эксперт мирового уровня по анализу отзывов на товары. В качестве ответа ты должен вернуть только JSON с ровно двумя ключами: "достоинства", "недостатки". Значения должны содержать список достоинств и недостатков данного товара, которые указаны в отзывах. [/INST] </s> \n\n'
 
-mistral_raw_template_context = (f"<s> [INST] Отзывы: {context}. [/INST] </s> \n\n")
+# raw
+# mistral_raw_template_context = (f"<s> [INST] Отзывы: {context}. [/INST] </s> \n\n")
 
 debugger = RunnablePassthrough(def_debugger)
 
@@ -55,9 +56,10 @@ chat_model = LlamaCpp(
     # model_path='/home/amstel/llm/models/qwen1_5-14b-chat-q4_k_m.gguf',
 
     # model_path='/home/amstel/llm/models/mixtral-8x7b-moe-rp-story.Q4_K_M.gguf',
-    model_path = '/home/amstel/llm/models/mistral-7b-instruct-v0.2.Q5_K_M.gguf',
+    # model_path = '/home/amstel/llm/models/mistral-7b-instruct-v0.2.Q5_K_M.gguf',
 
-    n_gpu_layers=33, # 28 for llama2 13b, 10 for mixtral
+    model_path = '/home/amstel/llm/models/Publisher/Repository/Meta-Llama-3-8B-Instruct.Q6_K.gguf',
+    n_gpu_layers=33,
     max_tokens=200,
     n_batch=1024,
     n_ctx=6000,
@@ -67,11 +69,14 @@ chat_model = LlamaCpp(
     # stop=["</s>"],
 )
 
+llama_raw_template_system = """"""
+llama_raw_template_user = """"""
+
 template = ChatPromptTemplate.from_messages(
     [
-        SystemMessage(content=mistral_raw_template_system),
-        HumanMessage(content=mistral_raw_template_context),
-        AIMessage(content=' Ответ в JSON формате:'),
+        SystemMessage(content=llama_raw_template_system),
+        HumanMessage(content=llama_raw_template_user),
+        AIMessage(content=' JSON:'),
     ]
 )
 
