@@ -9,6 +9,8 @@ from langchain_core.runnables import RunnablePassthrough
 from loguru import logger
 SYSTEM_PROMPT_LLAMA3 = "You are a helpful, smart, kind, and efficient AI assistant. You always fulfill the user's requests to the best of your ability."
 
+# instead of the functios below we can extend:
+# https://api.python.langchain.com/en/latest/_modules/langchain_experimental/chat_models/llm_wrapper.html#Llama2Chat
 def create_chatml_statement(role: str, content: str):
     assert role in ('user', 'assistant')
     assert content
@@ -58,14 +60,14 @@ llm = LlamaCpp(
     # model_path='/home/amstel/llm/models/publisher/repository/Phi-3-mini-4k-instruct-q4.gguf',
     # stop=['<|end|>'], # phi
 
-    model_path='/home/amstel/llm/models/publisher/repository/Meta-Llama-3-8B-Instruct-Q4_K_M.gguf',  # good
+    model_path='/home/amstel/llm/models/Publisher/Repository/Meta-Llama-3-8B-Instruct-Q4_K_M.gguf',  # good
     # model_path='/home/amstel/llm/models/publisher/repository/saiga_llama3_8b_q4_k.gguf',
     stop=["<|eot_id|>", "<|start_header_id|>"],
 
-    n_gpu_layers=18,
+    n_gpu_layers=33,
     temperature=0.0,
     max_tokens=1024,
-    n_batch=16,
+    n_batch=256,
     n_ctx=2048,
     f16_kv=True,
     verbose=True,

@@ -4,6 +4,29 @@ from loguru import logger
 
 API_ENDPOINT = "http://localhost:8000/process_text"
 
+import streamlit as st
+
+def create_preview_card(
+        url="https://shop.by/stiralnye_mashiny/lg_f2j3ws2w/",
+        title="Стиральная машина LG F2J3WS2W",
+        image_url="https://shop.by/images/lg_f2j3ws2w_1.webp",
+        description="Custom description"
+):
+    """Function to create a website preview card in Streamlit."""
+    card_html = f"""
+    <div style="display: flex; flex-direction: row; align-items: flex-start; gap: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 6px 0 rgba(0,0,0,0.1);">
+        <a href="{url}" target="_blank" style="text-decoration: none; color: #000;">
+            <img src="{image_url}" alt="{title}" style="width: 120px; height: 120px; border-radius: 8px; object-fit: cover;">
+        </a>
+        <div style="flex-grow: 1;">
+            <h4><a href="{url}" target="_blank" style="text-decoration: none; color: #000;">{title}</a></h4>
+            <p>{description}</p>
+        </div>
+    </div>
+    """
+    st.markdown(card_html, unsafe_allow_html=True)
+
+
 def call_api(input_text):
     response = requests.post(API_ENDPOINT, json={"question": input_text, "chat_history": st.session_state.chat_history})
     return response.json()
@@ -36,3 +59,8 @@ if prompt := st.chat_input("Enter you question here"):
     logger.debug(st.session_state.chat_history)
     with st.chat_message("assistant"):
         st.markdown(response_text)
+
+    # link to the selected product / prodcuts
+    # todo: change display_website_preview to parsing microdata in realtime
+    # todo: display the results once, nice grid, from parameters.
+    create_preview_card()
