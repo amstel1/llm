@@ -46,13 +46,13 @@ llama_raw_template_system_ru = """<|begin_of_text|><|start_header_id|>system<|en
 Ты эксперт мирового уровня по анализу отзывов на товары. Cуммаризуй текст ниже. Отвечай ТОЛЬКО на русском языке. Ты всегда должен формировать ответ в виде JSON с одним из ключей: "advantages", "disadvantages".<|eot_id|>"""
 
 llama_raw_template_system_a_en = """<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-Summarize the text below in a truthful, eloquent manner. Return a valid JSON blob with key "advantages" and corresponding values as a list of strings in Russian. Do not use enumerated lists.<|eot_id|>"""
+Summarize the text below in a truthful, eloquent manner. Return a valid JSON blob with key "advantages" and corresponding values as a list of strings in Russian. Do not use enumerated lists. No mentioning "yandex" or "market".<|eot_id|>"""
 
 llama_raw_template_system_d_en = """<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-Summarize the text below in a truthful, eloquent manner. Return a valid JSON blob with key the "disadvantages" corresponding to the summarized disadvantages as a list of strings in Russian only. If there are none, return empty list. No enumerations.<|eot_id|>"""
+Summarize the text below in a truthful, eloquent manner. Return a valid JSON blob with key the "disadvantages" corresponding to the summarized disadvantages as a list of strings in Russian only. If there are none, return empty list. No enumerations. No mentioning "yandex" or "market".<|eot_id|>"""
 
-llama_raw_template_system_c_en = """<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-Summarize the text below in a truthful, eloquent manner. Return only a valid JSON blob with key "comments" and corresponding values as a list of strings in Russian. If there are none, return empty list. Do not use enumerations.<|eot_id|>"""
+# llama_raw_template_system_c_en = """<|begin_of_text|><|start_header_id|>system<|end_header_id|>
+# Summarize the text below in a truthful, eloquent manner. Return only a valid JSON blob with key "comments" and corresponding values as a list of strings in Russian. If there are none, return empty list. Do not use enumerations.<|eot_id|>"""
 
 llama_raw_template_user = """<|start_header_id|>user<|end_header_id|>\nОтзывы:\n\n{context}<|eot_id|><|start_header_id|>assistant<|end_header_id|>JSON: """
 
@@ -240,7 +240,7 @@ if __name__ == '__main__':
             'advantages': summarized_advantages,
             'disadvantages': summarized_disadvantages,
             'inserted_datetime': datetime.now(),
-            'llm_name': 'llama3_v2'
+            'llm_name': 'llama3_v2',
         }
         # logger.warning(summarized_json)
         # con.write_one({model_name: summarized_json})
