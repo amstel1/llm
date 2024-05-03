@@ -1,6 +1,5 @@
 from langchain_community.llms import LlamaCpp
 from langchain_community.utilities import SQLDatabase
-from langchain_community.utilities import SQLDatabase
 from langchain.chains import create_sql_query_chain
 from langchain_community.llms import LlamaCpp
 from langchain_community.tools.sql_database.tool import QuerySQLDataBaseTool
@@ -100,7 +99,7 @@ prompt = FewShotPromptTemplate(
 chain = prompt | llm | StrOutputParser()
 
 response = chain.invoke({
-    "input": "стиральная машина Хаер",
+    "input": "хорошая стиральная машина глубина до 43, загрузка от 6",
     "table_info": table_info,
     "top_k":top_k,
     }, config={"callbacks": [langfuse_callback_handler],})
