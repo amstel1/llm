@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS scraped_data.product_item_list
     product_url text COLLATE pg_catalog."default",
     product_name text COLLATE pg_catalog."default",
     product_position integer,
-    crawl_id integer
+    scraped_datetime TIMESTAMP
 )
 TABLESPACE pg_default;
 ALTER TABLE IF EXISTS scraped_data.product_item_list

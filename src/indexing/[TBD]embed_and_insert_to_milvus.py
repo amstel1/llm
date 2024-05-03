@@ -7,6 +7,8 @@ from langchain_community.embeddings import LlamaCppEmbeddings
 from loguru import logger
 from datetime import datetime
 from pymilvus import MilvusClient
+from langchain_community.vectorstores import Milvus
+from langchain_community.retrievers import MilvusRetriever
 
 class Embedder:
     def __init__(self, embedding_model):

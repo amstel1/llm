@@ -14,6 +14,10 @@ import os
 from langfuse import Langfuse
 from langfuse.callback import CallbackHandler
 from datetime import datetime
+from langchain_community.agent_toolkits import create_sql_agent
+import pandas as pd
+
+
 
 trace_name = f'sql_llama3_{datetime.now()}'
 os.environ["LANGFUSE_HOST"] = "http://localhost:3000"
@@ -22,13 +26,10 @@ os.environ["LANGFUSE_SECRET_KEY"] = "sk-lf-26acbd19-74af-4cb4-93e1-919526c13921"
 
 langfuse = Langfuse()
 langfuse_callback_handler = CallbackHandler(trace_name=trace_name)
-db = SQLDatabase.from_uri("postgresql://localhost:6432/scraperdb?user=scraperuser&password=scraperpassword")
-logger.warning(f'db type: {type(db)}')
 
-top_k = 1
 llm = LlamaCpp(
-    # model_path='/home/amstel/llm/models/Publisher/Repository/Meta-Llama-3-8B-Instruct-Q4_K_M.gguf',
-    model_path='/home/amstel/llm/models/Publisher/Repository/Meta-Llama-3-8B-Instruct.Q6_K.gguf',
+    model_path='/home/amstel/llm/models/Publisher/Repository/Meta-Llama-3-8B-Instruct-Q4_K_M.gguf',
+    # model_path='/home/amstel/llm/models/Publisher/Repository/Meta-Llama-3-8B-Instruct.Q6_K.gguf',
     # model_path='/home/amstel/llm/models/Publisher/Repository/Meta-Llama-3-8B-Instruct-Q8_0.gguf',
     # model_path='/home/amstel/llm/models/Publisher/Repository/meta-llama-3-8b-instruct.fp16.gguf',
     n_gpu_layers=33,
@@ -41,8 +42,10 @@ llm = LlamaCpp(
     stop=['<|eot_id|>', '```', '```\n', ],
 )
 
+top_k = 1
 dialect = 'postgresql'
-
+uri = "postgresql://localhost:6432/scraperdb?user=scraperuser&password=scraperpassword"
+db = SQLDatabase.from_uri(uri)
 table_info = '''create table scraped_data.washing_machine (
   "brand" text, -- название производителя
   "rating_value" real, -- рейтинг товара
@@ -64,15 +67,14 @@ Indesit|4.5|921|290|Стиральная машина Indesit IWSB 51051 BY|120|
 */'''
 
 examples = [
-    {"input": "Фирма Электролюкс без сушки глубина до 50 см", "query": "SELECT * FROM scraped_data.washing_machine WHERE brand ILIKE '%Electrolux%' AND (drying = 'Нет' or drying is null) AND depth <= 50;"},
-    {"input": "популярная, хорошая, недорогая", "query": "SELECT * FROM scraped_data.washing_machine WHERE price <= 1000;"},
-    {"input": "Cтиральная машина с сушкой", "query": "SELECT * FROM scraped_data.washing_machine WHERE drying = 'Да';"},
-    {"input": "отличная стиралка", "query": "SELECT * FROM scraped_data.washing_machine WHERE rating_value >= 4.8;"},
-    {"input": "Бош, от 5 кг, хорошая лучшая", "query": "SELECT * FROM scraped_data.washing_machine WHERE brand ILIKE '%Bosch%' AND max_load >= 5 and rating_value >= 4.8;"},
-    {"input": "хорошая стиральная машина",   "query": "SELECT * FROM scraped_data.washing_machine WHERE rating_value >= 4.5;"},
-    {"input": "дешевая, с отзывами", "query": "SELECT * FROM scraped_data.washing_machine WHERE price <= 1000;"},
-    {"input": "Производители Атлант, Хаер, Ханса, Самсунг", "query": "SELECT * FROM scraped_data.washing_machine WHERE brand ILIKE ANY(ARRAY['%Atlant%','%Haier%','%Hansa%','%Samsung%']);"},
-    {"input": "лучшие стиральные машины", "query": "SELECT * FROM scraped_data.washing_machine;"},
+    {"input": "Фирма Электролюкс без сушки глубина до 50 см", "query": "SELECT name, price, rating_value, drying, depth FROM scraped_data.washing_machine WHERE brand ILIKE '%Electrolux%' AND (drying = 'Нет' or drying is null) AND depth <= 50;"},
+    {"input": "популярная, хорошая, недорогая", "query": "SELECT name, price, rating_value FROM scraped_data.washing_machine WHERE price <= 1000;"},
+    {"input": "Cтиральная машина с сушкой", "query": "SELECT name, price, rating_value, drying FROM scraped_data.washing_machine WHERE drying = 'Да';"},
+    {"input": "отличная стиралка", "query": "SELECT name, price, rating_value FROM scraped_data.washing_machine WHERE rating_value >= 4.8;"},
+    {"input": "Бош, от 5 кг, хорошая лучшая", "query": "SELECT name, price, rating_value, max_load FROM scraped_data.washing_machine WHERE brand ILIKE '%Bosch%' AND max_load >= 5 and rating_value >= 4.8;"},
+    {"input": "хорошая стиральная машина",   "query": "SELECT name, price, rating_value FROM scraped_data.washing_machine WHERE rating_value >= 4.5;"},
+    {"input": "дешевая", "query": "SELECT name, price, rating_value FROM scraped_data.washing_machine WHERE price <= 1000;"},
+    {"input": "Производители Атлант, Хаер, Ханса, Самсунг", "query": "SELECT name, price, rating_value FROM scraped_data.washing_machine WHERE brand ILIKE ANY(ARRAY['%Atlant%','%Haier%','%Hansa%','%Samsung%']);"},
 ]
 
 example_prompt = PromptTemplate.from_template("User input: {input}\nSQL query: {query}")
@@ -86,21 +88,27 @@ system_message_llama = (
     ' filter by field "brand" only if "brand" is mentioned in "User input";\n\n' 
     'Here is the relevant table info: \n{table_info}\n\n'
 )
-system_message_mixtral = "You are a postgres expert. Given an input question, create a syntactically correct postgres query to run. Unless otherwise specificed, do not return more than {top_k} rows.\n\nHere is the relevant table info: {table_info}\n\nBelow are a number of examples of questions and their corresponding SQL queries."
 
 prompt = FewShotPromptTemplate(
     examples=examples[:20],
     example_prompt=example_prompt,
     prefix=system_message_llama,
     suffix="<|eot_id|><|start_header_id|>user<|end_header_id|>\nUser input: {input}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n```sql",
-    input_variables=["input", "top_k", "table_info"],
+    input_variables=["input", "top_k",  "table_info"],
 )
 
 chain = prompt | llm | StrOutputParser()
 
-response = chain.invoke({
+response_query = chain.invoke({
     "input": "хорошая стиральная машина глубина до 43, загрузка от 6",
     "table_info": table_info,
     "top_k":top_k,
     }, config={"callbacks": [langfuse_callback_handler],})
-logger.warning(response)
+logger.warning(response_query)
+
+df = pd.read_sql(
+    sql=response_query,
+    con=uri,
+)
+
+

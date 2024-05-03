@@ -82,7 +82,7 @@ template = ChatPromptTemplate.from_messages(
 
 parser = JsonOutputParser()
 chain = (template |
-         # debugger |
+         debugger |
          chat_model |
          parser
          )

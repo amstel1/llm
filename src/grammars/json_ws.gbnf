@@ -1,9 +1,14 @@
-# https://github.com/ggerganov/llama.cpp/blob/master/grammars/README.md
-# https://python.langchain.com/docs/integrations/llms/llamacpp/#grammars
-# Grammar for subset of JSON - doesn't support full string or number syntax
+# This is the same as json.gbnf but value is always an array of strings
+# Useful for generating JSON arrays
 
-root   ::= object
-value  ::= object | array | string | number | ("true" | "false" | "null") ws
+root   ::= arr
+value  ::= array | string ws
+
+arr  ::=
+  "[\n" ws (
+            value
+    (",\n" ws value)*
+  )? "]"
 
 object ::=
   "{" ws (

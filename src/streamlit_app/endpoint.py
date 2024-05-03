@@ -62,7 +62,7 @@ llm = LlamaCpp(
 
     model_path='/home/amstel/llm/models/Publisher/Repository/Meta-Llama-3-8B-Instruct-Q4_K_M.gguf',  # good
     # model_path='/home/amstel/llm/models/publisher/repository/saiga_llama3_8b_q4_k.gguf',
-    stop=["<|eot_id|>", "<|start_header_id|>"],
+    stop=["<|eot_id|>", "<|start_header_id|>", '```', '```\n', ],
 
     n_gpu_layers=33,
     temperature=0.0,
@@ -75,11 +75,11 @@ llm = LlamaCpp(
 # template = PromptTemplate.from_template("""<|user|>\n{question} <|end|>\n<|assistant|>""")
 app = FastAPI(redirection_slashes=False)
 
-def log_data(x):
-    logger.debug(x)
-    return x
-
-logger_runnable = RunnablePassthrough(log_data)
+# def log_data(x):
+#     logger.debug(x)
+#     return x
+#
+# logger_runnable = RunnablePassthrough(log_data)
 
 class Input(BaseModel):
     question: str
@@ -101,7 +101,7 @@ async def process_text(input_data: Input) -> dict[str, Any]:
     template_str = get_llama3_template(SYSTEM_PROMPT_LLAMA3, chat_history)
 
     template = PromptTemplate.from_template(template=template_str)
-    chain = template | logger_runnable | llm | StrOutputParser()
+    chain = template | llm | StrOutputParser()
     logger.debug(template)
     logger.warning(len(template_str))
 
