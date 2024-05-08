@@ -5,6 +5,7 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from loguru import logger
 from rag_config import SPLITTER_SEPARATORS, CHUNK_OVERLAP, CHUNK_SIZE, RAG_COLLECTION_NAME
 from langchain_experimental.text_splitter import SemanticChunker
+from langchain.retrievers import ParentDocumentRetriever
 
 
 if __name__ == '__main__':

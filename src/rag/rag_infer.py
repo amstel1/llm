@@ -41,18 +41,18 @@ if __name__ == '__main__':
     prompt = PromptTemplate.from_template(template=llama_raw_template_system + llama_raw_template_user)
 
 
-    llm = LlamaCpp(
-        model_path='/home/amstel/llm/models/Publisher/Repository/Meta-Llama-3-8B-Instruct-Q4_K_M.gguf',
-        n_gpu_layers=33,
-        max_tokens=1024,
-        n_batch=128,
-        n_ctx=4096,
-        f16_kv=True,
-        verbose=False,
-        temperature=0.0,
-        stop=["<|eot_id|>", ],
-    )
-
+    # llm = LlamaCpp(
+    #     model_path='/home/amstel/llm/models/Publisher/Repository/Meta-Llama-3-8B-Instruct-Q4_K_M.gguf',
+    #     n_gpu_layers=33,
+    #     max_tokens=1024,
+    #     n_batch=128,
+    #     n_ctx=4096,
+    #     f16_kv=True,
+    #     verbose=False,
+    #     temperature=0.0,
+    #     stop=["<|eot_id|>", ],
+    # )
+    llm = Ollama(model="llama3_q6_32k", stop=["<|eot_id|>",], num_gpu=33, temperature=0, mirostat=0)
     # Chain
     rag_chain = (
             {"context": retriever | format_docs, "question": RunnablePassthrough()}
@@ -63,8 +63,8 @@ if __name__ == '__main__':
     )
 
     # Question
-    response = rag_chain.invoke("Какие есть кредиты для физических лиц?")
-    # response = rag_chain.invoke("Какие есть депозиты для физических лиц?")
+    # response = rag_chain.invoke("Какие есть кредиты для физических лиц?")
+    # response = rag_chain.invoke("безотзывный депозит в белорусских рублях сохраняй, какие ставки?")
     # response = rag_chain.invoke("Какие есть карты для физических лиц?")
     # response = rag_chain.invoke("Сравни кредиты")
     # response = rag_chain.invoke("Сравни депозиты")
@@ -78,6 +78,6 @@ if __name__ == '__main__':
     # response = rag_chain.invoke("Подбери мне депозит")
     # response = rag_chain.invoke("Подбери мне карту")
     # response = rag_chain.invoke("Подбери мне страховку")
-    # response = rag_chain.invoke("Собираюсь в отпуск в Турцию. Подбери мне страховку.")
+    response = rag_chain.invoke("Собираюсь в отпуск в Турцию. Подбери мне страховку.")
 
     logger.info(f"response: {response}")
