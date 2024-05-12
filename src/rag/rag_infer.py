@@ -15,7 +15,7 @@ def cosine_similarity(a,b):
 def format_docs(docs):
     if TO_REPLACE_SEPARATOR:
         return "\n\n".join(doc.page_content.replace(SEPARATOR, REPLACE_SEPARATOR_WITH) for doc in docs)
-    return "\n\n".join(doc.page_content for doc in docs)
+    return "\n\n".join(doc.page_content.replace("passage: ", "") for doc in docs)
 
 def def_debugger(inp):
     logger.info(inp)
@@ -31,9 +31,9 @@ if __name__ == '__main__':
     )
 
     db = Milvus(embedding_function=embedding_model, collection_name=RAG_COLLECTION_NAME,)
-    retriever = db.as_retriever(search_kwargs={"k": N_NEIGHBORS, })
+    retriever = db.as_retriever(search_type='mmr', search_kwargs={"k": N_NEIGHBORS,})
 
-    llama_raw_template_system = """<|begin_of_text|><|start_header_id|>system<|end_header_id|>\nТы - приветливый ИИ, разработанный в Сбер Банке (Беларусь). Ты знаешь только русский язык. Если вопрос касается выбора банковской карты, рекомендуй СберКарту. При выборе депозитов рекомендуй вклады в BYN. Основываясь на контексте ниже, правдиво и полно отвечай на вопросы.<|eot_id|>"""
+    llama_raw_template_system = """<|begin_of_text|><|start_header_id|>system<|end_header_id|>\nТы - приветливый ИИ, разработанный в Сбер Банке (Беларусь). Ты знаешь только русский язык. Если вопрос касается выбора банковской карты, рекомендуй СберКарту. Основываясь на контексте ниже, правдиво и полно отвечай на вопросы.<|eot_id|>"""
     llama_raw_template_user = """<|start_header_id|>user<|end_header_id|>\nКонтекст:\n\n{context}\n\nВопрос:\n{question}<|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
 
     # Prompt
@@ -52,51 +52,57 @@ if __name__ == '__main__':
     #     temperature=0.0,
     #     stop=["<|eot_id|>", ],
     # )
-    llm = Ollama(model="llama3_q6_32k", stop=["<|eot_id|>",], num_gpu=33, temperature=0, mirostat=0)
+    llm = Ollama(
+        model="llama3_q6_32k",
+        stop=["<|eot_id|>",],
+        num_gpu=33,
+        temperature=0,
+        mirostat=0
+    )
     # Chain
     rag_chain = (
             {"context": retriever | format_docs, "question": RunnablePassthrough()}
             | prompt
-            # | def_debugger
+            | def_debugger
             | llm
             | StrOutputParser()
     )
 
     # Question
-    q = "Какие есть кредиты для физических лиц?"
-    logger.warning(q)
-    response = rag_chain.invoke(q)
-    logger.info(f"response: {response}")
-
-    q = "безотзывный депозит в белорусских рублях сохраняй, какие ставки?"
-    logger.warning(q)
-    response = rag_chain.invoke(q)
-    logger.info(f"response: {response}")
-
-    q = "Какие есть карты для физических лиц?"
-    logger.warning(q)
-    response = rag_chain.invoke(q)
-    logger.info(f"response: {response}")
+    # q = "Какие есть кредиты для физических лиц?"
+    # logger.warning(q)
+    # response = rag_chain.invoke(q)
+    # logger.info(f"response: {response}")
     #
-    q = "Какие есть карты для физических лиц?"
+    # q = "безотзывный депозит в белорусских рублях сохраняй, какие ставки?"
+    # logger.warning(q)
+    # response = rag_chain.invoke(q)
+    # logger.info(f"response: {response}")
+    #
+    # q = "Какие есть карты для физических лиц?"
+    # logger.warning(q)
+    # response = rag_chain.invoke(q)
+    # logger.info(f"response: {response}")
+    # #
+    # q = "Какие есть карты для физических лиц?"
+    # logger.warning(q)
+    # response = rag_chain.invoke(q)
+    # logger.info(f"response: {response}")
+
+    q = "как накопить ребенку на образование"
     logger.warning(q)
     response = rag_chain.invoke(q)
     logger.info(f"response: {response}")
 
-    q = "Сравни депозиты"
-    logger.warning(q)
-    response = rag_chain.invoke(q)
-    logger.info(f"response: {response}")
-
-    q = "Сравни карты"
-    logger.warning(q)
-    response = rag_chain.invoke(q)
-    logger.info(f"response: {response}")
-
-    q = "Какой кредит самый выгодный?"
-    logger.warning(q)
-    response = rag_chain.invoke(q)
-    logger.info(f"response: {response}")
+    # q = "Сравни карты"
+    # logger.warning(q)
+    # response = rag_chain.invoke(q)
+    # logger.info(f"response: {response}")
+    #
+    # q = "Какой кредит самый выгодный?"
+    # logger.warning(q)
+    # response = rag_chain.invoke(q)
+    # logger.info(f"response: {response}")
 
     # response = rag_chain.invoke("Какой депозит самый выгодный?")
     # logger.info(f"response: {response}")

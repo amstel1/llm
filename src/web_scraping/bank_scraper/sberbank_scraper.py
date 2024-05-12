@@ -9,7 +9,7 @@ import asyncio
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 import scrapy
-
+import pandas as pd
 
 def get_navigable_strings(element: Any) -> Iterator[str]:
     """Get all navigable strings from a BeautifulSoup element.
@@ -148,7 +148,7 @@ class CustomBeautifulSoupTransformer(BeautifulSoupTransformer):
                 # To avoid duplicate text, remove all descendants from the soup.
                 element.decompose()
 
-        return separator.join([x.strip() for x in text_parts if len(x.strip()) >= 2])  # из-за А1
+        return separator.join([x.strip() for x in text_parts if len(x.strip()) >= 1])  # из-за А1
 
 
 class MultiAsyncChromiumLoader(AsyncChromiumLoader):
@@ -202,11 +202,11 @@ def parse_sberbank_docs(docs: List[Document], ) -> List[str]:
     transformer = CustomBeautifulSoupTransformer()
     docs_transformed = transformer.transform_documents(
         docs,
-        tags_to_extract=["a", "p", "h1", 'h2', 'h3', 'h4', 'h5', "li", "div",],
-        unwanted_tags=["script", "style","button",],
+        tags_to_extract=["a", "p", "h1", 'h2', 'h3', 'h4', 'h5', "li", "div", "span"],
+        unwanted_tags=["script", "style", "button", "input"],
         unwanted_class_names_like=[
             "Footer", "Prefooter", "TopMenu", "CookiesMessageBlock", "IconDescription", "BPSsiteSberPrimeForm",
-            "VotesBlock", "DownloadFileWithTitle",
+            "VotesBlock", "DownloadFileWithTitle", "DepositCalculator", "SelectorDropDown"
         ],
         remove_lines=False,
         separator=" | ",
@@ -262,20 +262,27 @@ def preprocess(fpath) -> List[str]:
 
 if __name__ == '__main__':
     logger.info('started')
-    urls = preprocess(fpath='/home/amstel/llm/src/web_scraping/bank_scraper/tree.pkl')
+
+    df = pd.read_excel('cre.xlsx')
+    urls = df['aux'].values.tolist()
+
+    # urls = preprocess(fpath='/home/amstel/llm/src/web_scraping/bank_scraper/tree.pkl')
+
     urls = sorted(urls)#[:4]
+
     # urls = [
     #     'https://www.sber-bank.by/page/oferta'
     # ]
-
+    # urls = ['https://www.sber-bank.by/deposit/adulthood-local/BYN/attributes']
     project_settings = get_project_settings()
     logger.info(project_settings)
     process = CrawlerProcess(project_settings)
 
     documents = crawl_static(CustomSpider, urls)
     transformed_docs = parse_sberbank_docs(docs=documents)
+    # logger.info(transformed_docs)
 
-    with open('docs_final.pkl', 'wb') as f:
+    with open('docs_deposits_10052024.pkl', 'wb') as f:
         pickle.dump(transformed_docs, f)
 
     # for doc in transformed_docs:

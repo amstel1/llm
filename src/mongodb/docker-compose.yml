@@ -1,5 +1,5 @@
 # docker-compose -f ./docker-compose up -d mongodb-docker
-version: '3.3'
+version: '3.8'
 
 # Usage:
 #   docker stack deploy -c stack.yml mongo
@@ -10,16 +10,17 @@ services:
 
   mongo:
     image: mongo
-    restart: always
     container_name: mongo-docker
+    restart: always
     environment:
       MONGO_INITDB_ROOT_USERNAME: mongoadmin
       MONGO_INITDB_ROOT_PASSWORD: mongoadmin
-      #MONGODB_AUTH_DATABASE: admin
+      MONGO_INITDB_DATABASE: scraped_data
     ports:
       - "27017:27017"
     volumes:
       - ./workspace:/workspace
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
       - type: volume
         source: mongodb_data_volume
         target: /data/db

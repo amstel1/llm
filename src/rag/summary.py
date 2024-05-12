@@ -101,21 +101,25 @@ if __name__ == '__main__':
     # Initialize the LLM
     llm = Ollama(model="llama3_q6_32k", stop=["<|eot_id|>"], num_gpu=-1, num_thread=-1, temperature=0, mirostat=0)
 
-    # Define the templates
-    llama_raw_template_system = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>Ты наилучшим образом делаешь то что тебе говорят.<|eot_id|>"
-    llama_raw_template_user = "<|start_header_id|>user<|end_header_id|>\nКонтекст:\n\n{context}\n\nВопрос:\n{question}<|eot_id|><|start_header_id|>assistant<|end_header_id|>"
-
-    # Create the formatting prompt
-    formatting_prompt = PromptTemplate.from_template(template=llama_raw_template_system + llama_raw_template_user)
-
-    # Define the formatting chain
-    formatting_chain = formatting_prompt | llm | StrOutputParser()
 
     # Define the summarization template and prompt
-    summarize_template = "<|begin_of_text|><|start_header_id|>user<|end_header_id|>Описание:\n{input}\n\nИз описания выше извлеки название банковского продукта, о котором идет речь. Обычно название указывается в начале описания. Перечисли его ключевые условия, например: место открытия, отзывность, валюта, ставка, срок, сумма, процент. Используй ТОЛЬКО русский язык. Ответь предложением без преамбулы. <|eot_id|><|start_header_id|>assistant<|end_header_id|>"
-    summarization_prompt = PromptTemplate.from_template(template=summarize_template)
+    formatting_template = ("<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n"
+                          # "You are tasked with compessing the content from the user. This informtaion will later be used to judge if the content is worthy and viable. You must make it readable and coherent. Save the full extent of the details. You can omit useless information.<|eot_id|>"
+                          " Ты знаешь только русский язык. Ты эксперт в структурировании и суммаризации информации. Ты отлично распознаешь паттерны, крайне внимателен к деталям и великолепен в выделении главного. В суждениях ты всегда опираешься на предоставленную информацию.<|eot_id|>"             
+                          "<|start_header_id|>user<|end_header_id|>\n"
+                          # "below is a description of a bank product."
+                          # " extract key features including but not limited to: full name, currency, percentage rate, term, where to open, if it can be recalled."
+                          # " if possible the resut must contain all possible combinations of currency, term, rate. используй только русский язык."
+                          " Ниже - описание банковского продукта."
+                          " Извлеки из него ключевые характеристики включая, но не ограничиваясь: название, валюта, ставка процента, срок, где открыть, отзывный / безотзывный."
+                          " Если возможно результат должен содержать все возможные комбинации валюты, срока, ставки. Результат должен быть не длинее 1000 символов. Используй только русский язык."
+                          "\n\n описание:\n{input}<|eot_id|><|start_header_id|>assistant<|end_header_id|>")
+    formatting_prompt = PromptTemplate.from_template(template=formatting_template)
 
     # Define summarization chain, ensuring input is formatted as expected
+    formatting_chain = formatting_prompt | llm | StrOutputParser()
+    summarize_template = "<|begin_of_text|><|start_header_id|>user<|end_header_id|>Описание:\n{input}\n\nИз описания выше извлеки краткое название банковского продукта, о котором идет речь. Используй исключительно русский язык. Верни только само название продукта и ничего кроме.<|eot_id|><|start_header_id|>assistant<|end_header_id|>"
+    summarization_prompt = PromptTemplate.from_template(template=summarize_template)
     summarization_chain = {"input": lambda x: {"input": x}} | summarization_prompt | llm | StrOutputParser()
 
     combined_chain = RunnableParallel({
@@ -130,17 +134,19 @@ if __name__ == '__main__':
         # filtered = [doc for doc in docs if doc.metadata.get('source') == source_link]
         # content = filtered[0].page_content
         assert len(content) > 10
+        # logger.info(content)
         r = combined_chain.invoke({
-            "question": "Сделай данные выше более структурированными, соедини релевантные параграфы вместе. Результат должен быть кратким, содержать название и ключевые параметры / условия продукта, например: валюта, ставка, срок, сумма, процент. Ты можешь только менять форматирование документа. Используй русский язык.",
-            "context": content,
+            # "question": "Сделай данные выше более структурированными, соедини релевантные параграфы вместе. Результат должен быть кратким, содержать название и ключевые параметры / условия продукта, например: валюта, ставка, срок, сумма, процент. Ты можешь только менять форматирование документа. Используй русский язык.",
+            "input": content,
         })
         results[source_link] = r
         logger.info(f"{i}, {source_link}")
-        # logger.warning(r)
-        print(r.get('formatted'))
-        print()
-        print(r.get('summarized'))
+        logger.warning(r)
+        # print(r.get('formatted'))
+        # print()
+        # print(r.get('summarized'))
         print('=========')
 
-    with open('rag_w_summary_results_deposits.pkl', 'wb') as f:
+
+    with open('rag_w_summary_results_deposits2.pkl', 'wb') as f:
         pickle.dump(results, f)
