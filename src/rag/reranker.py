@@ -5,6 +5,8 @@ from langchain_experimental.llms.ollama_functions import OllamaFunctions
 from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_core.runnables import RunnableLambda
 from loguru import logger
+from langchain.retrievers.document_compressors import FlashrankRerank
+
 def decouple(d: dict):
     logger.warning(d)
     return d

@@ -6,9 +6,12 @@ from langchain_core.prompts import PromptTemplate
 from langchain_community.llms import LlamaCpp
 from langchain_community.vectorstores import Milvus
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from rag_config import N_NEIGHBORS, SEPARATOR, TO_REPLACE_SEPARATOR, REPLACE_SEPARATOR_WITH, RAG_COLLECTION_NAME, EMBEDDING_MODEL_NAME
+from rag_config import N_NEIGHBORS, SEPARATOR, TO_REPLACE_SEPARATOR, REPLACE_SEPARATOR_WITH, EMBEDDING_MODEL_NAME, N_RERANK_RESULTS, USE_RERANKER, RERANKING_MODEL
 from langchain_community.llms import Ollama
 from langchain.utils.math import cosine_similarity
+from langchain.retrievers import ContextualCompressionRetriever
+from langchain.retrievers.document_compressors import FlashrankRerank
+
 
 # def cosine_similarity(a,b):
 #     return np.dot(a,b)/(np.linalg.norm(a)*np.linalg.norm(b))
@@ -45,6 +48,18 @@ def retriever_router(input: str):
 
     db = Milvus(embedding_function=embedding_model, collection_name=chosen_rag_collection, )
     retriever = db.as_retriever(search_type='mmr', search_kwargs={"k": N_NEIGHBORS, })
+
+    if USE_RERANKER:
+        # DEFAULT:  ms-marco-MultiBERT-L-12 - лучшая
+        # ce-esci-MiniLM-L12-v2 - плоховато
+        # ms-marco-MiniLM-L-12-v2 -- дерьмо какое то
+        # rank-T5-flan - kind of okay
+        # try: doc2query/msmarco-russian-mt5-base-v1 - весит 2+ gb
+        compressor = FlashrankRerank(top_n=N_RERANK_RESULTS, model=RERANKING_MODEL)  # doc2query/msmarco-russian-mt5-base-v1
+        compression_retriever = ContextualCompressionRetriever(
+            base_compressor=compressor, base_retriever=retriever
+        )
+        return compression_retriever
     return retriever
 
 if __name__ == '__main__':
@@ -87,66 +102,66 @@ if __name__ == '__main__':
     rag_chain = (
             {"context": retriever | format_docs, "question": RunnablePassthrough()}
             | prompt
-            | def_debugger
+            # | def_debugger
             | llm
             | StrOutputParser()
     )
 
     # Question
-    q = "Какие есть кредиты для физических лиц?"
-    logger.warning(q)
-    response = rag_chain.invoke(q)
-    logger.info(f"response: {response}")
-
-    q = "безотзывный депозит в белорусских рублях сохраняй, какие ставки?"
-    logger.warning(q)
-    response = rag_chain.invoke(q)
-    logger.info(f"response: {response}")
-
-    q = "Какие есть карты для физических лиц?"
-    logger.warning(q)
-    response = rag_chain.invoke(q)
-    logger.info(f"response: {response}")
-
-    q = "Какие есть карты для физических лиц?"
-    logger.warning(q)
-    response = rag_chain.invoke(q)
-    logger.info(f"response: {response}")
-
-    q = "как накопить ребенку на образование"
-    logger.warning(q)
-    response = rag_chain.invoke(q)
-    logger.info(f"response: {response}")
-
-    q = "Сравни карты"
-    logger.warning(q)
-    response = rag_chain.invoke(q)
-    logger.info(f"response: {response}")
+    # q = "Какие есть кредиты для физических лиц?"
+    # logger.warning(q)
+    # response = rag_chain.invoke(q)
+    # logger.info(f"response: {response}")
     #
-    q = "Какой кредит самый выгодный?"
-    logger.warning(q)
-    response = rag_chain.invoke(q)
-    logger.info(f"response: {response}")
-
-    response = rag_chain.invoke("Какой депозит самый выгодный?")
-    logger.info(f"response: {response}")
+    # q = "безотзывный депозит в белорусских рублях сохраняй, какие ставки?"
+    # logger.warning(q)
+    # response = rag_chain.invoke(q)
+    # logger.info(f"response: {response}")
+    #
+    # q = "Какие есть карты для физических лиц?"
+    # logger.warning(q)
+    # response = rag_chain.invoke(q)
+    # logger.info(f"response: {response}")
+    #
+    # q = "Какие есть карты для физических лиц?"
+    # logger.warning(q)
+    # response = rag_chain.invoke(q)
+    # logger.info(f"response: {response}")
+    #
+    # q = "как накопить ребенку на образование"
+    # logger.warning(q)
+    # response = rag_chain.invoke(q)
+    # logger.info(f"response: {response}")
+    #
+    # q = "Сравни карты"
+    # logger.warning(q)
+    # response = rag_chain.invoke(q)
+    # logger.info(f"response: {response}")
+    # #
+    # q = "Какой кредит самый выгодный?"
+    # logger.warning(q)
+    # response = rag_chain.invoke(q)
+    # logger.info(f"response: {response}")
+    #
+    # response = rag_chain.invoke("Какой депозит самый выгодный?")
+    # logger.info(f"response: {response}")
 
     response = rag_chain.invoke("Какая карта самая выгодная?")
     logger.info(f"response: {response}")
 
     #
-    response = rag_chain.invoke("Подбери мне кредит")
-    logger.info(f"response: {response}")
-
-    response = rag_chain.invoke("Подбери мне депозит")
-    logger.info(f"response: {response}")
-
-    response = rag_chain.invoke("Подбери мне карту")
-    logger.info(f"response: {response}")
-
-    response = rag_chain.invoke("Подбери мне страховку")
-    logger.info(f"response: {response}")
-
-    response = rag_chain.invoke("Собираюсь в отпуск в Турцию. Подбери мне страховку.")
-    logger.info(f"response: {response}")
+    # response = rag_chain.invoke("Подбери мне кредит")
+    # logger.info(f"response: {response}")
+    #
+    # response = rag_chain.invoke("Подбери мне депозит")
+    # logger.info(f"response: {response}")
+    #
+    # response = rag_chain.invoke("Подбери мне карту")
+    # logger.info(f"response: {response}")
+    #
+    # response = rag_chain.invoke("Подбери мне страховку")
+    # logger.info(f"response: {response}")
+    #
+    # response = rag_chain.invoke("Собираюсь в отпуск в Турцию. Подбери мне страховку.")
+    # logger.info(f"response: {response}")
 
