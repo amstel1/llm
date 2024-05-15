@@ -1,4 +1,4 @@
-# todo: implemetnt vector search
+# Забираем распарсенный документ (плохо структурирован), получаем саммари
 import pickle
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Milvus

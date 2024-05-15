@@ -1,16 +1,17 @@
 import numpy as np
 from loguru import logger
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough
+from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_core.prompts import PromptTemplate
 from langchain_community.llms import LlamaCpp
 from langchain_community.vectorstores import Milvus
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from rag_config import N_NEIGHBORS, SEPARATOR, TO_REPLACE_SEPARATOR, REPLACE_SEPARATOR_WITH, RAG_COLLECTION_NAME, EMBEDDING_MODEL_NAME
 from langchain_community.llms import Ollama
+from langchain.utils.math import cosine_similarity
 
-def cosine_similarity(a,b):
-    return np.dot(a,b)/(np.linalg.norm(a)*np.linalg.norm(b))
+# def cosine_similarity(a,b):
+#     return np.dot(a,b)/(np.linalg.norm(a)*np.linalg.norm(b))
 
 def format_docs(docs):
     if TO_REPLACE_SEPARATOR:
@@ -21,6 +22,30 @@ def def_debugger(inp):
     logger.info(inp)
     return inp
 
+def retriever_router(input: str):
+    # input: str
+    logger.debug(input)
+    options = [
+        "кредит овердрафт рефинансирование долг",
+        "депозит вклад сбережения накопления pay",
+        "карта платежная дебетовая манэбэк money-back кэшбэк cash-back",
+        "страховки подписка cберпрайм sberprime сбол банковские продукты услуги условия обслуживания",
+    ]
+    rag_collections = [
+        'credits_400_0',
+        'deposits_400_0',
+        'cards_400_0',
+        'other_400_0',
+    ]
+    prompt_embeddings = embedding_model.embed_documents(options)
+    query_embedding = embedding_model.embed_query(input.lower())
+    similarity = cosine_similarity([query_embedding], prompt_embeddings)[0]
+    logger.info(f'similarities: {similarity}')
+    chosen_rag_collection = rag_collections[similarity.argmax()]
+
+    db = Milvus(embedding_function=embedding_model, collection_name=chosen_rag_collection, )
+    retriever = db.as_retriever(search_type='mmr', search_kwargs={"k": N_NEIGHBORS, })
+    return retriever
 
 if __name__ == '__main__':
 
@@ -30,10 +55,9 @@ if __name__ == '__main__':
         encode_kwargs={'normalize_embeddings': True}
     )
 
-    db = Milvus(embedding_function=embedding_model, collection_name=RAG_COLLECTION_NAME,)
-    retriever = db.as_retriever(search_type='mmr', search_kwargs={"k": N_NEIGHBORS,})
+    retriever = RunnableLambda(retriever_router)
 
-    llama_raw_template_system = """<|begin_of_text|><|start_header_id|>system<|end_header_id|>\nТы - приветливый ИИ, разработанный в Сбер Банке (Беларусь). Ты знаешь только русский язык. Если вопрос касается выбора банковской карты, рекомендуй СберКарту. Основываясь на контексте ниже, правдиво и полно отвечай на вопросы.<|eot_id|>"""
+    llama_raw_template_system = """<|begin_of_text|><|start_header_id|>system<|end_header_id|>\nТы - приветливый ИИ, разработанный в Сбер Банке (Беларусь). Ты знаешь только русский язык. Основываясь на контексте ниже, правдиво и полно отвечай на вопросы.<|eot_id|>"""
     llama_raw_template_user = """<|start_header_id|>user<|end_header_id|>\nКонтекст:\n\n{context}\n\nВопрос:\n{question}<|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
 
     # Prompt
@@ -69,60 +93,60 @@ if __name__ == '__main__':
     )
 
     # Question
-    # q = "Какие есть кредиты для физических лиц?"
-    # logger.warning(q)
-    # response = rag_chain.invoke(q)
-    # logger.info(f"response: {response}")
-    #
-    # q = "безотзывный депозит в белорусских рублях сохраняй, какие ставки?"
-    # logger.warning(q)
-    # response = rag_chain.invoke(q)
-    # logger.info(f"response: {response}")
-    #
-    # q = "Какие есть карты для физических лиц?"
-    # logger.warning(q)
-    # response = rag_chain.invoke(q)
-    # logger.info(f"response: {response}")
-    # #
-    # q = "Какие есть карты для физических лиц?"
-    # logger.warning(q)
-    # response = rag_chain.invoke(q)
-    # logger.info(f"response: {response}")
+    q = "Какие есть кредиты для физических лиц?"
+    logger.warning(q)
+    response = rag_chain.invoke(q)
+    logger.info(f"response: {response}")
+
+    q = "безотзывный депозит в белорусских рублях сохраняй, какие ставки?"
+    logger.warning(q)
+    response = rag_chain.invoke(q)
+    logger.info(f"response: {response}")
+
+    q = "Какие есть карты для физических лиц?"
+    logger.warning(q)
+    response = rag_chain.invoke(q)
+    logger.info(f"response: {response}")
+
+    q = "Какие есть карты для физических лиц?"
+    logger.warning(q)
+    response = rag_chain.invoke(q)
+    logger.info(f"response: {response}")
 
     q = "как накопить ребенку на образование"
     logger.warning(q)
     response = rag_chain.invoke(q)
     logger.info(f"response: {response}")
 
-    # q = "Сравни карты"
-    # logger.warning(q)
-    # response = rag_chain.invoke(q)
-    # logger.info(f"response: {response}")
+    q = "Сравни карты"
+    logger.warning(q)
+    response = rag_chain.invoke(q)
+    logger.info(f"response: {response}")
     #
-    # q = "Какой кредит самый выгодный?"
-    # logger.warning(q)
-    # response = rag_chain.invoke(q)
-    # logger.info(f"response: {response}")
+    q = "Какой кредит самый выгодный?"
+    logger.warning(q)
+    response = rag_chain.invoke(q)
+    logger.info(f"response: {response}")
 
-    # response = rag_chain.invoke("Какой депозит самый выгодный?")
-    # logger.info(f"response: {response}")
+    response = rag_chain.invoke("Какой депозит самый выгодный?")
+    logger.info(f"response: {response}")
+
+    response = rag_chain.invoke("Какая карта самая выгодная?")
+    logger.info(f"response: {response}")
+
     #
-    # response = rag_chain.invoke("Какая карта самая выгодная?")
-    # logger.info(f"response: {response}")
-    #
-    # #
-    # response = rag_chain.invoke("Подбери мне кредит")
-    # logger.info(f"response: {response}")
-    #
-    # response = rag_chain.invoke("Подбери мне депозит")
-    # logger.info(f"response: {response}")
-    #
-    # response = rag_chain.invoke("Подбери мне карту")
-    # logger.info(f"response: {response}")
-    #
-    # response = rag_chain.invoke("Подбери мне страховку")
-    # logger.info(f"response: {response}")
-    #
-    # response = rag_chain.invoke("Собираюсь в отпуск в Турцию. Подбери мне страховку.")
-    # logger.info(f"response: {response}")
+    response = rag_chain.invoke("Подбери мне кредит")
+    logger.info(f"response: {response}")
+
+    response = rag_chain.invoke("Подбери мне депозит")
+    logger.info(f"response: {response}")
+
+    response = rag_chain.invoke("Подбери мне карту")
+    logger.info(f"response: {response}")
+
+    response = rag_chain.invoke("Подбери мне страховку")
+    logger.info(f"response: {response}")
+
+    response = rag_chain.invoke("Собираюсь в отпуск в Турцию. Подбери мне страховку.")
+    logger.info(f"response: {response}")
 

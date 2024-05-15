@@ -263,7 +263,7 @@ def preprocess(fpath) -> List[str]:
 if __name__ == '__main__':
     logger.info('started')
 
-    df = pd.read_excel('cre.xlsx')
+    df = pd.read_excel('all.xlsx')
     urls = df['aux'].values.tolist()
 
     # urls = preprocess(fpath='/home/amstel/llm/src/web_scraping/bank_scraper/tree.pkl')
@@ -282,7 +282,7 @@ if __name__ == '__main__':
     transformed_docs = parse_sberbank_docs(docs=documents)
     # logger.info(transformed_docs)
 
-    with open('docs_deposits_10052024.pkl', 'wb') as f:
+    with open('docs_all_12052024.pkl', 'wb') as f:
         pickle.dump(transformed_docs, f)
 
     # for doc in transformed_docs:

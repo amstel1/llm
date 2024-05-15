@@ -73,10 +73,10 @@ def process(slug='credit'):
 
 
 if __name__ == '__main__':
-    with open('/home/amstel/llm/src/web_scraping/bank_scraper/docs_deposits_10052024.pkl', 'rb') as f:
+    with open('/home/amstel/llm/src/web_scraping/bank_scraper/docs_all_12052024.pkl', 'rb') as f:
         docs = pickle.load(f)
 
-    df = pd.read_excel('/home/amstel/llm/src/web_scraping/bank_scraper/cre.xlsx')
+    df = pd.read_excel('/home/amstel/llm/src/web_scraping/bank_scraper/all.xlsx')
 
     agg = df.groupby('main')['aux'].apply(lambda x: list(x))
 
@@ -107,18 +107,21 @@ if __name__ == '__main__':
                           # "You are tasked with compessing the content from the user. This informtaion will later be used to judge if the content is worthy and viable. You must make it readable and coherent. Save the full extent of the details. You can omit useless information.<|eot_id|>"
                           " Ты знаешь только русский язык. Ты эксперт в структурировании и суммаризации информации. Ты отлично распознаешь паттерны, крайне внимателен к деталям и великолепен в выделении главного. В суждениях ты всегда опираешься на предоставленную информацию.<|eot_id|>"             
                           "<|start_header_id|>user<|end_header_id|>\n"
+                          "Описание:\n{input}\n\n"
                           # "below is a description of a bank product."
                           # " extract key features including but not limited to: full name, currency, percentage rate, term, where to open, if it can be recalled."
                           # " if possible the resut must contain all possible combinations of currency, term, rate. используй только русский язык."
-                          " Ниже - описание банковского продукта."
-                          " Извлеки из него ключевые характеристики включая, но не ограничиваясь: название, валюта, ставка процента, срок, где открыть, отзывный / безотзывный."
-                          " Если возможно результат должен содержать все возможные комбинации валюты, срока, ставки. Результат должен быть не длинее 1000 символов. Используй только русский язык."
-                          "\n\n описание:\n{input}<|eot_id|><|start_header_id|>assistant<|end_header_id|>")
+                          " Выше - описание банковского продукта."
+                          " Извлеки из него ключевые характеристики. "
+                          # "включая, но не ограничиваясь: точное название, валюта, ставка процента, срок, где открыть, отзывный / безотзывный."
+                          # " Если возможно, результат должен содержать все возможные комбинации валюты, срока, ставки."
+                          " Результат должен быть кратким. Используй только русский язык."
+                          "<|eot_id|><|start_header_id|>assistant<|end_header_id|>")
     formatting_prompt = PromptTemplate.from_template(template=formatting_template)
 
     # Define summarization chain, ensuring input is formatted as expected
     formatting_chain = formatting_prompt | llm | StrOutputParser()
-    summarize_template = "<|begin_of_text|><|start_header_id|>user<|end_header_id|>Описание:\n{input}\n\nИз описания выше извлеки краткое название банковского продукта, о котором идет речь. Используй исключительно русский язык. Верни только само название продукта и ничего кроме.<|eot_id|><|start_header_id|>assistant<|end_header_id|>"
+    summarize_template = "<|begin_of_text|><|start_header_id|>user<|end_header_id|>Описание:\n{input}\n\nИз описания выше извлеки название банковского продукта, о котором идет речь. Используй русский язык. Верни только само название продукта и ничего кроме.<|eot_id|><|start_header_id|>assistant<|end_header_id|>"
     summarization_prompt = PromptTemplate.from_template(template=summarize_template)
     summarization_chain = {"input": lambda x: {"input": x}} | summarization_prompt | llm | StrOutputParser()
 
@@ -147,6 +150,5 @@ if __name__ == '__main__':
         # print(r.get('summarized'))
         print('=========')
 
-
-    with open('rag_w_summary_results_deposits2.pkl', 'wb') as f:
+    with open('rag_w_summary_results_all.pkl', 'wb') as f:
         pickle.dump(results, f)

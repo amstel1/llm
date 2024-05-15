@@ -13,7 +13,7 @@ from custom_splitter import MarkdownTextSplitter
 if __name__ == '__main__':
     # with open('/home/amstel/llm/src/web_scraping/bank_scraper/docs_final.pkl', 'rb') as f:
     #     docs = pickle.load(f)
-    with open('rag_w_summary_results_deposits2.pkl', 'rb') as f:
+    with open('rag_w_summary_results_other.pkl', 'rb') as f:
         results = pickle.load(f)
 
 
