@@ -2,7 +2,7 @@ import sys
 sys.path.append('/home/amstel/llm/src')
 import pandas as pd
 import pickle
-from postgres.postgres_utils import insert_data
+from postgres.utils import insert_data  # todo: refactor
 from loguru import logger
 
 
@@ -73,6 +73,7 @@ if __name__ == '__main__':
     df = pd.DataFrame(products)
     df = washing_mashine_preprocess(df)
     # print(df.head())
+    # todo: refactor
     insert_data(
         df,
         schema_name='scraped_data',

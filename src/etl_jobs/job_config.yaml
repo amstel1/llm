@@ -1,0 +1,24 @@
+jobs:
+  - name: "Text to Uppercase Console"
+    reader:
+      type: "TextFileRead"
+      params:
+        file_path: "input.txt"
+    processor:
+      type: "UppercaseDo"
+    writer:
+      type: "PrintWrite"
+
+  - name: "Pickle Dict Filter to Text"
+    reader:
+      type: "PickleDictRead"
+      params:
+        file_path: "input.pkl"
+    processor:
+      type: "FilterDo"
+      params:
+        predicate: "lambda x: len(x) > 3"
+    writer:
+      type: "TextFileWrite"
+      params:
+        file_path: "output.txt"

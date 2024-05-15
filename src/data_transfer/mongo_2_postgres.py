@@ -1,7 +1,7 @@
 import sys
 sys.path.append('/home/amstel/llm/src')
 from mongodb.mongo_utils import MongoConnector
-from postgres.postgres_utils import insert_data
+from postgres.utils import insert_data # todo: refactor
 import pandas as pd
 from datetime import datetime
 from loguru import logger
@@ -31,6 +31,7 @@ if __name__ == '__main__':
     product_details_df['inserted_datetime'] = datetime.now()
 
     # insert to postgres
+    # todo: refactor
     insert_data(
         product_details_df,
         schema_name='scraped_data',

@@ -17,3 +17,15 @@ CREATE TABLE IF NOT EXISTS scraped_data.product_item_list
     product_position integer,
     scraped_datetime TIMESTAMP
 )
+
+create view scraped_data.washing_machine (
+  "brand" text, -- название производителя
+  "rating_value" real, -- рейтинг товара
+  "rating_count" real, -- количество оценок
+  "review_count" real, -- количество отзывов
+  "name" text, -- название товара
+  "price" real, -- цена, руб.
+  "max_load" real, -- максимальная загрузка, кг.
+  "depth" real, -- глубина, см.
+  "drying" text -- есть ли сушка, Да/Нет
+)

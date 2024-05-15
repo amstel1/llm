@@ -1,13 +1,15 @@
 # todo: ? save html bodies to mongo
+import sys
+sys.path.append('/home/amstel/llm/src')
 IS_HEADLESS = True
 BROWSER_SELECT = 'firefox'
 import os
 
-import sys
-sys.path.append('/home/amstel/llm')
+# import sys
+# sys.path.append('/home/amstel/llm')
 import asyncio
 import concurrent.futures
-import pickle
+
 import re
 import bs4
 from playwright.sync_api import sync_playwright
@@ -16,16 +18,15 @@ from loguru import logger
 from typing import Dict, List, Callable, Any
 from bs4 import BeautifulSoup
 import extruct
-from src.postgres.postgres_utils import select_data
+# from src.postgres.utils import select_data  # todo: refactor
 import rapidfuzz
 import concurrent.futures as pool
 Url = str
 import random
 import numpy as np50
-import sys
-sys.path.append('/home/amstel/llm/src')
+
 from mongodb.mongo_utils import MongoConnector
-from postgres.postgres_utils import insert_data
+# from postgres.utils import insert_data  # todo: refactor
 import pandas as pd
 from datetime import datetime
 
@@ -358,14 +359,14 @@ if __name__ == '__main__':
     # 2. query postgres
     sql_from_table = ' scraped_data.product_item_list '
     where_clause = " product_position = 1 limit 70"
-    df = select_data(table=sql_from_table, where=where_clause)
+    df = select_data(table=sql_from_table, where=where_clause)  # todo: refactor
     assert df.shape[0] > 0
     # df = df.sample(frac=1.0)
     logger.debug(df.columns)
     product_names = df['product_name'].values.tolist()
 
     # 2.5 get attempts
-    attempts_df = select_data(table=' scraped_data.product_query_attempts ')
+    attempts_df = select_data(table=' scraped_data.product_query_attempts ')  # todo: refactor
     attempt_product_names = attempts_df['attempt_product_name'].values.tolist()
     # attempt_product_names = []
 
@@ -389,6 +390,7 @@ if __name__ == '__main__':
 
     attempts_df = pd.DataFrame(product_names_to_scrape, columns=['attempt_product_name'])
     attempts_df['attempt_datetime'] = datetime.now()
+    # todo: refactor
     insert_data(attempts_df, schema_name='scraped_data', table_name='product_query_attempts')
     logger.info(type(triplets))
     logger.info(type(data))
