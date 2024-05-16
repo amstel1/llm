@@ -9,9 +9,37 @@ class Read(ABC):
     """
 
     @abstractmethod
-    def read(self) -> Any:
+    def read(self, **kwargs) -> Any:
         """
         Implement this method to read data from the specific source.
+        """
+        pass
+
+class ChainedRead(ABC):
+    """
+    Abstract base class for chaining multiple readers together.
+    Each subclass should implement the `transform` method.
+    """
+
+    def __init__(self, readers: List[Read]):
+        """
+        Initialize the chained reader with a list of readers.
+        """
+        self.readers = readers
+
+    def read(self) -> Any:
+        """
+        Chain the read methods together and apply transformations.
+        """
+        data = []
+        for reader in self.readers:
+            data.append(reader.read())
+        self.data = data
+
+    @abstractmethod
+    def transform(self, data: List[Any]) -> Any:
+        """
+        Implement this method to transform or aggregate the data from the readers.
         """
         pass
 

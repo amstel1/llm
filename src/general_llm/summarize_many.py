@@ -3,7 +3,7 @@ FRAGMENT_LENGHT_LIMIT = 1500
 import sys
 sys.path.append('/home/amstel/llm')
 import pickle
-from src.mongodb.mongo_utils import MongoConnector
+from src.mongodb.utils import MongoConnector
 from loguru import logger
 from langchain_community.llms import LlamaCpp
 from langchain_core.prompts import ChatPromptTemplate, PromptTemplate
@@ -27,7 +27,7 @@ import json
 from typing import List
 import sys
 sys.path.append('/home/amstel/llm/src')
-from mongodb.mongo_utils import MongoConnector
+from mongodb.utils import MongoConnector
 from langchain_core.runnables import RunnableLambda, RunnablePassthrough
 from operator import itemgetter
 from langchain_core.messages import AIMessage, SystemMessage

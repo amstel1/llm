@@ -1,7 +1,7 @@
 
 import sys
 sys.path.append('/home/amstel/llm')
-from src.mongodb.mongo_utils import MongoConnector
+from src.mongodb.utils import MongoConnector
 import numpy as np
 from langchain_community.embeddings import LlamaCppEmbeddings
 from loguru import logger

@@ -15,7 +15,7 @@ from langchain_core.prompts import ChatPromptTemplate, PromptTemplate, ChatMessa
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
-from src.mongodb.mongo_utils import MongoConnector
+from src.mongodb.utils import MongoConnector
 
 
 mc = MongoConnector('read', 'scraped_data', 'product_reviews')

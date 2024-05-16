@@ -4,7 +4,7 @@ from langchain_core.embeddings import Embeddings
 from typing import List
 import sys
 sys.path.append('/home/amstel/llm')
-from src.mongodb.mongo_utils import MongoConnector
+from src.mongodb.utils import MongoConnector
 from datetime import datetime
 from langchain_community.embeddings import LlamaCppEmbeddings
 from loguru import logger

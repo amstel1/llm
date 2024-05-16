@@ -3,7 +3,7 @@ import pandas as pd
 import sys
 sys.path.append('/home/amstel/llm')
 sys.path.append('/home/amstel/llm/src')
-from src.mongodb.mongo_utils import MongoConnector
+from src.mongodb.utils import MongoConnector
 from abc import ABC
 from loguru import logger
 

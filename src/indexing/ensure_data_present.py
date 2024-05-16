@@ -2,7 +2,7 @@
 
 import sys
 sys.path.append('/home/amstel/llm')
-from src.mongodb.mongo_utils import MongoConnector
+from src.mongodb.utils import MongoConnector
 from pymilvus import MilvusClient
 from loguru import logger
 

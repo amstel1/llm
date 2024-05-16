@@ -1,6 +1,6 @@
 import sys
 sys.path.append('/home/amstel/llm/src')
-from mongodb.mongo_utils import MongoConnector
+from mongodb.utils import MongoConnector
 from postgres.utils import insert_data # todo: refactor
 import pandas as pd
 from datetime import datetime

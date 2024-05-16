@@ -18,7 +18,15 @@ CREATE TABLE IF NOT EXISTS scraped_data.product_item_list
     scraped_datetime TIMESTAMP
 )
 
-create view scraped_data.washing_machine (
+CREATE TABLE scraped_data.product_query_attempts
+(
+    attempt_product_name text,
+    attempt_datetime timestamp without time zone[]
+);
+
+/*
+-- todo: redo into view
+create table scraped_data.washing_machine (
   "brand" text, -- название производителя
   "rating_value" real, -- рейтинг товара
   "rating_count" real, -- количество оценок
@@ -29,3 +37,4 @@ create view scraped_data.washing_machine (
   "depth" real, -- глубина, см.
   "drying" text -- есть ли сушка, Да/Нет
 )
+*/

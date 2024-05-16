@@ -1,8 +1,8 @@
 # todo: ? save html bodies to mongo
 import sys
 sys.path.append('/home/amstel/llm/src')
-IS_HEADLESS = True
-BROWSER_SELECT = 'firefox'
+IS_HEADLESS = False
+BROWSER_SELECT = 'chromium'
 import os
 
 # import sys
@@ -23,30 +23,22 @@ import rapidfuzz
 import concurrent.futures as pool
 Url = str
 import random
-import numpy as np50
+import numpy as np
 
-from mongodb.mongo_utils import MongoConnector
+from mongodb.utils import MongoConnector
 # from postgres.utils import insert_data  # todo: refactor
 import pandas as pd
 from datetime import datetime
 
-# with open('desktop_user_agent.txt', 'r') as f:
-#     uas = f.readlines()
-# print(len(uas))
+
 uas = [
-    # 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    # 'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0',
-    # 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36',
-    # 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.106 Safari/537.36 OPR/38.0.2220.41',
-
-    'Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.0.0 Safari/537.36',
-    # 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    # 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.0.0 Safari/537.36',
-    # 'Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.0.0 Safari/537.36',
-    # 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/93.0.0.0 Safari/537.36',
-
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
 ]
-
+# curl -x 152.170.208.188:8080  http://example.com
+PROXIES = [
+    {"server": "152.170.208.188:8080"},
+    {"server": "51.210.19.141:80"},
+]
 
 @logger.catch
 def parse_product(mdata) -> Dict[str, str]:
@@ -119,24 +111,32 @@ def scrape_page_playwright(url_path: Url, parse_func: Callable) -> List[tuple[Ur
         browser_select = random.sample(['firefox',], 1)[0]  #  'firefox',
         browser_select = BROWSER_SELECT
         if browser_select == 'chromium':
-            browser = p.chromium.launch(headless=IS_HEADLESS)
+            proxy = random.choice(PROXIES)
+            logger.critical(f'chosen proxy: {proxy}')
+            browser = p.chromium.launch(headless=IS_HEADLESS,
+                                        # proxy=proxy
+                                        )
         elif browser_select == 'firefox':
-            browser = p.firefox.launch(headless=IS_HEADLESS)
+            proxy = random.choice(PROXIES)
+            logger.critical(f'chosen proxy: {proxy}')
+            browser = p.firefox.launch(headless=IS_HEADLESS,
+                                       # proxy=proxy
+                                       )
         ua = random.sample(uas, 1)[0]
         context = browser.new_context(
             user_agent=ua,
             #
-            java_script_enabled=False,  # ?
+            java_script_enabled=True,  # ?
             bypass_csp=True,
             # extra_http_headers={},
         )
         logger.warning(ua)
-        context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        # context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         page = context.new_page()
         # page.wait_for_timeout(int(np.random.uniform(0, 1000, 1)[0]))
         page.goto(url_path, referer='https://yandex.by/',)
 
-        # page.wait_for_timeout(int(np.random.uniform(2500, 5000, 1)[0]))
+        page.wait_for_timeout(int(np.random.uniform(2500, 5000, 1)[0]))
         # page.screenshot(path="now.png")
         content = page.content()
         try:
@@ -160,18 +160,26 @@ def clear_str(s):
 
 
 def google_find_link(soup, user_query) -> str:
+
+
+
+
+
     # articles = soup.find('div', id='rso').find_all(class_='MjjYud')
     articles = soup.find_all(class_='MjjYud')
+    # articles = soup.find_all(attrs={'class': ['MjjYud', 'hlcw0c']})
+    # articles = soup.find_all(has_any_class)
 
     id_2_href = {}
     id_2_text_primary = {}  # results containing 'reviews' - reliable
     id_2_text_secondary = {}  # results not containing 'reviews' - unreliable
 
-    id_2_score = {}  # simple relevancy score
+    id_2_score_primary = {}  # simple relevancy score
+    id_2_score_secondary = {}
     # logger.debug(f'len of articles: {len(articles)}')
     for article_id, article in enumerate(articles):
         try:
-            article_href = article.find('span').find('a').get('href')
+            article_href = article.find('a').get('href').replace('search?q=', '').replace('url?q=', '').strip('/')
             article_text = article.find('h3').text
             # step 1 - check if link is good
             # logger.debug(f'candidate reviews link: {article_href}')
@@ -182,9 +190,9 @@ def google_find_link(soup, user_query) -> str:
                 # primary search branch - contains reviews
                 # logger.debug(f'passed PRIMARY the check for reviews: {article_href} -- {article_text}', )
                 id_2_href[article_id] = article_href
-                id_2_text_primary[article_id] = article_text
+                id_2_text_primary[article_id] = article_text  #-- што эта за хня
                 # https://rapidfuzz.github.io/RapidFuzz/Usage/fuzz.html
-                id_2_text_primary[article_id] = rapidfuzz.fuzz.token_set_ratio(
+                id_2_score_primary[article_id] = rapidfuzz.fuzz.token_set_ratio(
                     user_query,
                     article_href,  # seacrh against href because in google end text is truncated with dots
                     processor=rapidfuzz.utils.default_process
@@ -198,20 +206,20 @@ def google_find_link(soup, user_query) -> str:
                 id_2_href[article_id] = article_href
                 id_2_text_secondary[article_id] = article_text
                 # https://rapidfuzz.github.io/RapidFuzz/Usage/fuzz.html
-                id_2_text_secondary[article_id] = rapidfuzz.fuzz.token_set_ratio(
+                id_2_score_secondary[article_id] = rapidfuzz.fuzz.token_set_ratio(
                     user_query,
                     article_href,  # seacrh against href because in google end text is truncated with dots
                     processor=rapidfuzz.utils.default_process
                 )
         except:
             pass
-    if len(id_2_text_primary) > 0:
+    if len(id_2_score_primary) > 0:
         # logger.critical(sorted(id_2_text.items(), key=lambda x: x[1], reverse=True))
-        best_id, best_score = sorted(id_2_text_primary.items(), key=lambda x: x[1], reverse=True)[0]
+        best_id, best_score = sorted(id_2_score_primary.items(), key=lambda x: x[1], reverse=True)[0]
         best_text = id_2_text_primary[best_id]
         best_href = id_2_href[best_id]
-    elif len(id_2_text_secondary) > 0:
-        best_id, best_score = sorted(id_2_text_secondary.items(), key=lambda x: x[1], reverse=True)[0]
+    elif len(id_2_score_secondary) > 0:
+        best_id, best_score = sorted(id_2_score_secondary.items(), key=lambda x: x[1], reverse=True)[0]
         best_text = id_2_text_secondary[best_id]
         best_href = id_2_href[best_id]
     else:
@@ -220,7 +228,7 @@ def google_find_link(soup, user_query) -> str:
         best_score = None
         best_text = None
         best_href = None
-    # logger.info(best_id, best_score, best_text, best_href)
+    logger.info(f'{best_id}, {best_score}, {best_text}, {best_href}')
     return best_href
 
 
@@ -252,14 +260,22 @@ def search_google(user_query: str) -> str:
         # browser_select = random.sample(['firefox',], 1)[0]  # 'firefox'
         browser_select = BROWSER_SELECT
         if browser_select == 'chromium':
-            browser = p.chromium.launch(headless=IS_HEADLESS)
+            proxy = random.choice(PROXIES)
+            logger.critical(f'chosen proxy: {proxy}')
+            browser = p.chromium.launch(headless=IS_HEADLESS,
+                                        # proxy=proxy
+                                        )
         else:
-            browser = p.firefox.launch(headless=IS_HEADLESS)
+            proxy = random.choice(PROXIES)
+            logger.critical(f'chosen proxy: {proxy}')
+            browser = p.firefox.launch(headless=IS_HEADLESS,
+                                       # proxy=proxy
+                                       )
         ua = random.sample(uas, 1)[0]
         context = browser.new_context(
             user_agent=ua,
             #
-            java_script_enabled=False,  # ?
+            java_script_enabled=True,  # ?
             bypass_csp=True,
             # extra_http_headers={},
         )
@@ -268,7 +284,7 @@ def search_google(user_query: str) -> str:
         page = context.new_page()
         # page.wait_for_timeout(int(np.random.uniform(0, 1000, 1)[0]))
         page.goto(url, referer='https://yandex.by/',)
-        # page.wait_for_timeout(int(np.random.uniform(2500, 5000, 1)[0]))
+        page.wait_for_timeout(int(np.random.uniform(2500, 5000, 1)[0]))
         content = page.content()
         try:
             with open(f"/home/amstel/llm/out/htmls/{user_query.replace('/', '-')}.html", 'w') as f:
@@ -298,21 +314,21 @@ def thread_work(user_query):
     # logger.critical(f'some url: {some_url}')
     if some_url:
         if '/reviews' in some_url:
-            # logger.info('branch reviews')
-            # logger.info(user_query, )
-            reviews_url  = some_url
+            logger.info('branch reviews')
+            logger.info(user_query, )
+            reviews_url  = some_url[:some_url.find('/reviews')]
             product_url = some_url[:some_url.find('/reviews')] + '/reviews'
-            # logger.info(f'some_url: {some_url}')
-            # logger.info(f'reviews_url: {reviews_url}')
-            # logger.info(f'product_url: {product_url}')
+            logger.info(f'input_url: {some_url}')
+            logger.info(f'reviews_url: {reviews_url}')
+            logger.info(f'product_url: {product_url}')
         elif '?sku=' in some_url:
-            # logger.warning('branch ?sku=')
-            # logger.warning(user_query, )
+            logger.warning('branch ?sku=')
+            logger.warning(user_query, )
             product_url = some_url[:some_url.find('?sku=')]
             reviews_url = product_url + '/reviews'
-            # logger.warning(f'some_url: {some_url}')
-            # logger.warning(f'reviews_url: {reviews_url}')
-            # logger.warning(f'product_url: {product_url}')
+            logger.warning(f'input_url {some_url}')
+            logger.warning(f'reviews_url: {reviews_url}')
+            logger.warning(f'product_url: {product_url}')
         else:
             logger.critical(f'v1 - no results for: {user_query}')
             return (user_query, [], [])
@@ -335,66 +351,76 @@ def thread_work(user_query):
 
 
 if __name__ == '__main__':
-    # todo: save raw parsed body to mongo
-    # todo: save attempts to mongo
-    # todo: update candidates logic below with mongo
+    # todo: make composable read class
 
     # steps:
     # 1. get product_details & product_reviews - we do not need to query them again
-    con_product_reviews = MongoConnector(operation='read', db_name='scraped_data', collection_name='product_reviews')
-    cursor_product_reviews = con_product_reviews.read_many({})
-    product_reviews = list(cursor_product_reviews)
+    # # READ 1
+    # con_product_reviews = MongoConnector(operation='read', db_name='scraped_data', collection_name='product_reviews')
+    # cursor_product_reviews = con_product_reviews.read_many({})
+    # product_reviews = list(cursor_product_reviews)
+    #
+    # # READ 2
+    # con_product_details = MongoConnector(operation='read', db_name='scraped_data', collection_name='product_details')
+    # cursor_product_details = con_product_details.read_many({})
+    # product_details = list(cursor_product_details)
 
-    con_product_details = MongoConnector(operation='read', db_name='scraped_data', collection_name='product_details')
-    cursor_product_details = con_product_details.read_many({})
-    product_details = list(cursor_product_details)
+    # already_scraped_names = []
+    # for data in product_reviews:
+    #     already_scraped_names.extend([key for key in data.keys() if key != '_id'])
+    # for data in product_details:
+    #     already_scraped_names.extend([key for key in data.keys() if key != '_id'])
+    # already_scraped_names = list(set(already_scraped_names))
 
-    already_scraped_names = []
-    for data in product_reviews:
-        already_scraped_names.extend([key for key in data.keys() if key != '_id'])
-    for data in product_details:
-        already_scraped_names.extend([key for key in data.keys() if key != '_id'])
-    already_scraped_names = list(set(already_scraped_names))
-
+    # Read 3
     # 2. query postgres
-    sql_from_table = ' scraped_data.product_item_list '
-    where_clause = " product_position = 1 limit 70"
-    df = select_data(table=sql_from_table, where=where_clause)  # todo: refactor
-    assert df.shape[0] > 0
-    # df = df.sample(frac=1.0)
-    logger.debug(df.columns)
-    product_names = df['product_name'].values.tolist()
+    # sql_from_table = ' scraped_data.product_item_list '
+    # where_clause = " product_position = 1 limit 70"
+    # df = select_data(table=sql_from_table, where=where_clause)  # todo: refactor
+    # assert df.shape[0] > 0
+    # # df = df.sample(frac=1.0)
+    # logger.debug(df.columns)
+    # product_names = df['product_name'].values.tolist()
+    #
+    # # Read 4
+    # # 2.5 get attempts
+    # attempts_df = select_data(table=' scraped_data.product_query_attempts ')  # todo: refactor
+    # attempt_product_names = attempts_df['attempt_product_name'].values.tolist()
+    # # attempt_product_names = []
+    #
+    # # 3. exclude (1) from (2)
+    #
+    # # Read 4.5 aux
+    # product_names_to_scrape = set([x for x in product_names if x not in already_scraped_names and x not in attempt_product_names])
+    # assert len(product_names_to_scrape) > 0
+    # ex = pool.ThreadPoolExecutor(max_workers=1,
+    #                              thread_name_prefix='thread_',
+    #                              initializer=None, initargs=())
+    #
+    # # Read 5
+    # with ex as executor:
+    #     future_to_url = {executor.submit(thread_work, user_query): user_query for user_query in product_names_to_scrape}
+    # triplets = {}
+    # for future in concurrent.futures.as_completed(future_to_url):
+    #     url = future_to_url[future]
+    #     try:
+    #         data = future.result()
+    #         triplets[url] = data
+    #     except Exception as exc:
+    #         print(f'{url} сгенерировано исключение: {exc}')
 
-    # 2.5 get attempts
-    attempts_df = select_data(table=' scraped_data.product_query_attempts ')  # todo: refactor
-    attempt_product_names = attempts_df['attempt_product_name'].values.tolist()
-    # attempt_product_names = []
-
-    # 3. exclude (1) from (2)
-    product_names_to_scrape = set([x for x in product_names if x not in already_scraped_names and x not in attempt_product_names])
-    assert len(product_names_to_scrape) > 0
-    ex = pool.ThreadPoolExecutor(max_workers=1,
-                                 thread_name_prefix='thread_',
-                                 initializer=None, initargs=())
-
-    with ex as executor:
-        future_to_url = {executor.submit(thread_work, user_query): user_query for user_query in product_names_to_scrape}
-    triplets = {}
-    for future in concurrent.futures.as_completed(future_to_url):
-        url = future_to_url[future]
-        try:
-            data = future.result()
-            triplets[url] = data
-        except Exception as exc:
-            print(f'{url} сгенерировано исключение: {exc}')
-
+    # Write 1
     attempts_df = pd.DataFrame(product_names_to_scrape, columns=['attempt_product_name'])
     attempts_df['attempt_datetime'] = datetime.now()
+
+    # Write 1
     # todo: refactor
     insert_data(attempts_df, schema_name='scraped_data', table_name='product_query_attempts')
     logger.info(type(triplets))
     logger.info(type(data))
     new_path = '/home/amstel/llm/out/QueryDetailsReviews.pkl'
+
+    # Write 2
     if os.path.exists(new_path):
         new_path = new_path.replace('.pkl', '')+'1'+'.pkl'
     with open(new_path, 'wb') as f:
