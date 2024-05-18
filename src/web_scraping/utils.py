@@ -5,7 +5,7 @@ sys.path.append('/home/amstel/llm')
 import concurrent
 import concurrent.futures as pool
 
-base_url = 'https://shop.by'
+
 from scrapy.crawler import CrawlerProcess
 from loguru import logger
 import extruct
@@ -71,8 +71,9 @@ class MicrodataExtractor:
     @logger.catch
     @staticmethod
     def item_list(mdata: Dict,
+                  base_url: str,
                   product_type_url: str = None,
-                  product_type_name: str = None
+                  product_type_name: str = None,
         ) -> List[Dict[str, str]]:
         '''
         Must be Microdata
@@ -113,7 +114,7 @@ class MicrodataExtractor:
             if el.get('type') == 'https://schema.org/Product':
                 _item_properties = el['properties']
                 item_features['name'] = _item_properties.get('name')
-                item_features['product_url'] = base_url + _item_properties.get('url')
+                item_features['product_url'] = _item_properties.get('url')
                 _offers_properties = _item_properties.get('offers').get('properties')
                 item_features['offer_count'] = _offers_properties.get('offerCount')
                 item_features['min_price'] = _offers_properties.get('lowPrice')
@@ -151,6 +152,7 @@ class HtmlExtractor:
         ...
 
 class OnlinerExtractor(HtmlExtractor):
+    base_url = 'https://catalog.onliner.by/washingmachine'
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -163,13 +165,12 @@ class OnlinerExtractor(HtmlExtractor):
         ) -> List[Dict[str, str]]:
         results = []
         for selector in response.css('div.catalog-form__offers-unit'):
-            logger.info(selector)
             item_features = {}
             # maybe a.catalog-form__link_primary-additional.catalog-form__link_base-additional
             item_features['product_url'] = selector.css('a.catalog-form__link_base-additional::attr(href)').get()
             item_features['product_name'] = selector.css('a.catalog-form__link_base-additional::text').get().strip()
             item_features['product_price'] = selector.css('a.catalog-form__link span:not([class^="catalog-form__description"])::text').get().replace('\xa0р.','').replace(',','.')
-            item_features['product_type_url'] = self.product_type_url
+            item_features['product_type_url'] = product_type_url
             item_features['product_type_name'] = self.product_type_name
             results.append(item_features)
         return results
@@ -191,7 +192,7 @@ class Vek21Extractor(HtmlExtractor):
         logger.warning(f'response {(response)}')
         for selector in response.css('div[class^="style_product"]'):
             item_features = {}
-            item_features['product_url'] = base_url + selector.css('p[class^="CardInfo"] a::attr(href)').get()
+            item_features['product_url'] = self.base_url + selector.css('p[class^="CardInfo"] a::attr(href)').get()
             item_features['product_name'] = selector.css('p[class^="CardInfo"] a::text').get()
             item_features['product_price'] = selector.css('p[class^="CardPrice_currentPrice"]::text').get().replace('р.', '').replace(',','.').strip()
             item_features['product_type_url'] = product_type_url
@@ -200,6 +201,7 @@ class Vek21Extractor(HtmlExtractor):
         return results
 
 class ShopByExtractor(HtmlExtractor):
+    base_url = 'https://shop.by'
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -213,6 +215,7 @@ class ShopByExtractor(HtmlExtractor):
 
         results = MicrodataExtractor.item_list(
             mdata=mdata,
+            base_url=self.base_url,
             product_type_url=product_type_url,
             product_type_name=product_type_name,
         )
@@ -277,9 +280,10 @@ class ItemListSpider(CrawlSpider):
             product_type_name=extractor_instance.product_type_name,
         )
 
-        self.page_product.append([product_type_name, self.current_url])
+        self.page_product.append([extractor_instance.product_type_name, self.current_url])
         self.breadcrumbs.append(breadcrumbs)
         self.item_list.append(item_list)
+        self.output = self.item_list
         # logger.warning(product_type_name)
 
     def close(self, spider, reason):
@@ -330,7 +334,7 @@ class ProductSpider(CrawlSpider):
         if response.status == 404:
             raise CloseSpider('Recieve 404 response')
         mdata = MicrodataExtractor.get_mdata(response.body)
-        product = MicrodataExtractor.product(mdata)
+        product = MicrodataExtractor.product(mdata,)
         self.products.append(product)
 
     def close(self, spider, reason):
@@ -381,11 +385,13 @@ class EcomItemListRead(Read):
         self.extractor_instance = extractor_instance
 
     def read(self,) -> List[Dict]:
-        out = crawl_static(
+        data = crawl_static(
             ItemListSpider,
             extractor_instances=[self.extractor_instance,]
         )
-        return out
+        if isinstance(data, list) and isinstance(data[0], list):
+            data = [item for sublist in data for item in sublist]
+        return {"step_0": data}
 
 class EcomProductRead(Read):
     def read(self, urls: List[str]) -> Dict[StepNum, Any]:

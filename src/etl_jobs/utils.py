@@ -12,14 +12,16 @@ class ItemListDo(Do):
     '''
     product_url	product_name	product_position	product_type_url	product_type_name
     '''
-    def process(self, data: Any) -> Any:
+    def process(self, data: Dict[StepNum, Any]) -> Dict[StepNum, pd.DataFrame]:
         '''turns list of list of dict into pd.Dataframe'''
         # if data is list of lists
+        assert isinstance(data, dict)
+        data = data.get("step_0")
         if isinstance(data, list) and isinstance(data[0], list):
-            flattened = [item for sublist in data for item in sublist]
-            df = pd.DataFrame(flattened)
-            df['scraped_datetime'] = datetime.now()
-            return df
+            data = [item for sublist in data for item in sublist]
+        df = pd.DataFrame(data)
+        df['scraped_datetime'] = datetime.now()
+        return {"step_0": df}
 
 
 class ItemDetailsDo(Do):
@@ -111,12 +113,11 @@ class PickleDataWrite(Write):
     def __init__(self, filepath: str):
         self.filepath = filepath
 
-    def write(self, data: Dict,) -> None:
+    def write(self, data: Dict[StepNum, Any],) -> None:
         assert isinstance(data, dict)
-        logger.debug(f'keys: {data.keys()}')
         for i, key in enumerate(data):
             with open(self.filepath.replace('.pkl', f'step_{i}.pkl'), 'wb') as f:
-                pickle.dump(data[key], f)
+                pickle.dump(data, f)
 
 
 class ItemDetailsRead(Read):

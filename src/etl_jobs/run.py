@@ -98,8 +98,8 @@ class ReadChainSearchParsePart1:
         for data in self.data.get('step_1'):
             already_scraped_names.append(data.get('query_item_name'))
         already_scraped_names = list(set(already_scraped_names))
-        item_list = self.data.get('step_2')['name'].values.tolist()
-        already_queried_data = self.data.get('step_3')
+        item_list = self.data.get('step_2').get('step_0')['name'].values.tolist()
+        already_queried_data = self.data.get('step_3').get('step_0')
         if already_queried_data is not None and len(already_queried_data) > 0:
             print(already_queried_data)
             already_queried = already_queried_data['attempt_product_name'].values.tolist()
@@ -130,18 +130,26 @@ if __name__ == '__main__':
 
     # # step 1. ItemList from sites to Postgres
     # logger.warning('Start - Job 1')
-    # # product_type_url = [f'https://shop.by/stiralnye_mashiny/?page_id={i}' for i in range(1, 30)]
-    # product_type_url='https://www.21vek.by/washing_machines/'
-    #
     # product_type_name='Стиральная машина'
+    #
+    # # product_type_url = [f'https://shop.by/stiralnye_mashiny/?page_id={i}' for i in range(1, 30)]
+    # # product_type_url=[f'https://www.21vek.by/washing_machines/page:{i}/' for i in range(2, 11)]
+    # product_type_url=[f'https://catalog.onliner.by/washingmachine?page={i}' for i in range(2, 50)]
+    #
     # ItemlList_2_Postgres = Job(
     #     # reader=EcomItemListRead(extractor_name='ShopByExtractor', product_type_url=product_type_url, product_type_name=product_type_name),
-    #     reader=EcomItemListRead(extractor_name='Vek21Extractor', product_type_url=product_type_url, product_type_name=product_type_name),
+    #     # reader=EcomItemListRead(extractor_name='Vek21Extractor', product_type_url=product_type_url, product_type_name=product_type_name),
+    #     reader=EcomItemListRead(extractor_name='OnlinerExtractor', product_type_url=product_type_url, product_type_name=product_type_name),
     #
     #     processor=ItemListDo(),
     #
-    #     # writer=PostgresDataFrameWrite(schema_name='scraped_data', table_name='product_item_list')
-    #     writer=PickleDataWrite('temp1805.pkl')
+    #     # writer=PostgresDataFrameWrite(
+    #     #     schema_name='scraped_data',
+    #     #     table_name='product_item_list_to_fill',
+    #     #     insert_unique=True,
+    #     #     index_column="product_url",
+    #     # )
+    #     writer=PickleDataWrite('data.pkl')
     # )
     # ItemlList_2_Postgres.run()
     # logger.warning('End - Job 1')
@@ -152,80 +160,80 @@ if __name__ == '__main__':
 
 
     # step 2. Read: ItemList from Postgres, Do: Scrapy ProductDetails, Write: to Postgres
-    logger.warning('Start - Job 2')
-    ItemDetails_2_Postgres = Job(
-        reader=ItemDetailsRead(
-            step1__table='scraped_data.product_item_list',
-            step1__where=None,
-            step1_urls_attribute='product_url'
-        ),
-        processor=ItemDetailsDo(),
-        writer=PostgresDataFrameWrite(
-            schema_name='scraped_data',
-            table_name='item_details_washing_machine'),
+    # logger.warning('Start - Job 2')
+    # ItemDetails_2_Postgres = Job(
+    #     reader=ItemDetailsRead(
+    #         step1__table='scraped_data.product_item_list',
+    #         step1__where=None,
+    #         step1_urls_attribute='product_url'
+    #     ),
+    #     processor=ItemDetailsDo(),
+    #     writer=PostgresDataFrameWrite(
+    #         schema_name='scraped_data',
+    #         table_name='item_details_washing_machine'),
+    # )
+    # ItemDetails_2_Postgres.run()
+    # logger.warning('End - Job 2')
+
+
+
+
+
+    # step 3.A - prepare data, save to pickle
+    # Read: 3.1
+    mongo_read_product_reviews = MongoRead(operation='read', db_name='scraped_data', collection_name='product_reviews')
+    # Read 3.2
+    mongo_read_product_details = MongoRead(operation='read', db_name='scraped_data', collection_name='product_details')
+    # Read: 3.3
+    postgres_read_item_list = PostgresDataFrameRead(
+        table='scraped_data.item_details_washing_machine',
+        where="offer_count is not null order by offer_count desc, min_price asc limit 75"
     )
-    ItemDetails_2_Postgres.run()
-    logger.warning('End - Job 2')
+    # Read: 3.4
+    postgres_read_query_attemps = PostgresDataFrameRead(table='scraped_data.product_query_attempts')
+    # Part 3A
+    logger.warning('Start - Job 3A')
+    scrape_internet_part_A = Job(
+        reader=ReadChainSearchParsePart1(readers=[
+            mongo_read_product_reviews,
+            mongo_read_product_details,
+            postgres_read_item_list,
+            postgres_read_query_attemps
+        ]),
+        writer=PickleDataWrite(filepath='temp_1605.pkl'),
+    )
+    scrape_internet_part_A.run()
+    ############
+    scrape_internet_part_B = Job(
+        reader=ReadChain(readers=[PickleDataRead(filepath='temp_1605step_0.pkl')]),
+        writer=PickleDataWrite(filepath='temp_16052.pkl'),
+    )
+    scrape_internet_part_B.run()
+    logger.warning('End - Job 3A')
 
-
-
-
-
-    # # step 3.A - prepare data, save to pickle
-    # # Read: 3.1
-    # mongo_read_product_reviews = MongoRead(operation='read', db_name='scraped_data', collection_name='product_reviews')
-    # # Read 3.2
-    # mongo_read_product_details = MongoRead(operation='read', db_name='scraped_data', collection_name='product_details')
-    # # Read: 3.3
-    # postgres_read_item_list = PostgresDataFrameRead(
-    #     table='scraped_data.item_details_washing_machine',
-    #     where="offer_count is not null order by offer_count desc, min_price asc limit 73"
-    # )
-    # # Read: 3.4
-    # postgres_read_query_attemps = PostgresDataFrameRead(table='scraped_data.product_query_attempts')
-    # # Part 3A
-    # logger.warning('Start - Job 3A')
-    # scrape_internet_part_A = Job(
-    #     reader=ReadChainSearchParsePart1(readers=[
-    #         mongo_read_product_reviews,
-    #         mongo_read_product_details,
-    #         postgres_read_item_list,
-    #         postgres_read_query_attemps
-    #     ]),
-    #     writer=PickleDataWrite(filepath='temp_1605.pkl'),
-    # )
-    # scrape_internet_part_A.run()
-    # ############
-    # scrape_internet_part_B = Job(
-    #     reader=ReadChain(readers=[PickleDataRead(filepath='temp_1605step_0.pkl')]),
-    #     writer=PickleDataWrite(filepath='temp_16052.pkl'),
-    # )
-    # scrape_internet_part_B.run()
-    # logger.warning('End - Job 3A')
-    #
-    # # # step 3B
-    # logger.warning('Start - Job 3B')
-    # # pkl_reader = PickleDataRead(filepath='temp_16052.pkl')
-    # internet_reader = SearchParseRead()
-    # scrape_internet_part_C = Job(
-    #     reader=ReadChainSearchParsePart2(readers=[
-    #         PickleDataRead(filepath='temp_16052step_0.pkl'),
-    #         # PickleDataRead(filepath='temp_16053.pkl')
-    #         internet_reader
-    #     ]),
-    #     processor=DoChain(processors=[
-    #         AttemptProductsDo(),
-    #         YandexMarketDo()
-    #     ]),
-    #     writer=WriteChain(writers=[
-    #             PostgresDataFrameWrite(schema_name='scraped_data', table_name='product_query_attempts'),  # attempts
-    #             WriteChain(writers=[
-    #                 MongoWrite(operation='write', db_name='scraped_data', collection_name='product_details'),
-    #                 MongoWrite(operation='write', db_name='scraped_data', collection_name='product_reviews')
-    #             ]),  # details & reviews
-    #             # PickleDataWrite(filepath='temp_16053.pkl'),
-    #         ],
-    #     )
-    # )
-    # scrape_internet_part_C.run()
-    # logger.warning('End - Job 3B')
+    # # step 3B
+    logger.warning('Start - Job 3B')
+    # pkl_reader = PickleDataRead(filepath='temp_16052.pkl')
+    internet_reader = SearchParseRead()
+    scrape_internet_part_C = Job(
+        reader=ReadChainSearchParsePart2(readers=[
+            PickleDataRead(filepath='temp_16052step_0.pkl'),
+            # PickleDataRead(filepath='temp_16053.pkl')
+            internet_reader
+        ]),
+        processor=DoChain(processors=[
+            AttemptProductsDo(),
+            YandexMarketDo()
+        ]),
+        writer=WriteChain(writers=[
+                PostgresDataFrameWrite(schema_name='scraped_data', table_name='product_query_attempts'),  # attempts
+                WriteChain(writers=[
+                    MongoWrite(operation='write', db_name='scraped_data', collection_name='product_details'),
+                    MongoWrite(operation='write', db_name='scraped_data', collection_name='product_reviews')
+                ]),  # details & reviews
+                # PickleDataWrite(filepath='temp_16053.pkl'),
+            ],
+        )
+    )
+    scrape_internet_part_C.run()
+    logger.warning('End - Job 3B')
