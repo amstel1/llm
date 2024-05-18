@@ -116,7 +116,7 @@ class Job:
         """
         if self.reader:
             logger.info('start READ')
-            data = self.reader.read()
+            data = self.reader.read()  # must be Dict with key StepNum
             self.data.update(data)
             logger.info('end READ')
         if self.processor:

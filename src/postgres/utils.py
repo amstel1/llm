@@ -7,10 +7,11 @@ import itertools
 from datetime import datetime
 from etl_jobs.base import Read, Write
 from .config import user, password, host, port, database
+from typing import List, Dict, Tuple, Any
+from etl_jobs.base import StepNum
 
 class PostgresDataFrameWrite(Write):
     def __init__(self,
-
                 schema_name: str = 'scraped_data',
                 table_name: str = 'product_item_list',
                 ):
@@ -20,8 +21,10 @@ class PostgresDataFrameWrite(Write):
 
     def write(
             self,
-            data: pd.DataFrame
+            data: Dict[StepNum, pd.DataFrame],
     ):
+        assert isinstance(data, dict)
+        data = data.get("step_0")
         logger.warning(data.shape)
         logger.info(data.head())
 
@@ -50,7 +53,7 @@ class PostgresDataFrameRead(Read):
 
     def read(
         self,
-    ):
+    ) -> Dict[StepNum, Any]:
         #######################
         connection_str = f'postgresql://{user}:{password}@{host}:{port}/{database}'
         engine = create_engine(connection_str)
@@ -67,10 +70,10 @@ class PostgresDataFrameRead(Read):
                     con=connection_str,
                 )
                 logger.warning(df.shape)
-            return df
+            return {"step_0": df}
         except Exception as ex:
             logger.error(f'Sorry failed to connect: {ex}')
-            return pd.DataFrame()
+            return {"step_0": pd.DataFrame()}
 
 
 if __name__ == '__main__':

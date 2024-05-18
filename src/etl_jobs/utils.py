@@ -1,5 +1,5 @@
 from typing import Any, List, Dict
-from base import Do, Read, Write
+from base import Do, Read, Write, StepNum
 import pandas as pd
 import pickle
 from datetime import datetime
@@ -84,24 +84,27 @@ class ItemDetailsDo(Do):
             df[col] = df[col].replace({'Есть': 'Да'})
         return df
 
-    def process(self, data: Any) -> Any:
+    def process(self, data: Dict[StepNum, Any]) -> Dict[StepNum, Any]:
         # logger.critical(data)
+        assert isinstance(data, dict)
+        data = data.get("step_0")
         if isinstance(data, list) and not (isinstance(data[0], list) or isinstance(data[0], tuple)):
             df = pd.DataFrame(data)
             # logger.warning(df)
             df = self.washing_mashine_preprocess(df)
-            return df
+            return {"step_0": df}
         else:
-            return None
+            return {"step_0": None}
 
 
 class PickleDataRead(Read):
     def __init__(self, filepath: str):
         self.filepath = filepath
-    def read(self,) -> Any:
+
+    def read(self) -> Dict[StepNum, Any]:
         with open(self.filepath, 'rb') as f:
             data = pickle.load(f)
-        return data
+        return {"step_0": data}
 
 
 class PickleDataWrite(Write):
@@ -121,14 +124,16 @@ class ItemDetailsRead(Read):
     def __init__(self,
                  step1__table: str,
                  step1__where: str = None,
-                 step1_utls_attribute: str = 'product_url'):
+                 step1_urls_attribute: str = 'product_url'):
         self.step1_reader = PostgresDataFrameRead(table=step1__table, where=step1__where)
-        self.step1_urls_attribute = step1_utls_attribute
+        self.step1_urls_attribute = step1_urls_attribute
         self.step2_reader = EcomProductRead()
 
-    def read(self) -> List[Dict]:
-        df = self.step1_reader.read()
+    def read(self) -> Dict[StepNum, Any]:
+        data_dict = self.step1_reader.read()
+        df = data_dict.get("step_0")
+        logger.debug(df.columns)
         urls = df[self.step1_urls_attribute].values.tolist()  # hardcoded
         product_details = self.step2_reader.read(urls=urls)
-        return product_details
+        return {"step_0": product_details}
 

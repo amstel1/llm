@@ -20,7 +20,7 @@ import pickle
 # from src.postgres.postgres_utils import select_data
 ua = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
 from abc import abstractmethod
-from etl_jobs.base import Read
+from etl_jobs.base import Read, StepNum
 from .search_and_parse_reviews import thread_work
 
 class JsonldExtractor:
@@ -388,7 +388,7 @@ class EcomItemListRead(Read):
         return out
 
 class EcomProductRead(Read):
-    def read(self, urls: List[str]) -> List[Dict]:
+    def read(self, urls: List[str]) -> Dict[StepNum, Any]:
         out = crawl_static(
             ProductSpider,
             urls=urls
