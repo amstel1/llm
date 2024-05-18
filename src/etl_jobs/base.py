@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Literal
 from loguru import logger
+StepNum = Literal[f'step_{int}']
 
 class Read(ABC):
     """
@@ -9,13 +10,13 @@ class Read(ABC):
     """
 
     @abstractmethod
-    def read(self, **kwargs) -> Any:
+    def read(self, **kwargs) -> Dict[StepNum, Any]:
         """
         Implement this method to read data from the specific source.
         """
         pass
 
-class ChainedRead(ABC):
+class ReadChain(Read):
     """
     Abstract base class for chaining multiple readers together.
     Each subclass should implement the `transform` method.
@@ -26,22 +27,16 @@ class ChainedRead(ABC):
         Initialize the chained reader with a list of readers.
         """
         self.readers = readers
+        self.data = {}
 
-    def read(self) -> Any:
+    def read(self) -> Dict[StepNum, Any]:
         """
         Chain the read methods together and apply transformations.
         """
-        data = []
-        for reader in self.readers:
-            data.append(reader.read())
-        self.data = data
+        for i, reader in enumerate(self.readers):
+            self.data[f'step_{i}'] = reader.read()  #
+        return self.data
 
-    @abstractmethod
-    def transform(self, data: List[Any]) -> Any:
-        """
-        Implement this method to transform or aggregate the data from the readers.
-        """
-        pass
 
 
 class Do(ABC):
@@ -51,7 +46,7 @@ class Do(ABC):
     """
 
     @abstractmethod
-    def process(self, data: Any) -> Any:
+    def process(self, data: Dict[StepNum, Any]) -> Dict[StepNum, Any]:
         """
         Implement this method to process the input data.
 
@@ -59,6 +54,16 @@ class Do(ABC):
         :return: Processed data.
         """
         pass
+
+class DoChain(Do):
+    def __init__(self, processors: List[Do]):
+        self.processors = processors
+        self.data = {}
+
+    def process(self, data: Dict[StepNum, Any]) -> Dict[StepNum, Any]:
+        for i, processor in enumerate(self.processors):
+            self.data[f'step_{i}'] = processor.process(data=data.get(f'step_{i}'))
+        return self.data
 
 
 class Write(ABC):
@@ -68,7 +73,7 @@ class Write(ABC):
     """
 
     @abstractmethod
-    def write(self, data: Any) -> None:
+    def write(self, data: Dict[StepNum, Any]) -> None:
         """
         Implement this method to write data to the specific target.
 
@@ -76,6 +81,14 @@ class Write(ABC):
         """
         pass
 
+class WriteChain(Write):
+    def __init__(self, writers: List[Write], ):
+        self.writers = writers
+
+    def write(self, data: Dict[StepNum, Any]) -> None:
+        assert isinstance(data, dict)
+        for i, writer in enumerate(self.writers):
+            writer.write(data=data.get(f'step_{i}'))
 
 class Job:
     """
@@ -94,6 +107,8 @@ class Job:
         self.reader = reader
         self.processor = processor
         self.writer = writer
+        self.data = {}
+        self.processed_data = {}
 
     def run(self, data=None, processed_data=None) -> None:
         """
@@ -102,15 +117,17 @@ class Job:
         if self.reader:
             logger.info('start READ')
             data = self.reader.read()
+            self.data.update(data)
             logger.info('end READ')
         if self.processor:
             logger.info('start DO')
-            processed_data = self.processor.process(data)
+            processed_data = self.processor.process(data)  # Dict[StepNum, List[Dict[str, List[Dict]]]]
+            self.processed_data.update(processed_data)
             logger.info('end DO')
         if self.writer:
             logger.info('start WRITE')
             if self.processor:
-                self.writer.write(processed_data)
+                self.writer.write(data=self.processed_data)
             else:
-                self.writer.write(data)
+                self.writer.write(data=self.data)
             logger.info('end WRITE')

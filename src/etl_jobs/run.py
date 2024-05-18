@@ -1,7 +1,10 @@
 import sys
+from datetime import datetime
+import pandas as pd
+
 sys.path.append('/home/amstel/llm/src')
-from typing import Optional, Dict, Any, List, Set, Tuple
-from base import Job, Read, Do, Write, ChainedRead
+from typing import Optional, Dict, Any, List, Set, Tuple, Iterable
+from base import Job, Read, Do, Write, ReadChain, WriteChain, DoChain
 import yaml
 from loguru import logger
 
@@ -22,47 +25,94 @@ from postgres.utils import PostgresDataFrameRead
 from web_scraping.utils import SearchParseRead
 from mongodb.utils import MongoWrite
 
+
+# class YandexMarketDo(Do):
+#     """yandex market product details and reviews - do"""
+#     @logger.catch
+#     def process(self, data: Dict) -> Tuple[List[Dict[str, Dict]], List[Dict[str, List[Dict]]]]:
+#         '''
+#         returns ? (products, reviews)
+#         insert the result to mongo
+#         '''
+#         product_details_output = []
+#         reviews_details_output = []
+#         for product_name, combined_data in data.items():
+#             assert product_name == combined_data[0]
+#             product_tuple = combined_data[1]
+#             reviews_tuple = combined_data[2]
+#             if product_tuple:
+#                 product_request_url, product_details = product_tuple
+#                 if product_details:
+#                     product_details['product_request_url'] = product_request_url
+#                     product_details_output.append({product_name: product_details})  # str -> Dict
+#
+#             if reviews_tuple:
+#                 reviews_request_url, reviews_details = reviews_tuple
+#                 if reviews_details:
+#                     # reviews_details is list
+#                     for review in reviews_details:
+#                         review.update({'reviews_request_url': reviews_request_url})
+#                     reviews_details_output.append({product_name: reviews_details})  # str -> List[Dict]
+#
+#         return product_details_output, reviews_details_output
+
 class YandexMarketDo(Do):
-    """yandex market product details and reviews - do"""
-    @logger.catch
-    @staticmethod
-    def process(data: Dict) -> Tuple[List[Dict[str, Dict]], List[Dict[str, List[Dict]]]]:
-        '''
-        returns ? (products, reviews)
-        insert the result to mongo
-        '''
-        product_details_output = []
-        reviews_details_output = []
-        for product_name, combined_data in data.items():
-            assert product_name == combined_data[0]
-            product_tuple = combined_data[1]
-            reviews_tuple = combined_data[2]
-            if product_tuple:
-                product_request_url, product_details = product_tuple
-                if product_details:
-                    product_details['product_request_url'] = product_request_url
-                    product_details_output.append({product_name: product_details})  # str -> Dict
+    #-> Tuple[Dict,List[Dict]]:
+    def process(self, data: Dict[str, Tuple[str, Tuple[str, Dict], Tuple[str, List[Dict]]]]) -> Dict[str, List[Dict[str, List[Dict]]]]:
+        '''all the logic to process scraping results from yandex market'''
+        assert isinstance(data, dict)
+        user_queries = list(data.keys())
+        results = []
+        for user_query in user_queries:
+            triple = data.get(user_query)
+            try:
+                assert len(triple) == 3
+                item_name = triple[0]
+                if triple[1]:
+                    # product_details
+                    # triple[1]: (url, {details_dict})
+                    assert len(triple[1]) == 2
+                    details_to_mongo = triple[1][1]
+                    details_to_mongo.update({'query_url': triple[1][0], 'query_item_name': item_name})
+                    if triple[2]:
+                        # product_reviews
+                        # triple[2]: (reviews_url, [{'review1_key1':'review1_value1'}, {'review2_key1':'review2_value1'}])
+                        assert len(triple[2]) == 2
+                        reviews_url = triple[2][0]
+                        init_reviews_list = triple[2][1]
+                        for review in init_reviews_list:
+                            review.update(
+                                {"reviews_url": reviews_url,
+                                 "item_name": item_name}
+                            )
+                    else:
+                        init_reviews_list = []
+            except Exception as e:
+                logger.error(e)
+                details_to_mongo = {}
+                init_reviews_list = []
+            try:
+                results.append({"step_0": [details_to_mongo], "step_1": init_reviews_list})
+            except Exception as e:
+                results.append({"step_0": [[]], "step_1": []})
+        return {"step_0": [x.get('step_0') for x in results], "step_1": [x.get("step_1") for x in results]}
 
-            if reviews_tuple:
-                reviews_request_url, reviews_details = reviews_tuple
-                if reviews_details:
-                    # reviews_details is list
-                    for review in reviews_details:
-                        review.update({'reviews_request_url': reviews_request_url})
-                    reviews_details_output.append({product_name: reviews_details})  # str -> List[Dict]
+class AttemptProductsDo(Do):
+    def process(self, data: Iterable) -> pd.DataFrame:
+        df = pd.DataFrame(data, columns=['attempt_product_name'])
+        df['attempt_datetime'] = datetime.now()
+        return df
 
-        return product_details_output, reviews_details_output
-
-class ChainedRead_SearchParse_Part1:
+class ReadChainSearchParsePart1:
     '''implementation for search and parse reviews reader - get mongo (x2), get postgres, calculate urls to search'''
     def __init__(self, readers: List[Read]):
-        self.container = {}
+        self.data = {}
         self.readers = readers
 
     def prepare(self) -> Any:
         for i, reader in enumerate(self.readers):
-            self.container[f'step_{i}'] = reader.read()
-        return self.container
+            self.data[f'step_{i}'] = reader.read()
+        return self.data
 
     def read(self) -> Any:
         # executed in job
@@ -74,31 +124,36 @@ class ChainedRead_SearchParse_Part1:
 
         self.prepare()
         already_scraped_names = []
-        for data in self.container.get('step_0'):
-            already_scraped_names.extend([key for key in data.keys() if key != '_id'])
-        for data in self.container.get('step_1'):
-            already_scraped_names.extend([key for key in data.keys() if key != '_id'])
+        for data in self.data.get('step_0'):
+            already_scraped_names.append(data.get('item_name'))
+        for data in self.data.get('step_1'):
+            already_scraped_names.append(data.get('query_item_name'))
         already_scraped_names = list(set(already_scraped_names))
-        item_list = self.container.get('step_2')['product_name'].values.tolist()
-        already_queried = self.container.get('step_3')['attempt_product_name'].values.tolist()
-
+        item_list = self.data.get('step_2')['name'].values.tolist()
+        already_queried_data = self.data.get('step_3')
+        if already_queried_data is not None and len(already_queried_data) > 0:
+            print(already_queried_data)
+            already_queried = already_queried_data['attempt_product_name'].values.tolist()
+        else:
+            # postgres check is disabled
+            already_queried = []
         product_names_to_scrape = set(
             [x for x in item_list if x not in already_scraped_names and x not in already_queried])
         assert len(product_names_to_scrape) > 0
-        return product_names_to_scrape
+        return {'step_0': product_names_to_scrape}
 
-class ChainedRead_SearchParse_Part2:
+
+class ReadChainSearchParsePart2:
     def __init__(self, readers: List[Read]):
-        self.container = {}
+        self.data = {}
         self.readers = readers
 
-    def read(self,) -> Any:
-        product_names_to_scrape = self.readers[0].read() # pickle data read
-        self.container[f'step_0'] = product_names_to_scrape
-        data = self.readers[1].read(product_names_to_scrape=product_names_to_scrape)
-        return data
-
-
+    def read(self,) -> Dict[str, Any]:
+        self.data[f'step_0'] = self.readers[0].read()
+        self.data[f'step_1'] = self.readers[1].read(
+            product_names_to_scrape=self.data[f'step_0']
+        )
+        return self.data
 
 
 if __name__ == '__main__':
@@ -133,50 +188,64 @@ if __name__ == '__main__':
     # logger.warning('End - Job 2')
 
 
-    ## step 3.A - prepare data, save to pickle
-    ## Read: 3.1
-    # mongo_read_product_reviews = MongoRead(operation='read', db_name='scraped_data', collection_name='product_reviews')
-    ## Read 3.2
-    # mongo_read_product_details = MongoRead(operation='read', db_name='scraped_data', collection_name='product_details')
-    ## Read: 3.3
-    # postgres_read_item_list = PostgresDataFrameRead(
-    #     table='scraped_data.product_item_list',
-    #     where="product_position <= 1 limit 10"
-    # )
-    ## Read: 3.4
-    # postgres_read_query_attemps = PostgresDataFrameRead(table='scraped_data.product_query_attempts')
-    ## Part 3A
-    # logger.warning('Start - Job 3A')
-    # scrape_internet_part_A = Job(
-    #     reader=ChainedRead_SearchParse_Part1(readers=[
-    #         mongo_read_product_reviews,
-    #         mongo_read_product_details,
-    #         postgres_read_item_list,
-    #         postgres_read_query_attemps
-    #     ]),
-    #     writer=PickleDataWrite(filepath='temp_1605.pkl'),
-    # )
-    # scrape_internet_part_A.run()
-    # scrape_internet_part_B = Job(
-    #     reader=PickleDataRead(filepath='temp_1605.pkl'),
-    #     writer=PickleDataWrite(filepath='temp_16052.pkl'),
-    # )
-    # scrape_internet_part_B.run()
-    # logger.warning('End - Job 3A')
-
-    # step 3B
-    logger.warning('Start - Job 3B')
-    pkl_reader = PickleDataRead(filepath='temp_16052.pkl')
-    internet_reader = SearchParseRead()
-
-    # to include, need refactoring so that output is: [{}, {}, {}]
-    # ym_processor = YandexMarketDo()  # returns product_details_output, reviews_details_output
-    # product_details_writer = MongoWrite(operation='write', db_name='scraped_data', collection_name='product_details')
-    # reviews_details_writer = MongoWrite(operation='write', db_name='scraped_data', collection_name='review_details')
-
+    # step 3.A - prepare data, save to pickle
+    # Read: 3.1
+    mongo_read_product_reviews = MongoRead(operation='read', db_name='scraped_data', collection_name='product_reviews')
+    # Read 3.2
+    mongo_read_product_details = MongoRead(operation='read', db_name='scraped_data', collection_name='product_details')
+    # Read: 3.3
+    postgres_read_item_list = PostgresDataFrameRead(
+        table='scraped_data.item_details_washing_machine',
+        where="offer_count is not null order by offer_count desc, min_price asc limit 30"
+    )
+    # Read: 3.4
+    postgres_read_query_attemps = PostgresDataFrameRead(table='scraped_data.product_query_attempts')
+    # Part 3A
+    logger.warning('Start - Job 3A')
+    scrape_internet_part_A = Job(
+        reader=ReadChainSearchParsePart1(readers=[
+            mongo_read_product_reviews,
+            mongo_read_product_details,
+            postgres_read_item_list,
+            postgres_read_query_attemps
+        ]),
+        writer=PickleDataWrite(filepath='temp_1605.pkl'),
+    )
+    scrape_internet_part_A.run()
     scrape_internet_part_B = Job(
-        reader=ChainedRead_SearchParse_Part2(readers=[pkl_reader, internet_reader]),
-        writer=PickleDataWrite(filepath='temp_16053.pkl'),
+        reader=ReadChain(readers=[PickleDataRead(filepath='temp_1605step_0.pkl')]),
+        writer=PickleDataWrite(filepath='temp_16052.pkl'),
+    )
+    scrape_internet_part_B.run()
+    logger.warning('End - Job 3A')
+
+
+
+
+
+    # # step 3B
+    # logger.warning('Start - Job 3B')
+    # pkl_reader = PickleDataRead(filepath='temp_16052.pkl')
+    internet_reader = SearchParseRead()
+    scrape_internet_part_B = Job(
+        reader=ReadChainSearchParsePart2(readers=[
+            PickleDataRead(filepath='temp_16052step_0.pkl'),
+            # PickleDataRead(filepath='temp_16053.pkl')
+            internet_reader
+        ]),
+        processor=DoChain(processors=[
+            AttemptProductsDo(),
+            YandexMarketDo()
+        ]),
+        writer=WriteChain(writers=[
+                PostgresDataFrameWrite(schema_name='scraped_data', table_name='product_query_attempts'),  # attempts
+                WriteChain(writers=[
+                    MongoWrite(operation='write', db_name='scraped_data', collection_name='product_details'),
+                    MongoWrite(operation='write', db_name='scraped_data', collection_name='product_reviews')
+                ]),  # details & reviews
+                # PickleDataWrite(filepath='temp_16053.pkl'),
+            ],
+        )
     )
     scrape_internet_part_B.run()
     logger.warning('End - Job 3B')

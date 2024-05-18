@@ -3,6 +3,7 @@ sys.path.append('/home/amstel/llm/src')
 from etl_jobs.base import Read, Write
 import pymongo
 from typing import Literal, List, Dict, Any
+from loguru import logger
 
 MongoOperationType = Literal['write', 'read',]
 MongoRole = Literal['reader', 'writer',]
@@ -43,12 +44,18 @@ class MongoConnector:
         self.collection = self.db[self.collection_name]
 
     def write_one(self, inserted_document: Dict):
-        msg = self.collection.insert_one(inserted_document)
-        return msg
+        try:
+            msg = self.collection.insert_one(inserted_document)
+            return msg
+        except Exception as e:
+            logger.critical(e)
 
     def write_many(self, inserted_documents: List[Dict]):
-        msg = self.collection.insert_many(inserted_documents)
-        return msg
+        try:
+            msg = self.collection.insert_many(inserted_documents, ordered=False)
+            return msg
+        except Exception as e:
+            logger.critical(e)
 
     def read_one(self, key_value: Dict[str, str]):
         output_document = self.collection.find_one(key_value)
@@ -91,13 +98,19 @@ class MongoWrite(Write):
         assert self.mongo_connector.collection is not None
 
     def write(self, data: Any) -> None:
-        cursor = self.mongo_connector.write_many(data)
-
+        if len(data) > 0:
+            if all(isinstance(x,list) for x in data):
+                data = [item for sublist in data for item in sublist]
+            self.mongo_connector.write_many(data)
+            logger.info(f'written: {data}')
         # cursor = MongoConnector(operation='write', db_name='scraped_data', collection_name='product_details')
         # cursor.write_many(product_details)
         #
         # cursor = MongoConnector(operation='write', db_name='scraped_data', collection_name='product_reviews')
         # cursor.write_many(reviews_details)
+
+
+
 
 if __name__ == '__main__':
 

@@ -1,4 +1,6 @@
 # todo: ? save html bodies to mongo
+executable_path='/home/amstel/.cache/ms-playwright/chromium-1112/chrome-linux/chrome'
+# executable_path='/home/amstel/.cache/ms-playwright/firefox-1447/firefox/firefox'
 import sys
 sys.path.append('/home/amstel/llm/src')
 IS_HEADLESS = False
@@ -12,10 +14,14 @@ import concurrent.futures
 
 import re
 import bs4
-from playwright.sync_api import sync_playwright
+
+
+# from playwright.sync_api import sync_playwright
+from undetected_playwright.sync_api import sync_playwright
+
 from playwright.async_api import async_playwright
 from loguru import logger
-from typing import Dict, List, Callable, Any
+from typing import Dict, List, Callable, Any, Tuple, AnyStr
 from bs4 import BeautifulSoup
 import extruct
 # from src.postgres.utils import select_data  # todo: refactor
@@ -30,15 +36,21 @@ from mongodb.utils import MongoConnector
 import pandas as pd
 from datetime import datetime
 
+# uas = [
+#     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
+#     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
+#     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+#     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+#     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+#     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+#     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+#     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+# ]
 
-uas = [
-    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-]
 # curl -x 152.170.208.188:8080  http://example.com
-PROXIES = [
-    {"server": "152.170.208.188:8080"},
-    {"server": "51.210.19.141:80"},
-]
+# PROXIES = [
+#     {"server": "35.185.196.38:3128"},
+# ]
 
 @logger.catch
 def parse_product(mdata) -> Dict[str, str]:
@@ -92,6 +104,8 @@ def parse_reviews(mdata) ->  List[dict[str, Any]]:
                     for review in _reviews:
                         review_details = {}
                         if 'properties' in review:
+                            logger.info(f'isinstance(review, dict) -- {isinstance(review, dict)}')
+                            if isinstance(review, str): logger.critical(f'critical - isinstance(review, str) - -- {review}')
                             _review_properties = review.get('properties')
                             review_details['review_date_published'] = _review_properties.get('datePublished')
                             review_details['review_description'] = _review_properties.get('description')
@@ -105,40 +119,68 @@ def parse_reviews(mdata) ->  List[dict[str, Any]]:
                 return total_reviews
 
 @logger.catch
-def scrape_page_playwright(url_path: Url, parse_func: Callable) -> List[tuple[Url, Dict | List[Dict]]]:
+def scrape_page_playwright(url_path: Url, parse_func: Callable) -> Tuple[Url, Dict | List[Dict]]:
     parsing_output = []
     with sync_playwright() as p:
         browser_select = random.sample(['firefox',], 1)[0]  #  'firefox',
         browser_select = BROWSER_SELECT
         if browser_select == 'chromium':
-            proxy = random.choice(PROXIES)
-            logger.critical(f'chosen proxy: {proxy}')
-            browser = p.chromium.launch(headless=IS_HEADLESS,
-                                        # proxy=proxy
-                                        )
+            # proxy = random.choice(PROXIES)
+            # logger.critical(f'chosen proxy: {proxy}')
+            browser = p.chromium.launch(
+                executable_path=executable_path,
+                headless=IS_HEADLESS,
+                # proxy=proxy
+            )
         elif browser_select == 'firefox':
-            proxy = random.choice(PROXIES)
-            logger.critical(f'chosen proxy: {proxy}')
-            browser = p.firefox.launch(headless=IS_HEADLESS,
-                                       # proxy=proxy
-                                       )
-        ua = random.sample(uas, 1)[0]
+            # proxy = random.choice(PROXIES)
+            # logger.critical(f'chosen proxy: {proxy}')
+            browser = p.firefox.launch(
+                executable_path=executable_path,
+                headless=IS_HEADLESS,
+                # proxy=proxy
+            )
+        # ua = random.sample(uas, 1)[0]
         context = browser.new_context(
-            user_agent=ua,
-            #
-            java_script_enabled=True,  # ?
-            bypass_csp=True,
-            # extra_http_headers={},
+            # user_agent=ua,
+            # java_script_enabled=True,  # ?
+            # bypass_csp=True,
+            # extra_http_headers={
+            #     # 'connection':'keep-alive',
+            #     'sec-ch-ua':'"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+            #     # 'sec-ch-ua-mobile':"?0",
+            #     # "sec-ch-ua-platform":"Linux",
+            #     "referer":"https://market.yandex.ru/",
+            #     "upgrade-insecure-requests":"0",
+            #     "dnt":"1",
+            #     "accept":'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            #     # "sec-fetch-site":"same-site",
+            #     # "sec-fetch-mode":"navigate",
+            #     # "sec-fetch-user":"?1",
+            #     # "sec-fetch-dest":"document",
+            #     "accept-encoding":"gzip, deflate, br, zstd",
+            #     "accept-language":"en-US,en;q=0.9"
+            # },
         )
-        logger.warning(ua)
+        # context.clear_cookies()
+        # logger.warning(ua)
         # context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-        page = context.new_page()
+        page = browser.new_page()
+        # page.set_extra_http_headers({
+        #     'Referer': 'https://yandex.by/',
+        #     "Accept-Language": "en-US,en;q=0.9",
+        #     "Accept-Encoding": "gzip, deflate, br",
+        #     "Connection": "keep-alive"
+        # })
         # page.wait_for_timeout(int(np.random.uniform(0, 1000, 1)[0]))
-        page.goto(url_path, referer='https://yandex.by/',)
+        page.goto(url_path,)
+        page.screenshot(path="now1.png")
 
-        page.wait_for_timeout(int(np.random.uniform(2500, 5000, 1)[0]))
-        # page.screenshot(path="now.png")
+        # page.wait_for_load_state(state='domcontentloaded')
+        # page.wait_for_timeout(int(np.random.uniform(2500, 5000, 1)[0]))
         content = page.content()
+        page.screenshot(path="now2.png")
+
         try:
             with open(f"/home/amstel/llm/out/htmls/{url_path.replace('/', '-')}.html", 'w') as f:
                 f.write(content)
@@ -160,10 +202,6 @@ def clear_str(s):
 
 
 def google_find_link(soup, user_query) -> str:
-
-
-
-
 
     # articles = soup.find('div', id='rso').find_all(class_='MjjYud')
     articles = soup.find_all(class_='MjjYud')
@@ -260,30 +298,36 @@ def search_google(user_query: str) -> str:
         # browser_select = random.sample(['firefox',], 1)[0]  # 'firefox'
         browser_select = BROWSER_SELECT
         if browser_select == 'chromium':
-            proxy = random.choice(PROXIES)
-            logger.critical(f'chosen proxy: {proxy}')
-            browser = p.chromium.launch(headless=IS_HEADLESS,
+            # proxy = random.choice(PROXIES)
+            # logger.critical(f'chosen proxy: {proxy}')
+            browser = p.chromium.launch(
+                executable_path=executable_path,
+                headless=IS_HEADLESS,
                                         # proxy=proxy
                                         )
         else:
-            proxy = random.choice(PROXIES)
-            logger.critical(f'chosen proxy: {proxy}')
-            browser = p.firefox.launch(headless=IS_HEADLESS,
+            # proxy = random.choice(PROXIES)
+            # logger.critical(f'chosen proxy: {proxy}')
+            browser = p.firefox.launch(
+                executable_path=executable_path,
+                headless=IS_HEADLESS,
                                        # proxy=proxy
                                        )
-        ua = random.sample(uas, 1)[0]
+        # ua = random.sample(uas, 1)[0]
         context = browser.new_context(
-            user_agent=ua,
+            # user_agent=ua,
             #
-            java_script_enabled=True,  # ?
-            bypass_csp=True,
+            # java_script_enabled=True,  # ?
+            # bypass_csp=True,
             # extra_http_headers={},
         )
-        logger.warning(ua)
+        # logger.warning(ua)
         context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         page = context.new_page()
-        # page.wait_for_timeout(int(np.random.uniform(0, 1000, 1)[0]))
-        page.goto(url, referer='https://yandex.by/',)
+        page.wait_for_timeout(int(np.random.uniform(0, 1000, 1)[0]))
+        page.goto(url,
+                  # referer='https://yandex.by/',
+                  )
         page.wait_for_timeout(int(np.random.uniform(2500, 5000, 1)[0]))
         content = page.content()
         try:
@@ -306,18 +350,26 @@ def search_google(user_query: str) -> str:
 
 
 @logger.catch
-def thread_work(user_query):
+def thread_work(user_query: str) -> Tuple[str, Tuple[str, Dict], Tuple[str, List[Dict]]]:
     '''
     We don't know if the returned value actually links to reviews
+    :param user_query: str - User query we search in google
+
+    :returns
+    Tuple(user_query: str, product_details_list: Tuple[str, Dict], review_details_list: Tuple[str, List[Dict]]
     '''
-    some_url = search_google(user_query=user_query)  # may return None if search fails
+    try:
+        some_url = search_google(user_query=user_query)  # may return None if search fails
+    except Exception as e:
+        logger.critical(f'search google error: {search_google}')
+        some_url = None
     # logger.critical(f'some url: {some_url}')
     if some_url:
         if '/reviews' in some_url:
             logger.info('branch reviews')
             logger.info(user_query, )
-            reviews_url  = some_url[:some_url.find('/reviews')]
-            product_url = some_url[:some_url.find('/reviews')] + '/reviews'
+            product_url  = some_url[:some_url.find('/reviews')]
+            reviews_url = some_url[:some_url.find('/reviews')] + '/reviews'
             logger.info(f'input_url: {some_url}')
             logger.info(f'reviews_url: {reviews_url}')
             logger.info(f'product_url: {product_url}')
@@ -332,26 +384,34 @@ def thread_work(user_query):
         else:
             logger.critical(f'v1 - no results for: {user_query}')
             return (user_query, [], [])
-        product_details_list = scrape_page_playwright(url_path=product_url, parse_func=parse_product)
-        review_details_list = scrape_page_playwright(url_path=reviews_url, parse_func=parse_reviews)
+        logger.info(product_url)
+        try:
+            product_details_list = scrape_page_playwright(url_path=product_url, parse_func=parse_product)
+        except Exception as e:
+            logger.critical(f'product_details_list error: {e}')
+            product_details_list = []
+        try:
+            review_details_list = scrape_page_playwright(url_path=reviews_url, parse_func=parse_reviews)
+        except Exception as e:
+            logger.critical(f'review_details_list error: {e}')
+            review_details_list = []
         if not review_details_list[-1]:  # list of reviews
             # this may happen if the reviews_url logic is faulty or when product names are inconsistent and redirects happen
             prod_det = product_details_list[-1]
             if prod_det:
                 correct_product_url = prod_det.get('product_url')
-                # logger.warning(correct_product_url)
+                logger.warning(f'correct_product_url -- {correct_product_url}')
                 if correct_product_url:
                     correct_reviews_url = correct_product_url + '/reviews'
                     review_details_list = scrape_page_playwright(url_path=correct_reviews_url, parse_func=parse_reviews)
-                    # logger.warning(correct_reviews_url)
+                    logger.warning(f'correct_reviews_url -- {correct_reviews_url}')
                     # logger.warning(review_details_list)
         return (user_query, product_details_list, review_details_list)
     logger.critical(f'v2 - no results for: {user_query}')
-    return (user_query, [], [])
+    return (user_query, (), ())
 
 
 if __name__ == '__main__':
-    # todo: make composable read class
 
     # steps:
     # 1. get product_details & product_reviews - we do not need to query them again
@@ -376,7 +436,7 @@ if __name__ == '__main__':
     # 2. query postgres
     # sql_from_table = ' scraped_data.product_item_list '
     # where_clause = " product_position = 1 limit 70"
-    # df = select_data(table=sql_from_table, where=where_clause)  # todo: refactor
+    # df = select_data(table=sql_from_table, where=where_clause)  #
     # assert df.shape[0] > 0
     # # df = df.sample(frac=1.0)
     # logger.debug(df.columns)
@@ -384,7 +444,7 @@ if __name__ == '__main__':
     #
     # # Read 4
     # # 2.5 get attempts
-    # attempts_df = select_data(table=' scraped_data.product_query_attempts ')  # todo: refactor
+    # attempts_df = select_data(table=' scraped_data.product_query_attempts ')  #
     # attempt_product_names = attempts_df['attempt_product_name'].values.tolist()
     # # attempt_product_names = []
     #

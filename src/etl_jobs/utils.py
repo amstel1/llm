@@ -108,9 +108,12 @@ class PickleDataWrite(Write):
     def __init__(self, filepath: str):
         self.filepath = filepath
 
-    def write(self, data: Any,) -> None:
-        with open(self.filepath, 'wb') as f:
-            pickle.dump(data, f)
+    def write(self, data: Dict,) -> None:
+        assert isinstance(data, dict)
+        logger.debug(f'keys: {data.keys()}')
+        for i, key in enumerate(data):
+            with open(self.filepath.replace('.pkl', f'step_{i}.pkl'), 'wb') as f:
+                pickle.dump(data[key], f)
 
 
 class ItemDetailsRead(Read):
