@@ -40,13 +40,14 @@ class YandexMarketDo(Do):
                 if triple[1]:
                     # product_details
                     # triple[1]: (url, {details_dict})
-                    assert len(triple[1]) == 2
+                    assert len(triple[1]) == 3
                     details_to_mongo = triple[1][1]
                     details_to_mongo.update({'query_url': triple[1][0], 'query_item_name': item_name})
+                    # triple[2] contains bool - interrupted by captcha
                     if triple[2]:
                         # product_reviews
                         # triple[2]: (reviews_url, [{'review1_key1':'review1_value1'}, {'review2_key1':'review2_value1'}])
-                        assert len(triple[2]) == 2
+                        assert len(triple[2]) == 3
                         reviews_url = triple[2][0]
                         init_reviews_list = triple[2][1]
                         for review in init_reviews_list:
@@ -68,7 +69,12 @@ class YandexMarketDo(Do):
 
 class AttemptProductsDo(Do):  # trace decendants after lunch
     def process(self, data: Iterable) -> Dict[StepNum, pd.DataFrame]:
+        if isinstance(data, dict):
+            if 'step_0' in data:
+                data = data.get('step_0')
         df = pd.DataFrame(data, columns=['attempt_product_name'])
+        logger.warning(df.head)
+        logger.warning(df.shape)
         df['attempt_datetime'] = datetime.now()
         return {"step_0": df}
 
@@ -93,13 +99,18 @@ class ReadChainSearchParsePart1:
 
         self.prepare()
         already_scraped_names = []
-        for data in self.data.get('step_0'):
+        for data in self.data.get('step_0').get('step_0'):
             already_scraped_names.append(data.get('item_name'))
-        for data in self.data.get('step_1'):
+        for data in self.data.get('step_1').get('step_0'):
             already_scraped_names.append(data.get('query_item_name'))
         already_scraped_names = list(set(already_scraped_names))
         item_list = self.data.get('step_2').get('step_0')['name'].values.tolist()
-        already_queried_data = self.data.get('step_3').get('step_0')
+        if  self.data.get('step_3'):
+            already_queried_data = self.data.get('step_3').get('step_0')
+        else:
+            already_queried_data = []
+        # logger.debug(f'item list: {item_list}')
+        # logger.debug(f'already_queried_data: {already_queried_data}')
         if already_queried_data is not None and len(already_queried_data) > 0:
             print(already_queried_data)
             already_queried = already_queried_data['attempt_product_name'].values.tolist()
@@ -120,7 +131,7 @@ class ReadChainSearchParsePart2:
     def read(self,) -> Dict[str, Any]:
         self.data[f'step_0'] = self.readers[0].read()
         self.data[f'step_1'] = self.readers[1].read(
-            product_names_to_scrape=self.data[f'step_0']
+            data=self.data[f'step_0']
         )
         return self.data
 
@@ -187,10 +198,10 @@ if __name__ == '__main__':
     # Read: 3.3
     postgres_read_item_list = PostgresDataFrameRead(
         table='scraped_data.item_details_washing_machine',
-        where="offer_count is not null order by offer_count desc, min_price asc limit 75"
+        where="offer_count is not null order by offer_count desc, min_price asc limit 56"
     )
     # Read: 3.4
-    postgres_read_query_attemps = PostgresDataFrameRead(table='scraped_data.product_query_attempts')
+    postgres_read_query_attempts = PostgresDataFrameRead(table='scraped_data.product_query_attempts')
     # Part 3A
     logger.warning('Start - Job 3A')
     scrape_internet_part_A = Job(
@@ -198,40 +209,31 @@ if __name__ == '__main__':
             mongo_read_product_reviews,
             mongo_read_product_details,
             postgres_read_item_list,
-            postgres_read_query_attemps
+            # postgres_read_query_attempts
         ]),
-        writer=PickleDataWrite(filepath='temp_1605.pkl'),
+        writer=PickleDataWrite(filepath='temp_2005_A.pkl'),
     )
     scrape_internet_part_A.run()
-    ############
-    scrape_internet_part_B = Job(
-        reader=ReadChain(readers=[PickleDataRead(filepath='temp_1605step_0.pkl')]),
-        writer=PickleDataWrite(filepath='temp_16052.pkl'),
-    )
-    scrape_internet_part_B.run()
     logger.warning('End - Job 3A')
 
     # # step 3B
     logger.warning('Start - Job 3B')
-    # pkl_reader = PickleDataRead(filepath='temp_16052.pkl')
     internet_reader = SearchParseRead()
     scrape_internet_part_C = Job(
         reader=ReadChainSearchParsePart2(readers=[
-            PickleDataRead(filepath='temp_16052step_0.pkl'),
-            # PickleDataRead(filepath='temp_16053.pkl')
-            internet_reader
+            PickleDataRead(filepath='temp_2005_A.pkl'),
+            internet_reader,
         ]),
         processor=DoChain(processors=[
             AttemptProductsDo(),
             YandexMarketDo()
         ]),
         writer=WriteChain(writers=[
-                PostgresDataFrameWrite(schema_name='scraped_data', table_name='product_query_attempts'),  # attempts
+                PostgresDataFrameWrite(schema_name='scraped_data', table_name='product_query_attempts', insert_unique=False),  # todo: bug when False
                 WriteChain(writers=[
                     MongoWrite(operation='write', db_name='scraped_data', collection_name='product_details'),
                     MongoWrite(operation='write', db_name='scraped_data', collection_name='product_reviews')
                 ]),  # details & reviews
-                # PickleDataWrite(filepath='temp_16053.pkl'),
             ],
         )
     )

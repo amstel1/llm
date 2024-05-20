@@ -102,7 +102,7 @@ if __name__ == '__main__':
     rag_chain = (
             {"context": retriever | format_docs, "question": RunnablePassthrough()}
             | prompt
-            # | def_debugger
+            | def_debugger
             | llm
             | StrOutputParser()
     )
@@ -145,8 +145,9 @@ if __name__ == '__main__':
     #
     # response = rag_chain.invoke("Какой депозит самый выгодный?")
     # logger.info(f"response: {response}")
-
-    response = rag_chain.invoke("Какая карта самая выгодная?")
+    q = "Самый выгодный процент по кредит на авто"
+    logger.warning(q)
+    response = rag_chain.invoke(q)
     logger.info(f"response: {response}")
 
     #

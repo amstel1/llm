@@ -40,11 +40,12 @@ from datetime import datetime
 #     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
 #     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36',
 #     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-#     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-#     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+#     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+#     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
 #     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
 #     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
-#     'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+#     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+#     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
 # ]
 
 # curl -x 152.170.208.188:8080  http://example.com
@@ -119,7 +120,7 @@ def parse_reviews(mdata) ->  List[dict[str, Any]]:
                 return total_reviews
 
 @logger.catch
-def scrape_page_playwright(url_path: Url, parse_func: Callable) -> Tuple[Url, Dict | List[Dict]]:
+def scrape_page_playwright(url_path: Url, parse_func: Callable) -> Tuple[Url, Dict | List[Dict], bool]:
     parsing_output = []
     with sync_playwright() as p:
         browser_select = random.sample(['firefox',], 1)[0]  #  'firefox',
@@ -142,6 +143,8 @@ def scrape_page_playwright(url_path: Url, parse_func: Callable) -> Tuple[Url, Di
             )
         # ua = random.sample(uas, 1)[0]
         context = browser.new_context(
+            # storage_state="/home/amstel/llm/playwright/state.json"
+
             # user_agent=ua,
             # java_script_enabled=True,  # ?
             # bypass_csp=True,
@@ -162,24 +165,34 @@ def scrape_page_playwright(url_path: Url, parse_func: Callable) -> Tuple[Url, Di
             #     "accept-language":"en-US,en;q=0.9"
             # },
         )
-        # context.clear_cookies()
+        context.clear_cookies()
         # logger.warning(ua)
-        # context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-        page = browser.new_page()
+        page = context.new_page()
+
+        page.set_extra_http_headers({
+            'Referer': 'https://yandex.by/',
+            "Accept-Language": "en-US,en;q=0.9,ru;q=0.8",
+            "Accept-Encoding": "gzip, deflate, br, zstd",
+            # "Cookie": "yandex_gid=157; yuidss=9166581321716009668; is_gdpr=0; is_gdpr_b=CIKREhDQ/AEoAg==; i=u4WSFxDl57o9vxhAPbIYEwfnLBugvVCpLOjO4RYlnUp+n2/1hsfG3ZzVWlki6qRcKkFkyPT4WDnATV/7VBokzvna/tw=; yandexuid=9166581321716009668; yashr=1021432361716009668; receive-cookie-deprecation=1; gdpr=0; _ym_uid=171586552943728305; ymex=2031369670.yrts.1716009670; bh=Ej8iR29vZ2xlIENocm9tZSI7dj0iMTI1IiwiQ2hyb21pdW0iO3Y9IjEyNSIsIk5vdC5BL0JyYW5kIjt2PSIyNCIaBSJ4ODYiIg8iMTI1LjAuNjQyMi42MCIqAj8wOgciTGludXgiQgciNi41LjAiSgQiNjQiUloiR29vZ2xlIENocm9tZSI7dj0iMTI1LjAuNjQyMi42MCIsIkNocm9taXVtIjt2PSIxMjUuMC42NDIyLjYwIiwiTm90LkEvQnJhbmQiO3Y9IjI0LjAuMC4wIiI=; my=YwA=; instruction=1; font_loaded=YSv1; nec=0; oq_shown_onboardings=%5B%5D; oq_last_shown_date=1716020878270; upa_completed=1; _ym_isad=2; visits=1716009902-1716009902-1716189936; js=1; spravka=dD0xNzE2MTkwMDEwO2k9NDYuMjE2LjE1Mi4xNDtEPTRFRjg3M0Q5NjdFNDhDNkYzRjYwODVBMUIxRTUzMDJCOUQ2MENBQUM4ODNBOEFGNUFFRkFERDRDRTkzRDRFRUY0MzU3RUVFNEMyMTEwMkZBMzY0OEZCQTAyQTMxMTVBMjVBQTZGRjg5RTNCNkJCRUIyQjkxMjQ5QzUxQkM1MkE2RDdGN0RGRjNEMzI5NjE3OTQyMjkwNzlFRUVGQUNDOUQxMEUxOTZDRkJBODIyNkJCO3U9MTcxNjE5MDAxMDI2MjQ3MTkxMDtoPTc4ZDlkMDgxMTZiNGI2YzFkY2IyOGZiNTBkNTkxNjMw; global_delivery_point_skeleton={%22regionName%22:%22%D0%9C%D0%B8%D0%BD%D1%81%D0%BA%22%2C%22addressLineWidth%22:42.875}; _ym_d=1716190522; skid=130347701716192049; Session_id=3:1716192061.5.0.1716192061432:87PYLg:56.1.2:1|1981518894.0.2.3:1716192061|17:10170326.860883.Uq5E35bib88L4MBax7IS851N0mo; sessar=1.1190.CiAyOCzVw71Ic2Hz4qbkkmMez9vmrizGKR3nRw1NrbfkqA.TT76Ehm-m7Fbk-pcN5x5bBhbtze5H0gvTgnYV1zAm94; sessionid2=3:1716192061.5.0.1716192061432:87PYLg:56.1.2:1|1981518894.0.2.3:1716192061|17:10170326.860883.fakesign0000000000000000000; yp=4294967295.skin.s#1718601668.ygu.1#1731777706.szm.1:1920x1080:1920x896#1718868815.csc.1#2031550521.multib.1#2031552061.udn.cDptYXJrZXQtYXBpLWFjY2Vzcw%3D%3D; ys=udn.cDptYXJrZXQtYXBpLWFjY2Vzcw%3D%3D; L=ZlZmV19eb0ZZRgpCDlxjC1VtAA59BW9HAQg+XAobSgs1DBlTISANRQE=.1716192061.15741.391684.d85b7807001b88ce86ce1ee1957cfa5f; yandex_login=market-api-access; server_request_id_market:index=1716192068154%2F038fa0f8f528e48790b4961ade180600%2F1%2F1; spvuid_market:index_3751af_expired:1716278468220=1716192068154%2F038fa0f8f528e48790b4961ade180600%2F1%2F1; spvuid_market:list_1b473a_expired:1716278470479=1716192070346%2F233ff984bf749f0f5328b81ade180600%2F1%2F1; parent_reqid_seq=1716192068154%2F038fa0f8f528e48790b4961ade180600%2F1%2F1%2C1716192070000%2F363e18e2590fdd43b8dfb21ade180600%2F1%2F1%2C1716192070346%2F233ff984bf749f0f5328b81ade180600%2F1%2F1%2C1716192071642%2Faa7f8881a962c1385eedcb1ade180600%2F1%2F1%2C1716192072693%2F9e046dfcd197280fe3f7db1ade180600%2F1%2F1; _yasc=JCOSQZE5XSNOOBhlKs5aUCNpjBl+yGWoLW2g0SIoFF4Qk1CQmxr5V6/cWElEwN1FpeLXFRoMLre5l0BZpg0yisohJhmBCA==; spvuid_market:orders_626ad9_expired:1716278472752=1716192072693%2F9e046dfcd197280fe3f7db1ade180600%2F1%2F1",
+            "Sec-Ch-Ua": '"Google Chrome";v="125", "Chromium";v="125", "Not.A/Brand";v="24"',
+            "User-Agent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+            "Sec-Ch-Ua-Platform": "Windows 10"
+        })
+
         # page.set_extra_http_headers({
         #     'Referer': 'https://yandex.by/',
         #     "Accept-Language": "en-US,en;q=0.9",
         #     "Accept-Encoding": "gzip, deflate, br",
-        #     "Connection": "keep-alive"
         # })
-        # page.wait_for_timeout(int(np.random.uniform(0, 1000, 1)[0]))
-        page.goto(url_path,)
-        page.screenshot(path="now1.png")
 
-        # page.wait_for_load_state(state='domcontentloaded')
-        # page.wait_for_timeout(int(np.random.uniform(2500, 5000, 1)[0]))
+        response = page.goto(url_path.replace('.ru', '.by'), wait_until='load')
+        if 'captcha' in response.url:
+            INTERRUPT = True
+            return (url_path, parsing_output, INTERRUPT)
+        # page.screenshot(path="now1.png")
+        # page.wait_for_timeout(int(np.random.uniform(0, 5000, 1)[0]))
         content = page.content()
-        page.screenshot(path="now2.png")
+        # page.screenshot(path="now2.png")
 
         try:
             with open(f"/home/amstel/llm/out/htmls/{url_path.replace('/', '-')}.html", 'w') as f:
@@ -188,13 +201,13 @@ def scrape_page_playwright(url_path: Url, parse_func: Callable) -> Tuple[Url, Di
             pass
         soup = BeautifulSoup(content, "html.parser")
         mdata = extruct.extract(soup.prettify(), syntaxes=['microdata']).get('microdata')
-        # if parse_func==parse_product: parsing_output -> Dict
-        # if parse_func==parse_review: parsing_output -> List[Dict]
+
         parsing_output = parse_func(mdata)
         # assert parsing_output  # if error, parsing failed, check microdata of the page
         context.close()
         browser.close()
-    return (url_path, parsing_output)
+    INTERRUPT = False
+    return (url_path, parsing_output, INTERRUPT)
 
 
 def clear_str(s):
@@ -284,7 +297,7 @@ def search_google(user_query: str) -> str:
     # google
     url = 'https://google.com/search'
     params = {
-        'q': 'site: market.yandex.ru отзывы ' + user_query,
+        'q': 'site: market.yandex.by отзывы ' + user_query,
     }
 
     for i, (k, v) in enumerate(params.items()):
@@ -315,6 +328,8 @@ def search_google(user_query: str) -> str:
                                        )
         # ua = random.sample(uas, 1)[0]
         context = browser.new_context(
+            # storage_state="/home/amstel/llm/playwright/state.json"
+
             # user_agent=ua,
             #
             # java_script_enabled=True,  # ?
@@ -324,11 +339,11 @@ def search_google(user_query: str) -> str:
         # logger.warning(ua)
         context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         page = context.new_page()
-        page.wait_for_timeout(int(np.random.uniform(0, 1000, 1)[0]))
-        page.goto(url,
+        # page.wait_for_timeout(int(np.random.uniform(0, 1000, 1)[0]))
+        page.goto(url, wait_until='load'
                   # referer='https://yandex.by/',
                   )
-        page.wait_for_timeout(int(np.random.uniform(2500, 5000, 1)[0]))
+        # page.wait_for_timeout(int(np.random.uniform(2500, 5000, 1)[0]))
         content = page.content()
         try:
             with open(f"/home/amstel/llm/out/htmls/{user_query.replace('/', '-')}.html", 'w') as f:
@@ -350,7 +365,7 @@ def search_google(user_query: str) -> str:
 
 
 @logger.catch
-def thread_work(user_query: str) -> Tuple[str, Tuple[str, Dict], Tuple[str, List[Dict]]]:
+def thread_work(user_query: str) -> Tuple[str, Tuple[str, Dict], Tuple[str, List[Dict]], bool]:
     '''
     We don't know if the returned value actually links to reviews
     :param user_query: str - User query we search in google
@@ -383,32 +398,43 @@ def thread_work(user_query: str) -> Tuple[str, Tuple[str, Dict], Tuple[str, List
             logger.warning(f'product_url: {product_url}')
         else:
             logger.critical(f'v1 - no results for: {user_query}')
-            return (user_query, [], [])
+            return (user_query, [], [], False)
         logger.info(product_url)
         try:
             product_details_list = scrape_page_playwright(url_path=product_url, parse_func=parse_product)
+            INTERRUPT = product_details_list[-1]
+            if INTERRUPT:
+                return (user_query, (), (), INTERRUPT)
         except Exception as e:
             logger.critical(f'product_details_list error: {e}')
             product_details_list = []
-        try:
-            review_details_list = scrape_page_playwright(url_path=reviews_url, parse_func=parse_reviews)
-        except Exception as e:
-            logger.critical(f'review_details_list error: {e}')
-            review_details_list = []
-        if not review_details_list[-1]:  # list of reviews
-            # this may happen if the reviews_url logic is faulty or when product names are inconsistent and redirects happen
-            prod_det = product_details_list[-1]
-            if prod_det:
-                correct_product_url = prod_det.get('product_url')
-                logger.warning(f'correct_product_url -- {correct_product_url}')
-                if correct_product_url:
-                    correct_reviews_url = correct_product_url + '/reviews'
-                    review_details_list = scrape_page_playwright(url_path=correct_reviews_url, parse_func=parse_reviews)
-                    logger.warning(f'correct_reviews_url -- {correct_reviews_url}')
-                    # logger.warning(review_details_list)
-        return (user_query, product_details_list, review_details_list)
+
+        # try:
+        #     review_details_list = scrape_page_playwright(url_path=reviews_url, parse_func=parse_reviews)
+        #     INTERRUPT = product_details_list[-1]
+        #     if INTERRUPT:
+        #         return (user_query, product_details_list, (), INTERRUPT)
+        # except Exception as e:
+        #     logger.critical(f'review_details_list error: {e}')
+        #     review_details_list = []
+        # if not review_details_list[-1]:  # list of reviews
+        #     # this may happen if the reviews_url logic is faulty or when product names are inconsistent and redirects happen
+        #     prod_det = product_details_list[-1]
+        #     if prod_det:
+        #         correct_product_url = prod_det.get('product_url')
+        #         logger.warning(f'correct_product_url -- {correct_product_url}')
+        #         if correct_product_url:
+        #             correct_reviews_url = correct_product_url + '/reviews'
+        #             review_details_list = scrape_page_playwright(url_path=correct_reviews_url, parse_func=parse_reviews)
+        #             INTERRUPT = product_details_list[-1]
+        #             if INTERRUPT:
+        #                 return (user_query, product_details_list, (), INTERRUPT)
+
+
+        review_details_list = ()
+        return (user_query, product_details_list, review_details_list, INTERRUPT)
     logger.critical(f'v2 - no results for: {user_query}')
-    return (user_query, (), ())
+    return (user_query, (), (), True)
 
 
 if __name__ == '__main__':

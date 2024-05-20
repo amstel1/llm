@@ -15,7 +15,7 @@ class PostgresDataFrameWrite(Write):
     def __init__(self,
                 schema_name: str = 'scraped_data',
                 table_name: str = 'product_item_list',
-                insert_unique: bool = True,  # whether to insert unique
+                insert_unique: bool = False,  # whether to insert unique
                 index_column: str = "product_url",  # column to check uniqueness against
                 ):
 

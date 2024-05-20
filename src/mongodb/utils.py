@@ -1,9 +1,10 @@
 import sys
 sys.path.append('/home/amstel/llm/src')
-from etl_jobs.base import Read, Write
+from etl_jobs.base import Read, Write, StepNum
 import pymongo
 from typing import Literal, List, Dict, Any
 from loguru import logger
+import numpy as np
 
 MongoOperationType = Literal['write', 'read',]
 MongoRole = Literal['reader', 'writer',]
@@ -79,9 +80,9 @@ class MongoRead(Read):
         assert self.mongo_connector.db is not None
         assert self.mongo_connector.collection is not None
 
-    def read(self) -> List[Dict]:
+    def read(self) -> Dict[StepNum, List[str]]:
         cursor = self.mongo_connector.read_many({})
-        return  list(cursor)
+        return {"step_0": list(cursor)}
 
 class MongoWrite(Write):
     def __init__(self, operation: MongoOperationType, db_name: str, collection_name: str):
@@ -100,9 +101,15 @@ class MongoWrite(Write):
     def write(self, data: Any) -> None:
         if len(data) > 0:
             if all(isinstance(x,list) for x in data):
-                data = [item for sublist in data for item in sublist]
+                logger.debug("debug mongo - ravel")
+                logger.debug(data)
+                try:
+                    data = list(np.ravel(data))
+                except Exception as e:
+                    data = [item for sublist in data for item in sublist]
+        if len(data) > 0:
             self.mongo_connector.write_many(data)
-            logger.info(f'written: {data}')
+            # logger.info(f'written: {data}')
         # cursor = MongoConnector(operation='write', db_name='scraped_data', collection_name='product_details')
         # cursor.write_many(product_details)
         #

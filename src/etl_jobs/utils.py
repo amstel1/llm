@@ -103,10 +103,11 @@ class PickleDataRead(Read):
     def __init__(self, filepath: str):
         self.filepath = filepath
 
-    def read(self) -> Dict[StepNum, Any]:
+    def read(self) -> Any:
+        # RETURNS ANY - CORRECT
         with open(self.filepath, 'rb') as f:
             data = pickle.load(f)
-        return {"step_0": data}
+        return data
 
 
 class PickleDataWrite(Write):
@@ -114,9 +115,11 @@ class PickleDataWrite(Write):
         self.filepath = filepath
 
     def write(self, data: Dict[StepNum, Any],) -> None:
+        # WRITES AS IS - CORRECT
         assert isinstance(data, dict)
         for i, key in enumerate(data):
-            with open(self.filepath.replace('.pkl', f'step_{i}.pkl'), 'wb') as f:
+            # .replace('.pkl', f'step_{i}.pkl')
+            with open(self.filepath, 'wb') as f:
                 pickle.dump(data, f)
 
 

@@ -13,7 +13,7 @@ import scrapy
 from scrapy.spiders import CrawlSpider
 # from bs4 import BeautifulSoup
 # import requests
-from typing import Dict, List, Any, Set
+from typing import Dict, List, Any, Set, Tuple
 from scrapy.exceptions import CloseSpider
 import logging
 import pickle
@@ -403,11 +403,22 @@ class EcomProductRead(Read):
 
 
 class SearchParseRead(Read):
-    def read(self, product_names_to_scrape: Set) -> Any:
+    def read(self, data: Dict[StepNum, str]) -> Tuple[str, Tuple[str, Dict], Tuple[str, List[Dict]]]:
+        assert isinstance(data, dict)
         self.triplets = {}
+        product_names_to_scrape = data.get('step_0')
         for user_query in product_names_to_scrape:
-            # Tuple[str, Tuple[str, Dict], Tuple[str, List[Dict]]]
-            self.triplets[user_query] = thread_work(user_query)
+            # Tuple[str, Tuple[str, Dict], Tuple[str, List[Dict]], bool]
+            try:
+                output = thread_work(user_query)
+                triplet = output[:3]
+                INTERRUPT = output[-1]
+                self.triplets[user_query] = triplet
+                logger.critical(f"interrupt? {user_query} -- {INTERRUPT}")
+                if INTERRUPT:
+                    break
+            except Exception as e:
+                pass
         return self.triplets
 
     # def read_threading(self, product_names_to_scrape: Set) -> Any:
