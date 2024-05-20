@@ -42,3 +42,5 @@ backup_instruct
 backup
 src/git-filter-repo
 /scripts/
+\nplaywright/.auth
+\nplaywright/.auth
