@@ -24,17 +24,16 @@ CREATE TABLE scraped_data.product_query_attempts
     attempt_datetime timestamp without time zone[]
 );
 
-/*
--- todo: redo into view
-create table scraped_data.washing_machine (
-  "brand" text, -- название производителя
-  "rating_value" real, -- рейтинг товара
-  "rating_count" real, -- количество оценок
-  "review_count" real, -- количество отзывов
-  "name" text, -- название товара
-  "price" real, -- цена, руб.
-  "max_load" real, -- максимальная загрузка, кг.
-  "depth" real, -- глубина, см.
-  "drying" text -- есть ли сушка, Да/Нет
-)
-*/
+CREATE OR REPLACE VIEW scraped_data.washing_machine
+    AS
+     SELECT details.brand,
+    details.name,
+    details.min_price AS price,
+    reviews.product_rating_value AS rating_value,
+    reviews.product_rating_count AS rating_count,
+    reviews.product_review_count AS review_count,
+    details.max_load,
+    details.depth,
+    details.drying
+   FROM scraped_data.item_details_washing_machine details
+   LEFT JOIN scraped_data.reviews_product_details reviews ON details.name = reviews.query_item_name;
