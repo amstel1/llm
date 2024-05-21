@@ -1,6 +1,8 @@
 import sys
 from datetime import datetime
 import pandas as pd
+from polyfuzz.models import TFIDF
+import numpy as np
 
 sys.path.append('/home/amstel/llm/src')
 from typing import Optional, Dict, Any, List, Set, Tuple, Iterable
@@ -136,6 +138,76 @@ class ReadChainSearchParsePart2:
         return self.data
 
 
+class FillInDo(Do):
+    def process(self, data: Dict[StepNum, Any]) -> Dict[StepNum, Any]:
+        assert isinstance(data, dict)
+        item_details = data.get('step_0').get('step_0')
+        product_item_list_to_fill = data.get('step_1').get('step_0')
+        product_item_list = data.get('step_2').get('step_0')
+
+        # etl:
+        # step 1 - find exact match
+        # step 2 - find aprox match
+        # step 3 - assing them to scraped_data.product_item_list_to_fill as "etalon_name"
+        # step 4 - get  them from scraped_data.product_item_list_to_fill by product_url
+        # step 5 - get scraped_data.item_details_washing_machine
+        # step 6 - select from step 4 by etalon name
+        # step 7 - assign product_url, product_price as min_price, etalon_name as name,
+
+        fill = set(product_item_list_to_fill['product_name'])
+        known = set(product_item_list['product_name'])
+        # step 1: exact_match
+        intersect = fill & known
+        fill -= intersect
+        known -= intersect
+        tfidf = TFIDF()
+        from_mapping = {x.replace(' ', ''): x for x in list(fill)}
+        to_mapping = {x.replace(' ', ''): x for x in list(known)}
+        temp_tfidf = tfidf.match([x.replace(' ', '') for x in list(fill)], [x.replace(' ', '') for x in list(known)])
+        temp_tfidf['OriginalFrom'] = temp_tfidf['From'].map(from_mapping)
+        temp_tfidf['OriginalTo'] = temp_tfidf['To'].map(to_mapping)
+        temp_tfidf = temp_tfidf[temp_tfidf.Similarity > 0.71]
+        product_item_list_to_fill['etalon_name'] = np.nan
+
+        # step 3 - assing them to scraped_data.product_item_list_to_fill as "etalon_name"
+        product_item_list_to_fill.loc[product_item_list_to_fill.product_name.isin(intersect), 'etalon_name'] = \
+        product_item_list_to_fill.loc[product_item_list_to_fill.product_name.isin(intersect), 'product_name']
+        product_item_list_to_fill.loc[
+            (product_item_list_to_fill.etalon_name.isnull() & product_item_list_to_fill.product_name.isin(
+                temp_tfidf.OriginalFrom)), 'etalon_name'
+        ] = product_item_list_to_fill.loc[
+            (product_item_list_to_fill.etalon_name.isnull() & product_item_list_to_fill.product_name.isin(
+                temp_tfidf.OriginalFrom)), 'product_name'
+        ].replace(temp_tfidf.set_index('OriginalFrom')['OriginalTo'].to_dict())
+
+        product_item_list_to_fill.loc[
+            (product_item_list_to_fill.product_name.isin(temp_tfidf.OriginalFrom)), 'Similarity'
+        ] = product_item_list_to_fill.loc[
+            (product_item_list_to_fill.product_name.isin(temp_tfidf.OriginalFrom)), 'product_name'
+        ].replace(temp_tfidf.set_index('OriginalFrom')['Similarity'].to_dict())
+
+        # step 4 - get  them from scraped_data.product_item_list_to_fill by product_url
+        product_item_list_to_fill = product_item_list_to_fill[product_item_list_to_fill.etalon_name.notnull()]
+        details_new = item_details[
+            item_details.name.isin(product_item_list_to_fill.etalon_name)]
+        details_new.drop(['product_url', 'offer_count', 'min_price', ], axis=1, inplace=True)
+        details_new = details_new.merge(
+            product_item_list_to_fill[['etalon_name', 'product_url', 'product_price', 'Similarity']], 'left',
+            left_on='name', right_on='etalon_name')
+        details_new.drop(['etalon_name', ], axis=1, inplace=True)
+        details_new.rename(columns={'product_price': 'min_price'}, inplace=True)
+        details_new['min_price'] = details_new['min_price'].astype(str).str.replace(" ", "").str.replace(u'\xa0', "").astype(float)
+        details_new['offer_count'] = 1
+        details_new['Similarity'].fillna(1, inplace=True)
+        details_new['ranking'] = details_new.groupby([details_new['product_url'].str[:20], details_new['name']])[
+            'Similarity'].rank(ascending=False)
+        details_new = details_new[details_new.ranking == 1]
+        details_new.drop(['Similarity', 'ranking'], axis=1, inplace=True)
+        details_new = details_new[item_details.columns]
+        return {'step_0': details_new}
+
+
+
 if __name__ == '__main__':
     pass
 
@@ -167,9 +239,6 @@ if __name__ == '__main__':
 
 
 
-
-
-
     # step 2. Read: ItemList from Postgres, Do: Scrapy ProductDetails, Write: to Postgres
     # logger.warning('Start - Job 2')
     # ItemDetails_2_Postgres = Job(
@@ -190,52 +259,65 @@ if __name__ == '__main__':
 
 
 
-    # step 3.A - prepare data, save to pickle
-    # Read: 3.1
-    mongo_read_product_reviews = MongoRead(operation='read', db_name='scraped_data', collection_name='product_reviews')
-    # Read 3.2
-    mongo_read_product_details = MongoRead(operation='read', db_name='scraped_data', collection_name='product_details')
-    # Read: 3.3
-    postgres_read_item_list = PostgresDataFrameRead(
-        table='scraped_data.item_details_washing_machine',
-        where="offer_count is not null order by offer_count desc, min_price asc limit 500"
-    )
-    # Read: 3.4
-    postgres_read_query_attempts = PostgresDataFrameRead(table='scraped_data.product_query_attempts')
-    # Part 3A
-    logger.warning('Start - Job 3A')
-    scrape_internet_part_A = Job(
-        reader=ReadChainSearchParsePart1(readers=[
-            mongo_read_product_reviews,
-            mongo_read_product_details,
-            postgres_read_item_list,
-            postgres_read_query_attempts
-        ]),
-        writer=PickleDataWrite(filepath='temp_2005_A.pkl'),
-    )
-    scrape_internet_part_A.run()
-    logger.warning('End - Job 3A')
+    # # step 3.A - prepare data, save to pickle
+    # # Read: 3.1
+    # mongo_read_product_reviews = MongoRead(operation='read', db_name='scraped_data', collection_name='product_reviews')
+    # # Read 3.2
+    # mongo_read_product_details = MongoRead(operation='read', db_name='scraped_data', collection_name='product_details')
+    # # Read: 3.3
+    # postgres_read_item_list = PostgresDataFrameRead(
+    #     table='scraped_data.item_details_washing_machine',
+    #     where="offer_count is not null order by offer_count desc, min_price asc limit 500"
+    # )
+    # # Read: 3.4
+    # postgres_read_query_attempts = PostgresDataFrameRead(table='scraped_data.product_query_attempts')
+    # # Part 3A
+    # logger.warning('Start - Job 3A')
+    # scrape_internet_part_A = Job(
+    #     reader=ReadChainSearchParsePart1(readers=[
+    #         mongo_read_product_reviews,
+    #         mongo_read_product_details,
+    #         postgres_read_item_list,
+    #         postgres_read_query_attempts
+    #     ]),
+    #     writer=PickleDataWrite(filepath='temp_2005_A.pkl'),
+    # )
+    # scrape_internet_part_A.run()
+    # logger.warning('End - Job 3A')
+    #
+    # # # step 3B
+    # logger.warning('Start - Job 3B')
+    # internet_reader = SearchParseRead()
+    # scrape_internet_part_C = Job(
+    #     reader=ReadChainSearchParsePart2(readers=[
+    #         PickleDataRead(filepath='temp_2005_A.pkl'),
+    #         internet_reader,
+    #     ]),
+    #     processor=DoChain(processors=[
+    #         AttemptProductsDo(),
+    #         YandexMarketDo()
+    #     ]),
+    #     writer=WriteChain(writers=[
+    #             PostgresDataFrameWrite(schema_name='scraped_data', table_name='product_query_attempts', insert_unique=False),  # todo: bug when False
+    #             WriteChain(writers=[
+    #                 MongoWrite(operation='write', db_name='scraped_data', collection_name='product_details'),
+    #                 MongoWrite(operation='write', db_name='scraped_data', collection_name='product_reviews')
+    #             ]),  # details & reviews
+    #         ],
+    #     )
+    # )
+    # scrape_internet_part_C.run()
+    # logger.warning('End - Job 3B')
 
-    # # step 3B
-    logger.warning('Start - Job 3B')
-    internet_reader = SearchParseRead()
-    scrape_internet_part_C = Job(
-        reader=ReadChainSearchParsePart2(readers=[
-            PickleDataRead(filepath='temp_2005_A.pkl'),
-            internet_reader,
+
+    # Job 4 -> Fill in the details from the sites that have no product_details microdata
+    DetailsFillIn = Job(
+        reader=ReadChain(readers=[
+            PostgresDataFrameRead(table='scraped_data.item_details_washing_machine', where=''),
+            PostgresDataFrameRead(table='scraped_data.product_item_list_to_fill', where=''),
+            PostgresDataFrameRead(table='scraped_data.product_item_list', where=''),
         ]),
-        processor=DoChain(processors=[
-            AttemptProductsDo(),
-            YandexMarketDo()
-        ]),
-        writer=WriteChain(writers=[
-                PostgresDataFrameWrite(schema_name='scraped_data', table_name='product_query_attempts', insert_unique=False),  # todo: bug when False
-                WriteChain(writers=[
-                    MongoWrite(operation='write', db_name='scraped_data', collection_name='product_details'),
-                    MongoWrite(operation='write', db_name='scraped_data', collection_name='product_reviews')
-                ]),  # details & reviews
-            ],
-        )
+        processor=FillInDo(),
+        writer=PostgresDataFrameWrite(schema_name='scraped_data', table_name='item_details_washing_machine', insert_unique=False)
     )
-    scrape_internet_part_C.run()
-    logger.warning('End - Job 3B')
+    DetailsFillIn.run()
