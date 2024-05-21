@@ -16,7 +16,9 @@ from langfuse.callback import CallbackHandler
 from datetime import datetime
 from langchain_community.agent_toolkits import create_sql_agent
 import pandas as pd
-
+import sys
+sys.path.append('/home/amstel/llm/src')
+from postgres.config import user, password, host, port, database
 
 
 trace_name = f'sql_llama3_{datetime.now()}'
@@ -44,7 +46,7 @@ llm = LlamaCpp(
 
 top_k = 1
 dialect = 'postgresql'
-uri = "postgresql://localhost:6432/scraperdb?user=scraperuser&password=scraperpassword"
+uri = f"postgresql://{host}:{port}/{database}?user={user}&password={password}"
 db = SQLDatabase.from_uri(uri)
 table_info = '''create table scraped_data.washing_machine (
   "brand" text, -- название производителя

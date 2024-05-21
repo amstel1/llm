@@ -33,12 +33,12 @@ class PostgresDataFrameWrite(Write):
         logger.warning(data.shape)
         logger.info(data.head())
 
-        connection_str = f'postgresql://{user}:{password}@{host}:{port}/{database}'
-        engine = create_engine(connection_str)
         try:
-            with engine.connect() as connection_str:
-                print('Successfully connected to the PostgreSQL database')
-                if self.insert_unique:
+            if self.insert_unique:
+                connection_str = f'postgresql://{user}:{password}@{host}:{port}/{database}'
+                engine = create_engine(connection_str)
+                with engine.connect() as connection_str:
+                    print('Successfully connected to the PostgreSQL database')
                     try:
                         df = pd.read_sql(
                             sql=f'select * from {self.schema_name}.{self.table_name}',
@@ -46,21 +46,24 @@ class PostgresDataFrameWrite(Write):
                         )
                         if self.index_column in df.columns and self.index_column in data.columns:
                             data = data[~data[self.index_column].isin(df[self.index_column])]  # only unique remain
+                            data = data[data[self.index_column].notnull()]
                             logger.warning(f'after unique -- {data.shape}')
                     except Exception as e:
                         logger.error(f"error -- insertion uniqueness not satisfied: {e}")
-                try:
-                    logger.warning(data.dtypes)
-                    data.to_sql(
-                        name=self.table_name,
-                        con=connection_str,
-                        schema=self.schema_name,
-                        index=False,
-                        if_exists='append',
-                    )
-                    logger.info(f'df.to_sql -- inserted successfully -- {data.shape} to {self.schema_name}.{self.table_name}')
-                except Exception as e:
-                    logger.error(f"error -- insert sql failed: {e}")
+            connection_str = f'postgresql://{user}:{password}@{host}:{port}/{database}'
+            engine = create_engine(connection_str)
+            try:
+                logger.warning(data.dtypes)
+                data.to_sql(
+                    name=self.table_name,
+                    con=connection_str,
+                    schema=self.schema_name,
+                    index=False,
+                    if_exists='append',
+                )
+                logger.info(f'df.to_sql -- inserted successfully -- {data.shape} to {self.schema_name}.{self.table_name}')
+            except Exception as e:
+                logger.error(f"error -- insert sql failed: {e}")
         except Exception as ex:
             logger.critical(f'Sorry failed to connect: {ex}')
 

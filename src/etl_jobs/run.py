@@ -207,6 +207,21 @@ class FillInDo(Do):
         return {'step_0': details_new}
 
 
+class ReviewsProductDetailsDo(Do):
+    def process(self, data: Dict[StepNum, Any]) -> Dict[StepNum, Any]:
+        assert isinstance(data, dict)
+        data = data.get('step_0')
+        df = pd.DataFrame(data)
+        df['product_rating_value'] = df['product_rating_value'].astype(float)
+        df['product_rating_count'] = df['product_rating_count'].fillna(0).astype(int)
+        df['product_review_count'] = df['product_review_count'].fillna(0).astype(int)
+        df['inserted_datetime'] = datetime.now()
+        logger.debug(df.columns)
+        if 'ObjectId' in df.columns: df.drop('ObjectId', axis=1, inplace=True)
+        if '_id' in df.columns: df.drop('_id', axis=1, inplace=True)
+
+        return {"step_0": df}
+
 
 if __name__ == '__main__':
     pass
@@ -311,13 +326,25 @@ if __name__ == '__main__':
 
 
     # Job 4 -> Fill in the details from the sites that have no product_details microdata
-    DetailsFillIn = Job(
-        reader=ReadChain(readers=[
-            PostgresDataFrameRead(table='scraped_data.item_details_washing_machine', where=''),
-            PostgresDataFrameRead(table='scraped_data.product_item_list_to_fill', where=''),
-            PostgresDataFrameRead(table='scraped_data.product_item_list', where=''),
-        ]),
-        processor=FillInDo(),
-        writer=PostgresDataFrameWrite(schema_name='scraped_data', table_name='item_details_washing_machine', insert_unique=False)
+    # DetailsFillIn = Job(
+    #     reader=ReadChain(readers=[
+    #         PostgresDataFrameRead(table='scraped_data.item_details_washing_machine', where=''),
+    #         PostgresDataFrameRead(table='scraped_data.product_item_list_to_fill', where=''),
+    #         PostgresDataFrameRead(table='scraped_data.product_item_list', where=''),
+    #     ]),
+    #     processor=FillInDo(),
+    #     writer=PostgresDataFrameWrite(schema_name='scraped_data', table_name='item_details_washing_machine', insert_unique=False)
+    # )
+    # DetailsFillIn.run()
+
+    ReviewsProductDetails = Job(
+        reader=MongoRead(operation='read', db_name='scraped_data', collection_name='product_details'),
+        processor=ReviewsProductDetailsDo(),
+        writer=PostgresDataFrameWrite(
+            schema_name='scraped_data',
+            table_name='reviews_product_details',
+            insert_unique=True,
+            index_column='product_url'
+        )
     )
-    DetailsFillIn.run()
+    ReviewsProductDetails.run()
