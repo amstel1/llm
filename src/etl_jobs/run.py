@@ -198,7 +198,7 @@ if __name__ == '__main__':
     # Read: 3.3
     postgres_read_item_list = PostgresDataFrameRead(
         table='scraped_data.item_details_washing_machine',
-        where="offer_count is not null order by offer_count desc, min_price asc limit 56"
+        where="offer_count is not null order by offer_count desc, min_price asc limit 500"
     )
     # Read: 3.4
     postgres_read_query_attempts = PostgresDataFrameRead(table='scraped_data.product_query_attempts')
@@ -209,7 +209,7 @@ if __name__ == '__main__':
             mongo_read_product_reviews,
             mongo_read_product_details,
             postgres_read_item_list,
-            # postgres_read_query_attempts
+            postgres_read_query_attempts
         ]),
         writer=PickleDataWrite(filepath='temp_2005_A.pkl'),
     )
