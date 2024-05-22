@@ -348,3 +348,5 @@ if __name__ == '__main__':
         )
     )
     ReviewsProductDetails.run()
+
+    # todo: correct empty rating from postgres view

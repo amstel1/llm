@@ -1,0 +1,17 @@
+root::= "{" ws01 key ws01 ":"  array   "}" ws01
+
+key ::=  "\"" ("advantages" | "disadvantages" ) "\""
+array  ::=
+  "[" ws01 (
+            string
+    ("," ws01 string)*
+  )? "]"
+
+string ::=
+  "\"" (string-char)* "\""
+
+string-char ::= [^"\\] | "\\" (["\\/bfnrt] | "u" [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F]) # escapes
+
+# Optional space: by convention, applied in this grammar after literal chars when allowed
+ws ::= ([ \t\n] ws)?
+ws01 ::= ([ \t\n])?
