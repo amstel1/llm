@@ -337,16 +337,19 @@ if __name__ == '__main__':
     # )
     # DetailsFillIn.run()
 
-    ReviewsProductDetails = Job(
-        reader=MongoRead(operation='read', db_name='scraped_data', collection_name='product_details'),
-        processor=ReviewsProductDetailsDo(),
-        writer=PostgresDataFrameWrite(
-            schema_name='scraped_data',
-            table_name='reviews_product_details',
-            insert_unique=True,
-            index_column='product_url'
-        )
-    )
-    ReviewsProductDetails.run()
+    # Job 5 - Mongo Details -> PostgresDetails
+    # ReviewsProductDetails = Job(
+    #     reader=MongoRead(operation='read', db_name='scraped_data', collection_name='product_details'),
+    #     processor=ReviewsProductDetailsDo(),
+    #     writer=PostgresDataFrameWrite(
+    #         schema_name='scraped_data',
+    #         table_name='reviews_product_details',
+    #         insert_unique=True,
+    #         index_column='product_url'
+    #     )
+    # )
+    # ReviewsProductDetails.run()
 
-    # todo: correct empty rating from postgres view
+    # todo: correct empty rating from postgres view - decide in Job 3 what to scrape based on that
+
+    # Job 6 - to complete -

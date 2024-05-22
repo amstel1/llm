@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Any, List, Dict
 import uvicorn
-from langchain.llms import LlamaCpp
+from langchain.llms import Ollama
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
@@ -56,22 +56,30 @@ def get_llama3_template(system_prompt_clean:str, chat_history: List[Dict[str, st
     return template
 
 
-llm = LlamaCpp(
-    # model_path='/home/amstel/llm/models/publisher/repository/Phi-3-mini-4k-instruct-q4.gguf',
-    # stop=['<|end|>'], # phi
+# llm = LlamaCpp(
+#     # model_path='/home/amstel/llm/models/publisher/repository/Phi-3-mini-4k-instruct-q4.gguf',
+#     # stop=['<|end|>'], # phi
+#
+#     model_path='/home/amstel/llm/models/Publisher/Repository/Meta-Llama-3-8B-Instruct-Q4_K_M.gguf',  # good
+#     # model_path='/home/amstel/llm/models/publisher/repository/saiga_llama3_8b_q4_k.gguf',
+#     stop=["<|eot_id|>", "<|start_header_id|>", '```', '```\n', ],
+#
+#     n_gpu_layers=33,
+#     temperature=0.0,
+#     max_tokens=1024,
+#     n_batch=256,
+#     n_ctx=2048,
+#     f16_kv=True,
+#     verbose=True,
+# )
+llm = Ollama(
+        model="llama3:instruct",
+        stop=["<|eot_id|>",],
+        num_gpu=33,
+        temperature=0,
+        mirostat=0
+    )
 
-    model_path='/home/amstel/llm/models/Publisher/Repository/Meta-Llama-3-8B-Instruct-Q4_K_M.gguf',  # good
-    # model_path='/home/amstel/llm/models/publisher/repository/saiga_llama3_8b_q4_k.gguf',
-    stop=["<|eot_id|>", "<|start_header_id|>", '```', '```\n', ],
-
-    n_gpu_layers=33,
-    temperature=0.0,
-    max_tokens=1024,
-    n_batch=256,
-    n_ctx=2048,
-    f16_kv=True,
-    verbose=True,
-)
 # template = PromptTemplate.from_template("""<|user|>\n{question} <|end|>\n<|assistant|>""")
 app = FastAPI(redirection_slashes=False)
 
@@ -86,7 +94,7 @@ class Input(BaseModel):
     chat_history: List[Dict[str, str]]
 
 @app.get("/")
-async def hello() ->dict[str, str]:
+async def hello() -> dict[str, str]:
     return {"hello":"world"}
 
 @app.post("/process_text")

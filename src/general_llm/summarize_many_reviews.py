@@ -1,5 +1,6 @@
 # todo: dynamically gemerate FRAGMENT_LENGHT_LIMIT depending on the length of advantages / disadvantages
-FRAGMENT_LENGHT_LIMIT = 2000
+# todo: rewrite this as job: read pickle, calculate what to llm, llm, write to mongo
+FRAGMENT_LENGHT_LIMIT = 1500
 import sys
 sys.path.append('/home/amstel/llm')
 import pickle

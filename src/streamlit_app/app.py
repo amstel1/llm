@@ -31,36 +31,45 @@ def call_api(input_text):
     response = requests.post(API_ENDPOINT, json={"question": input_text, "chat_history": st.session_state.chat_history})
     return response.json()
 
-st.sidebar.title("Chat Settings")
-st.title("Langchain Chat App")
 
-# Clear the conversation using a sidebar button for better accessibility
-if st.sidebar.button("Clear Conversation"):
-    st.session_state.chat_history = []
+if __name__ == '__main__':
 
-# Initialize chat history if it doesn't exist
-if 'chat_history' not in st.session_state:
-    st.session_state['chat_history'] = []
+    st.sidebar.title("Chat Settings")
+    st.title("Langchain Chat App")
 
+    # Clear the conversation using a sidebar button for better accessibility
+    if st.sidebar.button("Clear Conversation"):
+        st.session_state.chat_history = []
 
-# Creating a container for chat history to improve alignment and appearance
-with st.container():
-    for chat in st.session_state['chat_history']:
-        with st.chat_message(chat['role']):
-            st.markdown(chat['content'])
+    # Initialize chat history if it doesn't exist
+    if 'chat_history' not in st.session_state:
+        st.session_state['chat_history'] = []
 
 
-if prompt := st.chat_input("Enter you question here"):
-    st.chat_message("user").markdown(prompt)
-    st.session_state.chat_history.append({"role": "user", "content": prompt})
-    response = call_api(prompt)
-    response_text = response['answer']
-    st.session_state.chat_history.append({"role": "assistant", "content": response_text})
-    logger.debug(st.session_state.chat_history)
-    with st.chat_message("assistant"):
-        st.markdown(response_text)
+    # Creating a container for chat history to improve alignment and appearance
+    with st.container():
+        for chat in st.session_state['chat_history']:
+            with st.chat_message(chat['role']):
+                st.markdown(chat['content'])
 
-    # link to the selected product / prodcuts
-    # todo: change display_website_preview to parsing microdata in realtime
-    # todo: display the results once, nice grid, from parameters.
-    create_preview_card()
+
+    if prompt := st.chat_input("Enter you question here"):
+        st.chat_message("user").markdown(prompt)
+        st.session_state.chat_history.append({"role": "user", "content": prompt})
+        response = call_api(prompt)
+        response_text = response['answer']
+        st.session_state.chat_history.append({"role": "assistant", "content": response_text})
+        logger.debug(st.session_state.chat_history)
+        with st.chat_message("assistant"):
+            st.markdown(response_text)
+
+        # link to the selected product / products
+        # todo: change display_website_preview to parsing microdata in realtime
+        # todo: display the results once, nice grid, from parameters.
+        # todo: выделить в сценарий - sql to text
+        # todo: Переключатель элементов
+        # todo: выход из сценария - датафрэйм, сделать бэк который собирает данные (монго)
+        # todo: логика сохранения рендеринга (по истории чата)
+        # todo: citattions
+        # todo: inline elements - prefilters
+        create_preview_card()

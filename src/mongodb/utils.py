@@ -5,7 +5,7 @@ import pymongo
 from typing import Literal, List, Dict, Any
 from loguru import logger
 import numpy as np
-
+import pickle
 MongoOperationType = Literal['write', 'read',]
 MongoRole = Literal['reader', 'writer',]
 
@@ -122,11 +122,22 @@ class MongoWrite(Write):
 if __name__ == '__main__':
 
     # READ 1
-    con_product_reviews = MongoConnector(operation='read', db_name='scraped_data', collection_name='product_reviews')
-    cursor_product_reviews = con_product_reviews.read_many({})
-    product_reviews = list(cursor_product_reviews)
+    # con_product_reviews = MongoConnector(operation='read', db_name='scraped_data', collection_name='product_reviews')
+    # cursor_product_reviews = con_product_reviews.read_many({})
+    # product_reviews = list(cursor_product_reviews)
+    #
+    # # READ 2
+    # con_product_details = MongoConnector(operation='read', db_name='scraped_data', collection_name='product_details')
+    # cursor_product_details = con_product_details.read_many({})
+    # product_details = list(cursor_product_details)
 
-    # READ 2
-    con_product_details = MongoConnector(operation='read', db_name='scraped_data', collection_name='product_details')
-    cursor_product_details = con_product_details.read_many({})
-    product_details = list(cursor_product_details)
+
+    with open('/home/amstel/llm/out/summarized_reviews.pkl', 'rb') as f:
+        summarized_reviews = pickle.load(f)
+    con_product_details = MongoConnector(
+        operation='write',
+        db_name='scraped_data',
+        collection_name='product_review_summarizations'
+    )
+    cursor_product_details = con_product_details.write_many(summarized_reviews)
+    # product_details = list(cursor_product_details)
