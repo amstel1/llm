@@ -60,11 +60,13 @@ class ScenarioRouter:
     def route(self,
               user_query: str,
               chat_history: Optional[List[Dict[str, str]]] = None,
-              ) -> Route:
+              ) -> Dict["selected_route", Route]:
         selected_route = self.chain.invoke({"user_input": user_query, "route_to_description": self.route_to_description},)
         return selected_route
 
+
 if __name__ == '__main__':
-    router = ScenarioRouter()
-    route = router.route(user_query="подбери стиральную машину: производители Атлант, Хаер, Ханса, Самсунг")
-    print(route)
+    pass
+    # router = ScenarioRouter()
+    # route = router.route(user_query="подбери стиральную машину: производители Атлант, Хаер, Ханса, Самсунг")
+    # print(route)

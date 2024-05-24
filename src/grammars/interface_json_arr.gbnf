@@ -6,7 +6,7 @@ root ::= json-object
 json-object ::= "{" key-value "}"
 
 # Define the key-value pair where the key is one of the specified options and the value is a list of strings
-key-value ::= ( "\"advantages\"" | "\"disadvantages\"" | "\"comments\"" ) ":" string-list
+key-value ::= ( "\"advantages\"" | "\"disadvantages\"" ) ":" string-list
 
 # Define a list of strings, must contain at least one string
 string-list ::= "[" strings "]"

@@ -1,5 +1,6 @@
-root ::= "{" ws01 root-advantages "}" ws01
-root-advantages ::= "\"advantages\"" ":" ws01 "[" ws01 (root-advantages-items (ws01 "," ws01 root-advantages-items)*)? ws01 "]"
+root ::= "{" ws01 root-disadvantages "}" ws01
+root-disadvantages ::= "\"disadvantages\"" ":" ws01 "[" ws01 (root-disadvantages-items (ws01 "," ws01 root-disadvantages-items)*)? ws01 "]"
+root-disadvantages-items ::= string
 
 
 value  ::= (object | array | string | number | boolean | null) ws
@@ -28,4 +29,4 @@ null ::= "null"
 
 # Optional space: by convention, applied in this grammar after literal chars when allowed
 ws ::= ([ \t\n] ws)?
-ws01 ::= ([ \t\n])?ws01 root-advantages
+ws01 ::= ([ \t\n])?

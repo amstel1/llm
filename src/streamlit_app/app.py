@@ -1,10 +1,22 @@
-import streamlit as st
-import requests
 from loguru import logger
-
-API_ENDPOINT = "http://localhost:8000/process_text"
-
 import streamlit as st
+# import sys
+# sys.path.append('/home/amstel/llm/src')
+import requests
+API_ENDPOINT = "http://localhost:8000/process_text"
+from typing import List, Dict
+
+def call_api(input_text: str, chat_history: List[Dict[str, str]]=[]):
+    """
+    input_text: str
+    chat_history: List[Dict[str, str]]
+    """
+    response = requests.post(
+        API_ENDPOINT,
+        json={"question": input_text, "chat_history": chat_history}
+    )
+    return response.json()
+
 
 def create_preview_card(
         url="https://shop.by/stiralnye_mashiny/lg_f2j3ws2w/",
@@ -25,11 +37,6 @@ def create_preview_card(
     </div>
     """
     st.markdown(card_html, unsafe_allow_html=True)
-
-
-def call_api(input_text):
-    response = requests.post(API_ENDPOINT, json={"question": input_text, "chat_history": st.session_state.chat_history})
-    return response.json()
 
 
 if __name__ == '__main__':
@@ -56,20 +63,23 @@ if __name__ == '__main__':
     if prompt := st.chat_input("Enter you question here"):
         st.chat_message("user").markdown(prompt)
         st.session_state.chat_history.append({"role": "user", "content": prompt})
-        response = call_api(prompt)
-        response_text = response['answer']
-        st.session_state.chat_history.append({"role": "assistant", "content": response_text})
-        logger.debug(st.session_state.chat_history)
-        with st.chat_message("assistant"):
-            st.markdown(response_text)
+        if prompt:
+            response = call_api(prompt)
+            response_text = response['answer']
+            st.session_state.chat_history.append({"role": "assistant", "content": response_text})
+            logger.debug(st.session_state.chat_history)
+            with st.chat_message("assistant"):
+                st.markdown(response_text)
 
         # link to the selected product / products
+        # todo: routing between scenarios
         # todo: change display_website_preview to parsing microdata in realtime
         # todo: display the results once, nice grid, from parameters.
         # todo: выделить в сценарий - sql to text
         # todo: Переключатель элементов
         # todo: выход из сценария - датафрэйм, сделать бэк который собирает данные (монго)
         # todo: логика сохранения рендеринга (по истории чата)
-        # todo: citattions
-        # todo: inline elements - prefilters
-        create_preview_card()
+        # todo: citations
+        # todo: inline elements - prefilters - how to create
+
+        # create_preview_card()
