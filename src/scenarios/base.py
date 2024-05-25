@@ -50,7 +50,7 @@ def get_llama3_template(system_prompt_clean:str, chat_history: List[Dict[str, st
     """"""
     # assert chat_history
     final_assistant = "<|start_header_id|>assistant<|end_header_id|>"
-    template = f'<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n{ system_prompt_clean }<|eot_id|>'
+    template = f'<|start_header_id|>system<|end_header_id|>\n{ system_prompt_clean }<|eot_id|>'
     if chat_history:
         for message in chat_history:
             role = message.get('role')

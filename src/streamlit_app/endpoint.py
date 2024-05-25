@@ -67,7 +67,7 @@ async def process_text(input_data: Input) -> dict[str, Any]:
     # llama 3
     template_str = get_llama3_template(SYSTEM_PROMPT_LLAMA3, chat_history)
     logger.debug(template_str)
-    result = llm(prompt=template_str, grammar=grammar, stop=stop)
+    result = llm(prompt=template_str, grammar=grammar, stop=stop, temperature=0, echo=True)
     return result
 
 
