@@ -35,8 +35,8 @@ class Input(BaseModel):
 async def load_llm():
     global llm
     llm = Llama(
-        model_path='/home/amstel/llm/models/Publisher/Repository/Meta-Llama-3-8B-Instruct-Q6_K.gguf',
-        n_gpu_layers=33,
+        model_path='/home/amstel/llm/models/Publisher/Repository/Meta-Llama-3-8B.Q2_K.gguf',
+        n_gpu_layers=20,
         max_tokens=1024,
         n_batch=1024,
         n_ctx=2048,
@@ -52,6 +52,7 @@ async def hello() -> dict[str, str]:
 
 @app.post("/process_text")
 async def process_text(input_data: Input) -> dict[str, Any]:
+    logger.debug(input_data)
     question = input_data.question
     chat_history = input_data.chat_history
     grammar_path = input_data.grammar_path
@@ -67,7 +68,7 @@ async def process_text(input_data: Input) -> dict[str, Any]:
     template_str = get_llama3_template(SYSTEM_PROMPT_LLAMA3, chat_history)
     logger.debug(template_str)
     result = llm(prompt=template_str, grammar=grammar, stop=stop)
-    return {"answer": result}
+    return result
 
 
 

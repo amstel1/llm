@@ -21,6 +21,7 @@ def create_chatml_statement(role: str, content: str):
     return f"<|{role}|>\n{content}<|end|>\n"
 
 def create_llama3_statement(role: str, content: str):
+    logger.debug(role)
     assert role in ('user', 'assistant')
     assert content
     return f"<|start_header_id|>{ role }<|end_header_id|>\n{ content }<|eot_id|>"
@@ -47,14 +48,15 @@ def get_chatml_template(chat_history: List[Dict[str, str]]):
 
 def get_llama3_template(system_prompt_clean:str, chat_history: List[Dict[str, str]]):
     """"""
-    assert chat_history
+    # assert chat_history
     final_assistant = "<|start_header_id|>assistant<|end_header_id|>"
     template = f'<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n{ system_prompt_clean }<|eot_id|>'
-    for message in chat_history:
-        role = message.get('role')
-        content = message.get('content')
-        current_template_part = create_llama3_statement(role, content)
-        template += current_template_part
+    if chat_history:
+        for message in chat_history:
+            role = message.get('role')
+            content = message.get('content')
+            current_template_part = create_llama3_statement(role, content)
+            template += current_template_part
     template += final_assistant
     logger.warning(template)
     return template

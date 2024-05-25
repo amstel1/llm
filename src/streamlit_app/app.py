@@ -15,7 +15,8 @@ def call_api(input_text: str, chat_history: List[Dict[str, str]]=[]):
         API_ENDPOINT,
         json={"question": input_text, "chat_history": chat_history}
     )
-    return response.json()
+    r = response.json().get('choices')[0].get('text')
+    return {"answer": r}
 
 
 def create_preview_card(
@@ -64,7 +65,7 @@ if __name__ == '__main__':
         st.chat_message("user").markdown(prompt)
         st.session_state.chat_history.append({"role": "user", "content": prompt})
         if prompt:
-            response = call_api(prompt)
+            response = call_api(prompt, st.session_state.chat_history)
             response_text = response['answer']
             st.session_state.chat_history.append({"role": "assistant", "content": response_text})
             logger.debug(st.session_state.chat_history)
