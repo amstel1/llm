@@ -1,22 +1,10 @@
 from loguru import logger
 import streamlit as st
-# import sys
-# sys.path.append('/home/amstel/llm/src')
+import sys
+sys.path.append('/home/amstel/llm/src')
 import requests
-API_ENDPOINT = "http://localhost:8000/process_text"
 from typing import List, Dict
-
-def call_api(input_text: str, chat_history: List[Dict[str, str]]=[]):
-    """
-    input_text: str
-    chat_history: List[Dict[str, str]]
-    """
-    response = requests.post(
-        API_ENDPOINT,
-        json={"question": input_text, "chat_history": chat_history}
-    )
-    r = response.json().get('choices')[0].get('text')
-    return {"answer": r}
+from general_llm.llm_endpoint import call_process_text_api
 
 
 def create_preview_card(
@@ -65,7 +53,7 @@ if __name__ == '__main__':
         st.chat_message("user").markdown(prompt)
         st.session_state.chat_history.append({"role": "user", "content": prompt})
         if prompt:
-            response = call_api(prompt, st.session_state.chat_history)
+            response = call_process_text_api(prompt, st.session_state.chat_history)
             response_text = response['answer']
             st.session_state.chat_history.append({"role": "assistant", "content": response_text})
             logger.debug(st.session_state.chat_history)

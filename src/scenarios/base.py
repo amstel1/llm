@@ -47,11 +47,11 @@ def get_chatml_template(chat_history: List[Dict[str, str]]):
         # logger.warning(template)
     return template
 
-def get_llama3_template(system_prompt_clean:str, chat_history: List[Dict[str, str]]):
+def get_llama3_template_from_history(system_prompt_clean:str, chat_history: List[Dict[str, str]]):
     """"""
     # assert chat_history
-    final_assistant = "<|start_header_id|>assistant<|end_header_id|>\n"
     template = f'<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n{ system_prompt_clean }<|eot_id|>'
+    final_assistant = "<|start_header_id|>assistant<|end_header_id|>\n"
     if chat_history:
         for message in chat_history:
             role = message.get('role')
@@ -61,6 +61,15 @@ def get_llama3_template(system_prompt_clean:str, chat_history: List[Dict[str, st
     template += final_assistant
     logger.warning(template)
     return template
+
+def get_llama3_template_from_user_query(system_prompt_clean:str, user_query: str):
+    template = f'<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n{ system_prompt_clean }<|eot_id|>'
+    final_assistant = "<|start_header_id|>assistant<|end_header_id|>\n"
+    current_template_part = create_llama3_statement(role='user', content=user_query)
+    template += current_template_part
+    template += final_assistant
+    return template
+
 
 class BaseScenario(ABC):
     def handler_query(self, user_input: str,):

@@ -28,22 +28,23 @@
 import sys
 sys.path.append('/home/amstel/llm/src')
 import pandas as pd
-from base import BaseScenario, parse_markup_chat_history, get_llama3_template
+from base import BaseScenario, parse_markup_chat_history, get_llama3_template_from_history, get_llama3_template_from_user_query
 from text2sql.prod_llama_fewshot import SqlToText
 from typing import Iterable, Dict, List, Union, Optional, Any
-from streamlit_app.app import call_api
 import requests
 from loguru import logger
+from general_llm.llm_endpoint import call_generation_api, call_generate_from_history_api, call_generate_from_query_api
 
-def call_generation_api(prompt: str, grammar: str):
-
-    response = requests.post(
-        'http://localhost:8000/generate',
-        json={"prompt": prompt, "grammar": grammar}
-    )
-    logger.debug(response)
-    r = response.json().get('choices')[0].get('text')
-    return {"generation": r}
+def chat_history_list_to_str(chat_history: list):
+    str_chat_history = ''
+    for i, d in enumerate(chat_history):
+        if i < len(chat_history) - 1:
+            str_chat_history += d.get('role') + ': ' + d.get('content') + '\n'
+        else:
+            # assert d.get('content') == user_query
+            pass
+            # debug here: last chat history statement must equal text
+    return str_chat_history
 
 class AIResponse:
     pass
@@ -71,34 +72,31 @@ class ShoppingAssistantScenario(BaseScenario):
         # 2. Check for keywords and structure that indicate a specific query.
         # 3. Handle edge cases where user input is ambiguous.
         # parsed_chat_history = parse_markup_chat_history(chat_history)
-        parsed_chat_history = chat_history
-        string_chat_history = '\n'.join(':'.join(x) for x in parsed_chat_history)
-        user_content = f"""Here is the user query: {user_query}.
-        
-Here are the examples when it DOES NOT contain enough information:
-- подобрать стиральную машину
-- обзор стиральных машин
-- какую стиральную машину выбрать
 
-Here are the examples when it DOES contain enough information:
-- стриальная машина ширина до 43 загрузка от 6 кг
-- стиралка Атлант с отзывами недорого
-- хорошая стиральная машинка
+#         user_content = f"""You are tasked to decide whether the user query contains at least one attribute / characteristic / feature of any kind.
+# Return exactly either true or false.
+# Return false if the user did not mention any desired properties.
+# Return true if the user mentioned at least one of the desired properties or attributes, e.g.: size, width, quality, brand, price, name, rating, product's specific features.
+# Return true if you are specifically asked to perform a query or if you are not allowed to ask any more questions.
+#
+# Here is the user query you need to evaluate: {user_query}
+# """
 
-Evaluate if the user query contains enough information to make a valid sql statement from it.
+        user_content = f"""Ты должен решить, содержит ли запрос пользователя хотя бы один описательный атрибут / характеристику / определение любого рода.
+Верни true или false.
+Верни false, если запрос не содержит какие-либо желаемые свойства / характеристики / определения.
+Верни true, если пользователь упомянул хотя бы одно из желаемых свойств, характеристик или атрибутов, например: размер, ширину, качество, бренд, цену, название, рейтинг, особенности продукта.
 
-Return true if the user mentioned at least one of the desired properties, e.g.: width, quality, brand, price, name, rating, product's specific features.
-Return false if the user did not mention any desired properties.
-Return exactly either true or false and nothing else."""
-        prompt = get_llama3_template(system_prompt_clean='You are a helpful assistant.', chat_history=[{'role': 'user', 'content': user_content}])
+Запрос пользователя: {user_query}"""
+        prompt = get_llama3_template_from_history(system_prompt_clean='Ты объективный семантический оценщик.', chat_history=[{'role': 'user', 'content': user_content}])
         return call_generation_api(prompt=prompt, grammar='root ::= "true" | "false"')
 
 
     def get_possible_filters(self) -> Iterable:
-        possible_filters = []
+        possible_filters = ['цена', 'рейтинг', 'брэнд', 'максимальная загрукзка', 'наличие сушки']
         return possible_filters
 
-    def ask_for_specs(self, text: str, chat_history: Iterable, possible_filters: Iterable) -> AIResponse:
+    def ask(self, user_query: str, chat_history: Iterable, context: Any) -> AIResponse:
         """
         Ask more questions to gather detailed specifications from the user.
 
@@ -109,35 +107,18 @@ Return exactly either true or false and nothing else."""
         # 1. Identify missing details in the user's query.
         # 2. Generate follow-up questions to extract these details.
         # 3. Maintain the context of the conversation to avoid repetitive questions.
+
+        str_chat_history = chat_history_list_to_str(chat_history)
+
         possible_filters = self.get_possible_filters()
-        user_prompt = f"""
-        Above is the chat history.
-        Here is the user query: {text}.
-        Here are possible product attributes to be used as filters: {possible_filters}.
-        
-        Ask the user to specify one or more filters that you consider the most relevant.
-        """
-        return call_api(input_text=text, chat_history=chat_history)
+        user_prompt = f"""Consider the chat history, possible filters and the user query below. Ask the user what the desired properties of the current cosumer product are in one question. 
+Here is the chat history:\n{str_chat_history}
+Here are possible product attributes to be used as filters: {possible_filters}.
+Here is the user query: {user_query}"""
+        return call_generate_from_query_api(input_text=user_prompt,)
 
-    def generate_inline_filters(self, text: str) -> List[str]:
-        """
-        Generate possible inline filters based on the user query.
 
-        :param text: User query in natural language.
-        :return: A string containing possible filters.
-        """
-        # Implementation aspects:
-        # 1. Analyze the user query to identify potential filters (e.g., price range, brand).
-        # 2. Generate a list of pre-defined filters that match the query context.
-        # 3. Ensure the filters are relevant and comprehensive.
-        prompt = """
-        Here is the user query: {text}.
-        Here are possible product attributes to be used as filters: {possible_filters}.
-        
-        Generate a list of valid filter values in natural language. 
-        """
-
-    def translate_specs_into_text(self, specs: Union[List[str], str] = None, chat_history: Iterable = None) -> str:
+    def reformulate(self, user_query: Union[List[str], str] = None, chat_history: Iterable = None, context=None) -> str:
         """
         Translate collected specifications into a natural language statement.
 
@@ -148,12 +129,18 @@ Return exactly either true or false and nothing else."""
         # 1. Combine all gathered details into a coherent natural language statement.
         # 2. Ensure the statement is concise and clear.
         # 3. Handle both textual and structured input for specifications.
-        user_prompt = """
-        Above is the chat history.
-        Below are the required product specifications: {specs}
+
+        str_chat_history = chat_history_list_to_str(chat_history)
+        user_prompt = f"""История чата:/n{str_chat_history}./n
+        Последний запрос пользователя: {user_query}
         
-        Reformulate the context above as a concise, well-formulated user query while preserve all the important details.
-        """
+        На основе информации выше сформулируй суть требований пользователя кратко, но сохраняя все важные детали."""
+        prompt = get_llama3_template_from_user_query(
+            system_prompt_clean='You are a helpful assistant.',
+            user_query=user_prompt
+        )
+        return call_generate_from_query_api(input_text=prompt)
+
 
     def handler_query(self, user_input: str, chat_history: Iterable = None):
         ready_for_sql = self.evaluate_ready(text=user_input)
@@ -170,16 +157,49 @@ Return exactly either true or false and nothing else."""
             elif chat_history:
                 ai_response = self.ask_for_specs(text=user_input, chat_history=chat_history,
                                                              possible_filters=self.possible_filters)
-            translate_specs_into_text = call_api(input_text=ai_response, chat_history=chat_history)
+            translate_specs_into_text = call_process_text_api(input_text=ai_response, chat_history=chat_history)
         return ai_response
 
 
 if __name__ == '__main__':
-    user_query = "хорошая стиральная машина"
-    chat_history = []
-    current_scenario = ShoppingAssistantScenario()
-    verification_result = current_scenario.verify(
-        user_query=user_query,
-        chat_history=chat_history,
-        context=None)
-    print(verification_result)
+
+    # user_query = "подбери стиральную машину"
+    # chat_history = []
+    # current_scenario = ShoppingAssistantScenario()
+    # verification_result = current_scenario.verify(
+    #     user_query=user_query,
+    #     chat_history=chat_history,
+    #     context=None)
+    # print(verification_result)  # {'generation': 'true'}
+
+    # ch = [{'role': 'user', 'content': 'Привет'},
+    #       {'role': 'assistant', 'content': 'Привет! Как я могу помочь вам сегодня?'},
+    #       {'role': 'user', 'content': 'подбери стиральную машину'}]
+    # user_query = 'подбери стиральную машину'
+    # current_scenario = ShoppingAssistantScenario()
+    # ask_result = current_scenario.ask(
+    #     user_query=user_query,
+    #     chat_history=ch,
+    #     context=None,
+    # )
+    # print(ask_result)  # Привет! Я готов помочь вам выбрать стиральную машину. Какие параметры вы хотели бы видеть в этом продукте? Пожалуйста, ответьте на вопрос: какие из следующих свойств вам важны - цена, рейтинг, бренд, максимальная загрузка или наличие сушки?
+
+
+    # ch = [{'role': 'user', 'content': 'Привет'},
+    #       {'role': 'assistant', 'content': 'Привет! Как я могу помочь вам сегодня?'},
+    #       {'role': 'user', 'content': 'подбери стиральную машину'},
+    #       {'role': 'assistant', 'content': "Привет! Я готов помочь вам выбрать стиральную машину. Какие параметры вы хотели бы видеть в этом продукте? Пожалуйста, ответьте на вопрос: какие из следующих свойств вам важны - цена, рейтинг, бренд, максимальная загрузка или наличие сушки?"},
+    #       {'role': 'user', 'content': 'недорогая но хорошая'},
+    #       ]
+    # user_query = 'недорогая но хорошая'
+    # current_scenario = ShoppingAssistantScenario()
+    # reformulate_result = current_scenario.reformulate(
+    #     user_query=user_query,
+    #     chat_history=ch,
+    #     context=None,
+    # )
+    # print(reformulate_result)
+
+    user_input = 'Недорогая стиральная машина с хорошими характеристиками.'
+    response = SqlToText().sql_query(user_input=user_input)
+    print(response)
