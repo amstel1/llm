@@ -1,3 +1,5 @@
+# ask - generate - verify - sql
+
 # I'm writing a chatbot scenario called "ShoppingAssistantScenario". My task is: given the user query return the best product from a database.
 # Here are the coarse steps and their respective method definitions:
 #
@@ -26,10 +28,22 @@
 import sys
 sys.path.append('/home/amstel/llm/src')
 import pandas as pd
-from base import BaseScenario, parse_markup_chat_history
+from base import BaseScenario, parse_markup_chat_history, get_llama3_template
 from text2sql.prod_llama_fewshot import SqlToText
-from typing import Iterable, Dict, List, Union, Optional
+from typing import Iterable, Dict, List, Union, Optional, Any
 from streamlit_app.app import call_api
+import requests
+from loguru import logger
+
+def call_generation_api(prompt: str, grammar: str):
+
+    response = requests.post(
+        'http://localhost:8000/generate',
+        json={"prompt": prompt, "grammar": grammar}
+    )
+    logger.debug(response)
+    r = response.json().get('choices')[0].get('text')
+    return {"generation": r}
 
 class AIResponse:
     pass
@@ -45,7 +59,7 @@ class ShoppingAssistantScenario(BaseScenario):
         """
         pass
 
-    def evaluate_ready(self, text: str) -> bool:
+    def verify(self, user_query: str, chat_history: list, context: Any) -> bool:
         """
         Evaluate if the text can be directly translated into an SQL query.
 
@@ -56,15 +70,32 @@ class ShoppingAssistantScenario(BaseScenario):
         # 1. Use natural language processing (NLP) to determine if the query is well-defined.
         # 2. Check for keywords and structure that indicate a specific query.
         # 3. Handle edge cases where user input is ambiguous.
-        prompt = """
-        Here is the chat history: {chat_history}.
-        Here is the user query: {text}.
+        # parsed_chat_history = parse_markup_chat_history(chat_history)
+        parsed_chat_history = chat_history
+        string_chat_history = '\n'.join(':'.join(x) for x in parsed_chat_history)
+        user_content = f"""Here is the user query: {user_query}.
         
-        Evaluate it the user query contains enough information to be make a valid sql statement from it.
-        Return exactly either true or false.
-        """
+Here are the examples when it DOES NOT contain enough information:
+- подобрать стиральную машину
+- обзор стиральных машин
+- какую стиральную машину выбрать
+
+Here are the examples when it DOES contain enough information:
+- стриальная машина ширина до 43 загрузка от 6 кг
+- стиралка Атлант с отзывами недорого
+- хорошая стиральная машинка
+
+Evaluate if the user query contains enough information to make a valid sql statement from it.
+
+Return true if the user mentioned at least one of the desired properties, e.g.: width, quality, brand, price, name, rating, product's specific features.
+Return false if the user did not mention any desired properties.
+Return exactly either true or false and nothing else."""
+        prompt = get_llama3_template(system_prompt_clean='You are a helpful assistant.', chat_history=[{'role': 'user', 'content': user_content}])
+        return call_generation_api(prompt=prompt, grammar='root ::= "true" | "false"')
+
 
     def get_possible_filters(self) -> Iterable:
+        possible_filters = []
         return possible_filters
 
     def ask_for_specs(self, text: str, chat_history: Iterable, possible_filters: Iterable) -> AIResponse:
@@ -79,8 +110,8 @@ class ShoppingAssistantScenario(BaseScenario):
         # 2. Generate follow-up questions to extract these details.
         # 3. Maintain the context of the conversation to avoid repetitive questions.
         possible_filters = self.get_possible_filters()
-        prompt = f"""
-        Here is the chat history: {chat_history}.
+        user_prompt = f"""
+        Above is the chat history.
         Here is the user query: {text}.
         Here are possible product attributes to be used as filters: {possible_filters}.
         
@@ -106,7 +137,7 @@ class ShoppingAssistantScenario(BaseScenario):
         Generate a list of valid filter values in natural language. 
         """
 
-    def translate_specs_into_text(self, specs: Union[[List[str], str], chat_history: Iterable = None) -> str:
+    def translate_specs_into_text(self, specs: Union[List[str], str] = None, chat_history: Iterable = None) -> str:
         """
         Translate collected specifications into a natural language statement.
 
@@ -117,9 +148,9 @@ class ShoppingAssistantScenario(BaseScenario):
         # 1. Combine all gathered details into a coherent natural language statement.
         # 2. Ensure the statement is concise and clear.
         # 3. Handle both textual and structured input for specifications.
-        prompt = """
-        Here is the chat history: {chat_history}
-        Here are the required product specifications: {specs}
+        user_prompt = """
+        Above is the chat history.
+        Below are the required product specifications: {specs}
         
         Reformulate the context above as a concise, well-formulated user query while preserve all the important details.
         """
@@ -143,15 +174,12 @@ class ShoppingAssistantScenario(BaseScenario):
         return ai_response
 
 
-
-
-# Example usage:
-# database = pd.read_csv('products.csv')  # or some database connection
-# assistant = ShoppingAssistantScenario(database)
-
-# user_query = "I'm looking for a smartphone with a good camera."
-# if assistant.evaluate_ready(user_query):
-#     results = assistant.sql_query(user_query)
-# else:
-#     refined_query = assistant.gather_specs(user_query)
-#     # Continue with further steps...
+if __name__ == '__main__':
+    user_query = "хорошая стиральная машина"
+    chat_history = []
+    current_scenario = ShoppingAssistantScenario()
+    verification_result = current_scenario.verify(
+        user_query=user_query,
+        chat_history=chat_history,
+        context=None)
+    print(verification_result)
