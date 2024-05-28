@@ -26,7 +26,7 @@ CREATE TABLE scraped_data.product_query_attempts
 
 CREATE OR REPLACE VIEW scraped_data.washing_machine
     AS
-     SELECT details.brand,
+      SELECT details.brand,
     details.name,
     details.min_price AS price,
     reviews.product_rating_value AS rating_value,
@@ -36,4 +36,5 @@ CREATE OR REPLACE VIEW scraped_data.washing_machine
     details.depth,
     details.drying
    FROM scraped_data.item_details_washing_machine details
-   LEFT JOIN scraped_data.reviews_product_details reviews ON details.name = reviews.query_item_name;
+     LEFT JOIN scraped_data.reviews_product_details reviews ON details.name = reviews.query_item_name
+  WHERE details.min_price >= 500::numeric;

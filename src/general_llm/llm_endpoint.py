@@ -73,7 +73,7 @@ class Input(BaseModel):
 async def load_llm():
     global llm
     llm = Llama(
-        # alt: Meta-Llama-3-8B-Instruct-Q6_K.gguf, Llama-3-8B-Instruct-32k-v0.1.Q6_K.gguf
+        # alt: Meta-Llama-3-8B-Instruct-Q6_K.gguf, Llama-3-8B-Instruct-32k-v0.1.Q6_K.gguf, LLaMA3-iterative-DPO-final-Q4_K_M.gguf
         model_path='/home/amstel/llm/models/Publisher/Repository/Meta-Llama-3-8B-Instruct-Q6_K.gguf',
         n_gpu_layers=33,
         max_tokens=-1,
