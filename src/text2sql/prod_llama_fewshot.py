@@ -25,14 +25,8 @@ from sqlalchemy.sql import text
 
 
 class SqlToText:
-    def __init__(self,
-                 ollama_model: str = "llama3_q6_32k",
-                 ollama_stop: List[str] = ['<|eot_id|>', '```', '```\n', ]
-                 ):
-        self.ollama_model = ollama_model
-        self.ollama_stop = ollama_stop
-
-    def sql_query(self, user_input: str) -> pd.DataFrame:
+    @classmethod
+    def sql_query(cls, user_query: str) -> pd.DataFrame:
 
         # trace_name = f'sql_llama3_{datetime.now()}'
         # os.environ["LANGFUSE_HOST"] = "http://localhost:3000"
@@ -109,25 +103,25 @@ class SqlToText:
             'Here is the relevant table info: \n{table_info}\n\n'
         )
 
-        prompt = FewShotPromptTemplate(
-            examples=examples[:20],
-            example_prompt=example_prompt,
-            prefix=system_message_llama,
-            suffix="<|eot_id|><|start_header_id|>user<|end_header_id|>\nUser input: {input}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n```sql",
-            input_variables=["input", "top_k", "table_info"],
-        )
-        if hasattr(prompt, 'format'):
-            prompt_string = prompt.format(
-                input=user_input,
-                table_info=table_info,
-                top_k=top_k
-            )
+        # prompt = FewShotPromptTemplate(
+        #     examples=examples[:20],
+        #     example_prompt=example_prompt,
+        #     prefix=system_message_llama,
+        #     suffix="<|eot_id|><|start_header_id|>user<|end_header_id|>\nUser input: {input}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n```sql",
+        #     input_variables=["input", "top_k", "table_info"],
+        # )
+        # if hasattr(prompt, 'format'):
+        #     prompt_string = prompt.format(
+        #         input=user_input,
+        #         table_info=table_info,
+        #         top_k=top_k
+        #     )
 
-        def _debugger(x):
-            logger.info(x)
-            return x
+        # def _debugger(x):
+        #     logger.info(x)
+        #     return x
 
-        logger.critical(type(prompt_string))
+        # logger.critical(type(prompt_string))
         # logger.debug(prompt)
         # chain = prompt | RunnablePassthrough(_debugger) | llm | StrOutputParser()
         str_prompt = (
@@ -181,13 +175,13 @@ Q: дешевая
 SQL: SELECT name, price, rating_value FROM scraped_data.washing_machine WHERE price <= 1000;
 
 
-input_query: {user_input}
+input_query: {user_query}
 SQL:<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n```sql""")
 
 
         #api call from string
         response = call_generation_api(prompt=str_prompt, grammar=None, stop=['<|eot_id|>', '```', '```\n',])
-        response_query = text(response.get('generation').strip().replace('\n', ' '))
+        response_query = text(response.strip().replace('\n', ' '))
 
         # response_query = chain.invoke({
         #     "input": user_input,
@@ -213,11 +207,11 @@ SQL:<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n```sql""")
 
 
 if __name__ == '__main__':
-    user_input = "стиральная машина глубина до 43, загрузка от 6, с рейтингом от 4.8, производитель Korting"
-    # user_input = "дешевая стиральная машина"
-    # user_input = 'Поможете найти недорогую стиральную машину, которая работает хорошо?'
-    # user_input = 'Недорогая стиральная машина с хорошими характеристиками.'
-    response = SqlToText().sql_query(user_input=user_input)
+    user_query = "стиральная машина глубина до 43, загрузка от 6, с рейтингом от 4.8, производитель Korting"
+    # user_query = "дешевая стиральная машина"
+    # user_query = 'Поможете найти недорогую стиральную машину, которая работает хорошо?'
+    # user_query = 'Недорогая стиральная машина с хорошими характеристиками.'
+    response = SqlToText.sql_query(user_query=user_query)
     print(response)
 
 

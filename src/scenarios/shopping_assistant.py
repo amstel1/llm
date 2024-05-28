@@ -28,7 +28,7 @@
 import sys
 sys.path.append('/home/amstel/llm/src')
 import pandas as pd
-from base import BaseScenario, parse_markup_chat_history, get_llama3_template_from_history, get_llama3_template_from_user_query
+from scenarios.base import BaseScenario, parse_markup_chat_history, get_llama3_template_from_history, get_llama3_template_from_user_query
 from text2sql.prod_llama_fewshot import SqlToText
 from typing import Iterable, Dict, List, Union, Optional, Any
 import requests
@@ -46,8 +46,6 @@ def chat_history_list_to_str(chat_history: list):
             # debug here: last chat history statement must equal text
     return str_chat_history
 
-class AIResponse:
-    pass
 
 class ShoppingAssistantScenario(BaseScenario):
     possible_filters = ""  # -> max_oad, min_price, max_load, is_drying
@@ -96,7 +94,7 @@ class ShoppingAssistantScenario(BaseScenario):
         possible_filters = ['цена', 'рейтинг', 'брэнд', 'максимальная загрукзка', 'наличие сушки']
         return possible_filters
 
-    def ask(self, user_query: str, chat_history: Iterable, context: Any) -> AIResponse:
+    def ask(self, user_query: str, chat_history: Iterable, context: Any) -> str:
         """
         Ask more questions to gather detailed specifications from the user.
 
@@ -107,15 +105,30 @@ class ShoppingAssistantScenario(BaseScenario):
         # 1. Identify missing details in the user's query.
         # 2. Generate follow-up questions to extract these details.
         # 3. Maintain the context of the conversation to avoid repetitive questions.
-
-        str_chat_history = chat_history_list_to_str(chat_history)
-
         possible_filters = self.get_possible_filters()
-        user_prompt = f"""Consider the chat history, possible filters and the user query below. Ask the user what the desired properties of the current cosumer product are in one question. 
-Here is the chat history:\n{str_chat_history}
-Here are possible product attributes to be used as filters: {possible_filters}.
-Here is the user query: {user_query}"""
-        return call_generate_from_query_api(input_text=user_prompt,)
+        if chat_history:
+            str_chat_history = chat_history_list_to_str(chat_history)
+            user_prompt = f"""Ответь на реплику пользователя так, чтобы выяснить, какие характеристики важны для пользователя.
+Вот история чата:\n{str_chat_history}\n
+Вот характеристики, которые ты можешь использовать: {', '.join(possible_filters)}.
+Твой ответ должен быть кратким, но содержательным.
+
+Вот реплика пользователя: {user_query}.
+
+Твой ответ: """
+        else:
+            user_prompt = f"""Ответь на реплику пользователя так, чтобы выяснить, какие характеристики важны для пользователя.
+Вот характеристики, которые ты можешь использовать: {', '.join(possible_filters)}.
+Твой ответ должен быть кратким, но содержательным.
+
+Вот реплика пользователя: {user_query}.
+
+Твой ответ: """
+
+        return call_generate_from_query_api(
+            user_prompt=user_prompt,
+            system_prompt='Ты вежливый, умный и эффективный ИИ-помощник. Ты всегда стараешься выполнять пожелания пользователя наилучшим образом.'
+        )
 
 
     def reformulate(self, user_query: Union[List[str], str] = None, chat_history: Iterable = None, context=None) -> str:
@@ -135,42 +148,105 @@ Here is the user query: {user_query}"""
         Последний запрос пользователя: {user_query}
         
         На основе информации выше сформулируй суть требований пользователя кратко, но сохраняя все важные детали."""
-        prompt = get_llama3_template_from_user_query(
-            system_prompt_clean='You are a helpful assistant.',
-            user_query=user_prompt
+
+        return call_generate_from_query_api(
+            user_prompt=user_prompt,
+            system_prompt='Ты вежливый, умный и эффективный ИИ-помощник. Ты всегда стараешься выполнять пожелания пользователя наилучшим образом.'
         )
-        return call_generate_from_query_api(input_text=prompt)
 
 
-    def handler_query(self, user_input: str, chat_history: Iterable = None):
-        ready_for_sql = self.evaluate_ready(text=user_input)
-        if ready_for_sql:
-            df = SqlToText.sql_query(user_input=user_input)
-        else:
-            # we can:
-            # 1. ask the user to clarify their requirements
-            # 2. generate inline filters and show them
-            # todo: inline_filter_list = self.generate_inline_filters(text=user_input)
-            if not chat_history:
-                ai_response = self.ask_for_specs(text=user_input, chat_history=None,
-                                                             possible_filters=self.possible_filters)
-            elif chat_history:
-                ai_response = self.ask_for_specs(text=user_input, chat_history=chat_history,
-                                                             possible_filters=self.possible_filters)
-            translate_specs_into_text = call_process_text_api(input_text=ai_response, chat_history=chat_history)
-        return ai_response
+    def handle(self, user_query, chat_history, context) -> [Any, Dict]:
+        current_step = context.get('current_step')
+        logger.debug(f'current_step - {current_step}')
+        assert current_step in ('verify', 'ask', 'sql', 'reformulate',)
+        previous_steps = context.get('previous_steps')
+        assert isinstance(previous_steps, list)
+        if current_step == 'verify':
+            ready_for_sql_str = self.verify(user_query=user_query, chat_history=chat_history, context=context)
+            ready_for_sql = eval(ready_for_sql_str.capitalize())
+            logger.debug(f'ready_for_sql - {ready_for_sql}')
+            previous_steps.append(current_step)
+            if ready_for_sql:
+                current_step = 'sql'
+                logger.debug(f'current step - {current_step}')
+                context['current_step'] = current_step
+                df = SqlToText.sql_query(user_input=user_query)
+                previous_steps.append(current_step)
+                context['previous_steps'] = previous_steps
+                current_step = 'exit'
+                context['current_step'] = current_step
+                return df, context
+            else:
+                current_step = 'ask'
+                logger.debug(f'current step - {current_step}')
+                # todo: inline_filter_list = self.generate_inline_filters(text=user_input)
+                context['current_step'] = current_step
+                response = self.ask(user_query=user_query, chat_history=chat_history, context=context)
+                previous_steps.append(current_step)
+                context['previous_steps'] = previous_steps
+                current_step = 'reformulate'
+                context['current_step'] = current_step
+                return response, context
+        elif current_step == 'ask':
+            logger.debug(f'current step - {current_step}')
+            response = self.ask(user_query=user_query, chat_history=chat_history, context=context)
+            previous_steps.append(current_step)
+            context['previous_steps'] = previous_steps
+            current_step = 'reformulate'
+            context['current_step'] = current_step
+            return response, context
+        elif current_step == 'reformulate':
+            response = self.reformulate(user_query=user_query, chat_history=chat_history, context=context)
+            logger.critical(f'reformulated: {response}')
+            logger.debug(f'current step - {current_step}')
+            previous_steps.append(current_step)
+            current_step = 'verify'
+            context['current_step'] = current_step
+            ready_for_sql_str = self.verify(user_query=user_query, chat_history=chat_history, context=context)
+            ready_for_sql = eval(ready_for_sql_str.capitalize())
+            logger.debug(f'ready_for_sql - {ready_for_sql}')
+            previous_steps.append(current_step)
+            if ready_for_sql:
+                current_step = 'sql'
+                logger.debug(f'current step - {current_step}')
+                context['current_step'] = current_step
+                df = SqlToText.sql_query(user_query=user_query)
+                previous_steps.append(current_step)
+                context['previous_steps'] = previous_steps
+                current_step = 'exit'
+                context['current_step'] = current_step
+                return df, context
+            else:
+                current_step = 'ask'
+                logger.debug(f'current step - {current_step}')
+                # todo: inline_filter_list = self.generate_inline_filters(text=user_input)
+                context['current_step'] = current_step
+                response = self.ask(user_query=user_query, chat_history=chat_history, context=context)
+                previous_steps.append(current_step)
+                context['previous_steps'] = previous_steps
+                current_step = 'reformulate'
+                context['current_step'] = current_step
+                return response, context
+        elif current_step == 'sql':
+            logger.debug(f'current step - {current_step}')
+            df = SqlToText.sql_query(user_input=user_query)
+            previous_steps.append(current_step)
+            context['previous_steps'] = previous_steps
+            current_step = 'exit'
+            context['current_step'] = current_step
+            return df, context
 
 
 if __name__ == '__main__':
 
-    # user_query = "подбери стиральную машину"
-    # chat_history = []
-    # current_scenario = ShoppingAssistantScenario()
-    # verification_result = current_scenario.verify(
-    #     user_query=user_query,
-    #     chat_history=chat_history,
-    #     context=None)
-    # print(verification_result)  # {'generation': 'true'}
+    user_query = "подбери стиральную машину"
+    chat_history = []
+    current_scenario = ShoppingAssistantScenario()
+    verification_result = current_scenario.verify(
+        user_query=user_query,
+        chat_history=chat_history,
+        context={"scenario": "shopping_assistant_washing_machine", "previous_steps": [], "current_step": "verify"})
+    print(verification_result)  #  :bool = true | false
 
     # ch = [{'role': 'user', 'content': 'Привет'},
     #       {'role': 'assistant', 'content': 'Привет! Как я могу помочь вам сегодня?'},
@@ -200,6 +276,7 @@ if __name__ == '__main__':
     # )
     # print(reformulate_result)
 
-    user_input = 'Недорогая стиральная машина с хорошими характеристиками.'
-    response = SqlToText().sql_query(user_input=user_input)
-    print(response)
+    # user_input = 'Недорогая стиральная машина с хорошими характеристиками.'
+    # response = SqlToText.sql_query(user_input=user_input)
+    # print(response)
+    pass

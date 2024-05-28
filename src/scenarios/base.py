@@ -6,7 +6,7 @@ I want you to:
 '''
 
 from abc import abstractmethod, ABC
-from typing import List, Dict, Iterable
+from typing import List, Dict, Iterable, Any
 from loguru import logger
 
 def parse_markup_chat_history(chat_history: List[str]):
@@ -22,7 +22,6 @@ def create_chatml_statement(role: str, content: str):
     return f"<|{role}|>\n{content}<|end|>\n"
 
 def create_llama3_statement(role: str, content: str):
-    logger.debug(role)
     assert role in ('user', 'assistant')
     assert content
     return f"<|start_header_id|>{ role }<|end_header_id|>\n{ content }<|eot_id|>"
@@ -59,7 +58,6 @@ def get_llama3_template_from_history(system_prompt_clean:str, chat_history: List
             current_template_part = create_llama3_statement(role, content)
             template += current_template_part
     template += final_assistant
-    logger.warning(template)
     return template
 
 def get_llama3_template_from_user_query(system_prompt_clean:str, user_query: str):
@@ -72,5 +70,5 @@ def get_llama3_template_from_user_query(system_prompt_clean:str, user_query: str
 
 
 class BaseScenario(ABC):
-    def handler_query(self, user_input: str,):
+    def handle(self, user_input: Any, chat_history: Any, context: Any):
         raise NotImplementedError

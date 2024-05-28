@@ -1,23 +1,23 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from typing import Any, List, Dict
+from typing import Any, List, Dict, Iterator
 import uvicorn
 from langchain_community.llms import Ollama, LlamaCpp
 from langchain.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from loguru import logger
-SYSTEM_PROMPT_LLAMA3 = "You are a helpful assistant."
+SYSTEM_PROMPT_LLAMA3 = "You are a helpful, smart, kind, and efficient AI assistant. You always fulfill the user's requests to the best of your ability."
 import sys
 sys.path.append('/home/amstel/llm/src')
 from scenarios.base import create_chatml_statement, create_llama3_statement, get_chatml_template, get_llama3_template_from_history, get_llama3_template_from_user_query, parse_markup_chat_history
 from llama_cpp import Llama, LlamaGrammar
 from typing import Union, Optional
 import requests
-
+from llama_cpp.llama_types import CreateCompletionResponse, CreateCompletionStreamResponse
 
 # todo: exctract two defs below into RPI layer
-def call_generate_from_history_api(input_text: str, chat_history: List[Dict[str, str]]=[]):
+def call_generate_from_history_api(input_text: str, chat_history: List[Dict[str, str]]) -> str:
     """
     input_text: str
     chat_history: List[Dict[str, str]]
@@ -27,34 +27,30 @@ def call_generate_from_history_api(input_text: str, chat_history: List[Dict[str,
         json={"question": input_text, "chat_history": chat_history}
     )
     r = response.json().get('choices')[0].get('text')
-    return {"answer": r}
+    return r
 
 
-def call_generate_from_query_api(input_text: str, chat_history: List[Dict[str, str]]=[]):
+def call_generate_from_query_api(user_prompt: str, system_prompt:str) -> str:
     """
     input_text: str
-    chat_history: List[Dict[str, str]]
     """
     response = requests.post(
         'http://localhost:8000/generate-from-query',
-        json={"question": input_text, "chat_history": chat_history}
+        json={"user_prompt": user_prompt, "system_prompt": system_prompt}
     )
     r = response.json().get('choices')[0].get('text')
-    return {"answer": r}
+    return r
 
-
-def call_generation_api(prompt: str, grammar: str = None, stop: list = None):
-
+def call_generation_api(prompt: str, grammar: str = None, stop: list = None) -> str:
     response = requests.post(
         'http://localhost:8000/generate',
         json={"prompt": prompt, "grammar": grammar, "stop": stop}
     )
-    logger.debug(response)
     r = response.json().get('choices')[0].get('text')
-    return {"generation": r}
+    return r
+# end RPI layer
 
 
-# template = PromptTemplate.from_template("""<|user|>\n{question} <|end|>\n<|assistant|>""")
 app = FastAPI(redirection_slashes=False)
 
 # def log_data(x):
@@ -64,10 +60,11 @@ app = FastAPI(redirection_slashes=False)
 # logger_runnable = RunnablePassthrough(log_data)
 
 class Input(BaseModel):
-    question: str
-    chat_history: List[Dict[str, str]]
+    user_prompt: str
+    system_prompt: str  # assert it's not None
+    chat_history: List[Dict[str, str]] = None
     grammar_path: str = None
-    stop: List[str] = ['<eot_id>']
+    stop: List[str] = ['<|eot_id|>']
 
 @app.on_event("startup")
 async def load_llm():
@@ -82,18 +79,17 @@ async def load_llm():
         f16_kv=False,
         verbose=True,
         temperature=0.0,
-
     )
-    logger.info("LLM Loaded")
+
 
 @app.get("/")
 async def hello() -> dict[str, str]:
     return {"hello": "world"}
 
+
 @app.post("/generate-from-history")
-async def generate_from_listory(input_data: Input) -> dict[str, Any]:
-    logger.debug(input_data)
-    question = input_data.question
+async def generate_from_listory(input_data: Input) -> Dict[str, Any]:
+    system_prompt = input_data.system_prompt
     chat_history = input_data.chat_history
     grammar_path = input_data.grammar_path
     stop = input_data.stop
@@ -105,8 +101,7 @@ async def generate_from_listory(input_data: Input) -> dict[str, Any]:
     # template_str = get_chatml_template(chat_history)
 
     # llama 3
-    template_str = get_llama3_template_from_history(system_prompt_clean=SYSTEM_PROMPT_LLAMA3, chat_history=chat_history)
-    logger.debug(template_str)
+    template_str = get_llama3_template_from_history(system_prompt_clean=system_prompt, chat_history=chat_history)
     result = llm(
         prompt=template_str,
         grammar=grammar,
@@ -126,24 +121,20 @@ async def generate_from_listory(input_data: Input) -> dict[str, Any]:
         mirostat_eta=0.1,
     )
     return result
+
 
 @app.post("/generate-from-query")
-async def generate_from_query(input_data: Input) -> dict[str, Any]:
-    logger.debug(input_data)
-    question = input_data.question
-    chat_history = input_data.chat_history
+async def generate_from_query(input_data: Input) -> Dict[str, Any]:
+    user_prompt = input_data.user_prompt
+    system_prompt = input_data.system_prompt
     grammar_path = input_data.grammar_path
     stop = input_data.stop
     grammar = None
     if grammar_path:
         grammar = LlamaGrammar.from_file(file=grammar_path)
 
-    # phi 3
-    # template_str = get_chatml_template(chat_history)
-
     # llama 3
-    template_str = get_llama3_template_from_user_query(system_prompt_clean=SYSTEM_PROMPT_LLAMA3, user_query=question)
-    logger.debug(template_str)
+    template_str = get_llama3_template_from_user_query(system_prompt_clean=system_prompt, user_query=user_prompt)
     result = llm(
         prompt=template_str,
         grammar=grammar,
@@ -164,8 +155,9 @@ async def generate_from_query(input_data: Input) -> dict[str, Any]:
     )
     return result
 
+
 @app.post("/generate")
-async def generate(input: dict) -> dict[str, Any]:
+async def generate(input: dict) -> Dict[str, Any]:
     prompt = input.get('prompt')
     grammar = input.get('grammar')
     stop = input.get('stop')
@@ -173,7 +165,6 @@ async def generate(input: dict) -> dict[str, Any]:
         stop = ['<|eot_id|>']
     if grammar:
         grammar = LlamaGrammar.from_string(grammar=grammar)
-    logger.critical(grammar)
     result = llm(
         prompt=prompt,
         grammar=grammar,

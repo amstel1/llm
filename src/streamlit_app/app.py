@@ -1,11 +1,27 @@
+import pandas as pd
 from loguru import logger
 import streamlit as st
 import sys
 sys.path.append('/home/amstel/llm/src')
 import requests
 from typing import List, Dict
-from general_llm.llm_endpoint import call_process_text_api
+from general_llm.llm_endpoint import call_generation_api, call_generate_from_history_api
+from scenarios.scenario_router import ScenarioRouter
+from scenarios.shopping_assistant import ShoppingAssistantScenario
 
+
+# link to the selected product / products
+# todo: routing between scenarios
+# todo: change display_website_preview to parsing microdata in realtime
+# todo: display the results once, nice grid, from parameters.
+# todo: выделить в сценарий - sql to text
+# todo: Переключатель элементов
+# todo: выход из сценария - датафрэйм, сделать бэк который собирает данные (монго)
+# todo: логика сохранения рендеринга (по истории чата)
+# todo: citations
+# todo: inline elements - prefilters - how to create
+
+# create_preview_card()
 
 def create_preview_card(
         url="https://shop.by/stiralnye_mashiny/lg_f2j3ws2w/",
@@ -28,19 +44,32 @@ def create_preview_card(
     st.markdown(card_html, unsafe_allow_html=True)
 
 
+
+
 if __name__ == '__main__':
 
+
+    scenario_router = ScenarioRouter()
     st.sidebar.title("Chat Settings")
     st.title("Langchain Chat App")
 
     # Clear the conversation using a sidebar button for better accessibility
     if st.sidebar.button("Clear Conversation"):
         st.session_state.chat_history = []
+        st.session_state.context = {
+            # 'scenario': "",
+            # 'current_step': "",
+            'previous_steps': [],
+        }
 
     # Initialize chat history if it doesn't exist
     if 'chat_history' not in st.session_state:
         st.session_state['chat_history'] = []
-
+        st.session_state['context'] = {
+            # 'scenario': "",
+            # 'current_step': "",
+            'previous_steps': [],
+        }
 
     # Creating a container for chat history to improve alignment and appearance
     with st.container():
@@ -50,25 +79,56 @@ if __name__ == '__main__':
 
 
     if prompt := st.chat_input("Enter you question here"):
+        logger.critical(f'context checkpoint 1: {st.session_state.context}')
         st.chat_message("user").markdown(prompt)
         st.session_state.chat_history.append({"role": "user", "content": prompt})
+
         if prompt:
-            response = call_process_text_api(prompt, st.session_state.chat_history)
-            response_text = response['answer']
-            st.session_state.chat_history.append({"role": "assistant", "content": response_text})
-            logger.debug(st.session_state.chat_history)
-            with st.chat_message("assistant"):
-                st.markdown(response_text)
+            if not 'scenario_name' in st.session_state.context :
+                logger.critical(f'context before scenario_router.route(): {st.session_state.context }')
+                # execute once per scenario_name / scenraio_object
+                logger.critical('We must see this only once at the scenario start')
+                selected_route_dict = scenario_router.route(
+                    user_query=prompt, stop=['<|eot_id|>'],
+                    grammar_path='/home/amstel/llm/src/grammars/scenario_router.gbnf'
+                )
+                selected_route = selected_route_dict.get('selected_route')
+                if isinstance(selected_route, list):
+                    assert len(selected_route) == 1
+                    selected_route_str = selected_route[0]  # 'just_chatting' / 'shopping_assistant_washing_machine'
+                elif isinstance(selected_route, str):
+                    selected_route_str = selected_route
+                st.session_state.context['scenario_name'] = selected_route_str
 
-        # link to the selected product / products
-        # todo: routing between scenarios
-        # todo: change display_website_preview to parsing microdata in realtime
-        # todo: display the results once, nice grid, from parameters.
-        # todo: выделить в сценарий - sql to text
-        # todo: Переключатель элементов
-        # todo: выход из сценария - датафрэйм, сделать бэк который собирает данные (монго)
-        # todo: логика сохранения рендеринга (по истории чата)
-        # todo: citations
-        # todo: inline elements - prefilters - how to create
+            if st.session_state.context['scenario_name'] == 'shopping_assistant_washing_machine' and 'current_step' not in st.session_state.context:
+                # initial
+                st.session_state.scenario_object = ShoppingAssistantScenario()
+                st.session_state.context['current_step'] = 'verify'
 
-        # create_preview_card()
+            # scenario
+            if st.session_state.context['scenario_name'] == 'shopping_assistant_washing_machine':
+                data, context = st.session_state.scenario_object.handle(user_query=prompt, chat_history=st.session_state.chat_history, context=st.session_state.context)
+                st.session_state.context = context
+                assert 'scenario_name' in st.session_state.context
+                logger.critical(f'context after scenario_object.handle(): {st.session_state.context }')
+                if isinstance(data, str):
+                    response_text = data
+                    st.session_state.chat_history.append({"role": "assistant", "content": response_text})
+                    with st.chat_message("assistant"):
+                        st.markdown(response_text)
+                elif isinstance(data, pd.DataFrame):
+                    # sql results - show table
+                    st.markdown(data)
+
+            if st.session_state.context ['current_step'] == 'exit':
+                logger.debug(f'current_step -- {st.session_state.context ["current_step"]}')
+                st.session_state.context.pop('scenario_name')  # when exited scenario, nullify
+                st.session_state.context.pop('current_step')  # when exited scenario, nullify
+                st.session_state.scenario_object = None
+
+
+            # response_text = call_generate_from_history_api(prompt, st.session_state.chat_history)  # just chatting
+            # st.session_state.chat_history.append({"role": "assistant", "content": response_text})
+
+
+
