@@ -154,7 +154,7 @@ Indesit | 4.5 | 921 | 290 | Стиральная машина Indesit IWSB 51051
 Here are the examples of correct pairs of input_query (Q) and required output (SQL):
 
 Q: Фирма Электролюкс без сушки глубина до 50 см;
-SQL: SELECT name, price, rating_value, drying, depth FROM scraped_data.washing_machine WHERE brand ILIKE '%Electrolux%' AND (drying = 'Нет' or drying is null) AND depth <= 50;
+SQL: SELECT name, price, rating_value, drying, depth FROM scraped_data.washing_machine WHERE (brand ILIKE '%Electrolux%') AND (drying = 'Нет' or drying is null) AND depth <= 50;
 
 Q: популярная, хорошая, недорогая
 SQL: SELECT name, price, rating_value FROM scraped_data.washing_machine WHERE price <= 1000;
@@ -166,7 +166,7 @@ Q: отличная стиралка;
 SQL: SELECT name, price, rating_value FROM scraped_data.washing_machine WHERE rating_value >= 4.8;
 
 Q: от 5 кг, хорошая лучшая
-SQL: SELECT name, price, rating_value, max_load FROM scraped_data.washing_machine WHERE max_load >= 5 and rating_value >= 4.8;
+SQL: SELECT name, price, rating_value, max_load FROM scraped_data.washing_machine WHERE (max_load >= 5) and (rating_value >= 4.8);
 
 Q: хорошая стиральная машина
 SQL: SELECT name, price, rating_value FROM scraped_data.washing_machine WHERE rating_value >= 4.5;
@@ -178,7 +178,8 @@ SQL: SELECT name, price, rating_value FROM scraped_data.washing_machine WHERE pr
 input_query: {user_query}
 SQL:<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n```sql""")
 
-
+        logger.warning('str_prompt')
+        logger.warning(str_prompt)
         #api call from string
         response = call_generation_api(prompt=str_prompt, grammar=None, stop=['<|eot_id|>', '```', '```\n',])
         response_query = text(response.strip().replace('\n', ' '))
@@ -207,10 +208,12 @@ SQL:<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n```sql""")
 
 
 if __name__ == '__main__':
-    user_query = "стиральная машина глубина до 43, загрузка от 6, с рейтингом от 4.8, производитель Korting"
+    # user_query = "стиральная машина глубина до 43, загрузка от 6, с рейтингом от 4.8, производитель Korting"
     # user_query = "дешевая стиральная машина"
     # user_query = 'Поможете найти недорогую стиральную машину, которая работает хорошо?'
     # user_query = 'Недорогая стиральная машина с хорошими характеристиками.'
+    # user_query = "Суть запроса: ищется стиральная машина от производителей Electrolux, Samsung, LG, Bosch, с загрузкой от 6 кг, глубиной до 43 см и ценой до 2000 рублей, с любым рейтингом"
+    user_query = "Суть требований пользователя: стиральная машина с хорошим брендом, узкой и вместительной."
     response = SqlToText.sql_query(user_query=user_query)
     print(response)
 

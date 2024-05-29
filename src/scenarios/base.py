@@ -70,5 +70,5 @@ def get_llama3_template_from_user_query(system_prompt_clean:str, user_query: str
 
 
 class BaseScenario(ABC):
-    def handle(self, user_input: Any, chat_history: Any, context: Any):
+    def handle(self, user_query: Any, chat_history: Any, context: Any):
         raise NotImplementedError

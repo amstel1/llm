@@ -1,3 +1,5 @@
+import json
+
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Any, List, Dict, Iterator
@@ -16,27 +18,45 @@ from typing import Union, Optional
 import requests
 from llama_cpp.llama_types import CreateCompletionResponse, CreateCompletionStreamResponse
 
+class LLMEndpointInput(BaseModel):
+    user_prompt: str = None # assert it's not None
+    system_prompt: str = None # assert it's not None
+    chat_history: List[Dict[str, str]] = None
+    grammar_path: str | None = None
+    stop: List[str] = ['<|eot_id|>']
+
+
 # todo: exctract two defs below into RPI layer
-def call_generate_from_history_api(input_text: str, chat_history: List[Dict[str, str]]) -> str:
+# start PRI layer
+def call_generate_from_history_api(
+        system_prompt: str,
+        chat_history: List[Dict[str, str]],
+        grammar_path: str = None,
+        stop: List[str] = ['<|eot_id|>'],
+) -> str:
     """
     input_text: str
     chat_history: List[Dict[str, str]]
     """
     response = requests.post(
         'http://localhost:8000/generate-from-history',
-        json={"question": input_text, "chat_history": chat_history}
+        json={"system_prompt": system_prompt, "chat_history": chat_history, "grammar_path": grammar_path, "stop": stop}
     )
     r = response.json().get('choices')[0].get('text')
     return r
 
 
-def call_generate_from_query_api(user_prompt: str, system_prompt:str) -> str:
+def call_generate_from_query_api(
+        user_prompt: str,
+        system_prompt: str,
+        grammar_path: str = None,
+        stop: List[str] = ['<|eot_id|>'],) -> str:
     """
     input_text: str
     """
     response = requests.post(
         'http://localhost:8000/generate-from-query',
-        json={"user_prompt": user_prompt, "system_prompt": system_prompt}
+        json={"user_prompt": user_prompt, "system_prompt": system_prompt, "grammar_path": grammar_path, "stop": stop}
     )
     r = response.json().get('choices')[0].get('text')
     return r
@@ -53,18 +73,6 @@ def call_generation_api(prompt: str, grammar: str = None, stop: list = None) -> 
 
 app = FastAPI(redirection_slashes=False)
 
-# def log_data(x):
-#     logger.debug(x)
-#     return x
-#
-# logger_runnable = RunnablePassthrough(log_data)
-
-class Input(BaseModel):
-    user_prompt: str
-    system_prompt: str  # assert it's not None
-    chat_history: List[Dict[str, str]] = None
-    grammar_path: str = None
-    stop: List[str] = ['<|eot_id|>']
 
 @app.on_event("startup")
 async def load_llm():
@@ -88,13 +96,13 @@ async def hello() -> dict[str, str]:
 
 
 @app.post("/generate-from-history")
-async def generate_from_listory(input_data: Input) -> Dict[str, Any]:
+async def generate_from_listory(input_data: LLMEndpointInput) -> Dict[str, Any]:
     system_prompt = input_data.system_prompt
     chat_history = input_data.chat_history
     grammar_path = input_data.grammar_path
     stop = input_data.stop
     grammar = None
-    if grammar_path:
+    if grammar_path and grammar_path.endswith('.gbnf'):
         grammar = LlamaGrammar.from_file(file=grammar_path)
 
     # phi 3
@@ -124,7 +132,7 @@ async def generate_from_listory(input_data: Input) -> Dict[str, Any]:
 
 
 @app.post("/generate-from-query")
-async def generate_from_query(input_data: Input) -> Dict[str, Any]:
+async def generate_from_query(input_data: LLMEndpointInput) -> Dict[str, Any]:
     user_prompt = input_data.user_prompt
     system_prompt = input_data.system_prompt
     grammar_path = input_data.grammar_path
