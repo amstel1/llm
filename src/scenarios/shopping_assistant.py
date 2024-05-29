@@ -170,7 +170,7 @@ class ShoppingAssistantScenario(BaseScenario):
                 current_step = 'sql'
                 logger.debug(f'current step - {current_step}')
                 context['current_step'] = current_step
-                df = SqlToText.sql_query(user_input=user_query)
+                df = SqlToText.sql_query(user_query=user_query)
                 previous_steps.append(current_step)
                 context['previous_steps'] = previous_steps
                 current_step = 'exit'

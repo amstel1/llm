@@ -226,13 +226,13 @@ class ReviewsProductDetailsDo(Do):
 if __name__ == '__main__':
     pass
 
-    # # step 1. ItemList from sites to Postgres
+    # step 1. ItemList from sites to Postgres
     # logger.warning('Start - Job 1')
     # product_type_name='Стиральная машина'
     #
-    # # product_type_url = [f'https://shop.by/stiralnye_mashiny/?page_id={i}' for i in range(1, 30)]
-    # # product_type_url=[f'https://www.21vek.by/washing_machines/page:{i}/' for i in range(2, 11)]
-    # product_type_url=[f'https://catalog.onliner.by/washingmachine?page={i}' for i in range(2, 50)]
+    # # product_type_url = [f'https://shop.by/stiralnye_mashiny/?page_id={i}' for i in range(1, 30)]  # 1,30
+    # # product_type_url=[f'https://www.21vek.by/washing_machines/page:{i}/' for i in range(1, 11)]  # 2,11
+    # product_type_url=[f'https://catalog.onliner.by/washingmachine?page={i}' for i in range(1, 50)]  # 2,50
     #
     # ItemlList_2_Postgres = Job(
     #     # reader=EcomItemListRead(extractor_name='ShopByExtractor', product_type_url=product_type_url, product_type_name=product_type_name),
@@ -241,13 +241,13 @@ if __name__ == '__main__':
     #
     #     processor=ItemListDo(),
     #
-    #     # writer=PostgresDataFrameWrite(
-    #     #     schema_name='scraped_data',
-    #     #     table_name='product_item_list_to_fill',
-    #     #     insert_unique=True,
-    #     #     index_column="product_url",
-    #     # )
-    #     writer=PickleDataWrite('data.pkl')
+    #     writer=PostgresDataFrameWrite(
+    #         schema_name='scraped_data',
+    #         table_name='product_item_list_to_fill2',  # product_item_list_to_fill, product_item_list
+    #         insert_unique=True,
+    #         index_column="product_url",
+    #     ),
+    #     # writer=PickleDataWrite('data.pkl')
     # )
     # ItemlList_2_Postgres.run()
     # logger.warning('End - Job 1')
@@ -258,7 +258,7 @@ if __name__ == '__main__':
     # logger.warning('Start - Job 2')
     # ItemDetails_2_Postgres = Job(
     #     reader=ItemDetailsRead(
-    #         step1__table='scraped_data.product_item_list',
+        #         step1__table='scraped_data.product_item_list',
     #         step1__where=None,
     #         step1_urls_attribute='product_url'
     #     ),
@@ -324,7 +324,7 @@ if __name__ == '__main__':
     # scrape_internet_part_C.run()
     # logger.warning('End - Job 3B')
 
-
+    # todo: 2905 after lunch
     # Job 4 -> Fill in the details from the sites that have no product_details microdata
     # DetailsFillIn = Job(
     #     reader=ReadChain(readers=[

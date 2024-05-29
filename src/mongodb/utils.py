@@ -84,6 +84,10 @@ class MongoRead(Read):
         cursor = self.mongo_connector.read_many({})
         return {"step_0": list(cursor)}
 
+    def read_one(self,  key_value: Dict[str, str]):
+        output_document = self.mongo_connector.read_one(key_value)
+        return output_document
+
 class MongoWrite(Write):
     def __init__(self, operation: MongoOperationType, db_name: str, collection_name: str):
         self.operation = operation

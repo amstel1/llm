@@ -87,12 +87,10 @@ class PostgresDataFrameRead(Read):
             sql_str = f'select * from {self.table};'
         try:
             with engine.connect() as connection_str:
-                logger.warning('Successfully connected to the PostgreSQL database')
                 df = pd.read_sql(
                     sql=sql_str,
                     con=connection_str,
                 )
-                logger.warning(df.shape)
             return {"step_0": df}
         except Exception as ex:
             logger.error(f'Sorry failed to connect: {ex}')

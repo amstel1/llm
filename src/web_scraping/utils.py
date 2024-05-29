@@ -98,6 +98,7 @@ class MicrodataExtractor:
                         item_features['product_position'] = item_properties.get('position')
                         item_features['product_type_url'] = product_type_url
                         item_features['product_type_name'] = product_type_name
+                        item_features['product_image_url'] = base_url + item_properties.get('image').get('properties').get('image')
                         results.append(item_features)
         return results
 
@@ -115,6 +116,7 @@ class MicrodataExtractor:
                 _item_properties = el['properties']
                 item_features['name'] = _item_properties.get('name')
                 item_features['product_url'] = _item_properties.get('url')
+                # item_features['image_url'] = _item_properties.get('image')  # let's get image url from item_list
                 _offers_properties = _item_properties.get('offers').get('properties')
                 item_features['offer_count'] = _offers_properties.get('offerCount')
                 item_features['min_price'] = _offers_properties.get('lowPrice')
@@ -168,6 +170,7 @@ class OnlinerExtractor(HtmlExtractor):
             item_features = {}
             # maybe a.catalog-form__link_primary-additional.catalog-form__link_base-additional
             item_features['product_url'] = selector.css('a.catalog-form__link_base-additional::attr(href)').get()
+            item_features['product_image_url'] = selector.css('img.catalog-form__image::attr(src)').get()
             item_features['product_name'] = selector.css('a.catalog-form__link_base-additional::text').get().strip()
             item_features['product_price'] = selector.css('a.catalog-form__link span:not([class^="catalog-form__description"])::text').get().replace('\xa0р.','').replace(',','.')
             item_features['product_type_url'] = product_type_url
@@ -193,6 +196,7 @@ class Vek21Extractor(HtmlExtractor):
         for selector in response.css('div[class^="style_product"]'):
             item_features = {}
             item_features['product_url'] = self.base_url + selector.css('p[class^="CardInfo"] a::attr(href)').get()
+            item_features['product_image_url'] = selector.css('div[class^="CardMedia_mediaContainer"] img::attr(src)').get()
             item_features['product_name'] = selector.css('p[class^="CardInfo"] a::text').get()
             item_features['product_price'] = selector.css('p[class^="CardPrice_currentPrice"]::text').get().replace('р.', '').replace(',','.').strip()
             item_features['product_type_url'] = product_type_url

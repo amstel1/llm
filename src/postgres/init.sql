@@ -38,3 +38,27 @@ CREATE OR REPLACE VIEW scraped_data.washing_machine
    FROM scraped_data.item_details_washing_machine details
      LEFT JOIN scraped_data.reviews_product_details reviews ON details.name = reviews.query_item_name
   WHERE details.min_price >= 500::numeric;
+
+
+  CREATE OR REPLACE VIEW scraped_data.render_wm as
+  SELECT product_url,
+    product_image_url,
+    product_name,
+    product_type_url,
+    product_type_name,
+    scraped_datetime
+   FROM ( SELECT product_item_list.product_url,
+            product_item_list.product_image_url,
+            product_item_list.product_name,
+            product_item_list.product_type_url,
+            product_item_list.product_type_name,
+            product_item_list.scraped_datetime
+           FROM scraped_data.product_item_list
+        UNION ALL
+         SELECT product_item_list_to_fill.product_url,
+            product_item_list_to_fill.product_image_url,
+            product_item_list_to_fill.product_name,
+            product_item_list_to_fill.product_type_url,
+            product_item_list_to_fill.product_type_name,
+            product_item_list_to_fill.scraped_datetime
+           FROM scraped_data.product_item_list_to_fill) s;
