@@ -6,7 +6,7 @@ array ::= "[" ws values? ws "]"
 
 values ::= value (ws "," ws value)*
 
-value ::= "\"" ("just_chatting" | "shopping_assistant_washing_machine") "\""
+value ::= "\"" ("just_chatting" | "shopping_assistant_washing_machine" | "sberbank_consultant") "\""
 
 ws ::= [ \t\n]*
 

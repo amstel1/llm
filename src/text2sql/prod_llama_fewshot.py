@@ -197,10 +197,14 @@ SQL:<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n```sql""")
             sql=response_query,
             con=uri,
         )
+        if 'price' in df.columns: df = df[df.price.notnull()]
+        if 'rating_value' in df.columns: df = df[df.rating_value.notnull()]
         if 'name' in df.columns:
             if df['name'].nunique() != df.shape[0]:
                 if 'price' in df.columns:
                     df.sort_values(['price', 'name'], inplace=True)
+                if 'rating_value' in df.columns:
+                    df.sort_values(["rating_value", 'price', 'name'], ascending=[False, False, True], inplace=True)
                     df.drop_duplicates(subset=['name'], keep='first', inplace=True)
         logger.warning(f'{df.shape}')
         logger.warning(f'{df.head()}')

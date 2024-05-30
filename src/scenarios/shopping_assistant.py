@@ -175,6 +175,7 @@ class ShoppingAssistantScenario(BaseScenario):
                 context['previous_steps'] = previous_steps
                 current_step = 'exit'
                 context['current_step'] = current_step
+                context['scenario_name'] = "just_chatting"
                 return df, context
             else:
                 current_step = 'ask'
@@ -215,6 +216,7 @@ class ShoppingAssistantScenario(BaseScenario):
                 context['previous_steps'] = previous_steps
                 current_step = 'exit'
                 context['current_step'] = current_step
+                context['scenario_name'] = "just_chatting"
                 return df, context
             else:
                 current_step = 'ask'
@@ -234,6 +236,7 @@ class ShoppingAssistantScenario(BaseScenario):
             context['previous_steps'] = previous_steps
             current_step = 'exit'
             context['current_step'] = current_step
+            context['scenario_name'] = "just_chatting"
             return df, context
 
 

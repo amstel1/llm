@@ -22,4 +22,5 @@ class JustChattingScenario(BaseScenario):
         )
         # context['current_step'] = 'chatting'
         context['previous_steps'].append('chatting')
+        context['scenario_name'] = "just_chatting"
         return response, context

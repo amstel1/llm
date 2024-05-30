@@ -11,6 +11,7 @@ from scenarios.shopping_assistant import ShoppingAssistantScenario
 from scenarios.just_chatting import JustChattingScenario
 from streamlit_app.cards import create_preview_card, ItemDisplay
 from streamlit_app.backend_ops import DataServer
+from scenarios.sberbank_consultant import SberbankConsultant
 
 # link to the selected product / products
 # todo: routing between scenarios
@@ -24,11 +25,6 @@ from streamlit_app.backend_ops import DataServer
 # todo: inline elements - prefilters - how to create
 
 # create_preview_card()
-
-
-
-
-
 
 if __name__ == '__main__':
 
@@ -79,10 +75,12 @@ if __name__ == '__main__':
                 )
                 st.session_state.context['scenario_name'] = selected_route_str
                 logger.critical(f'context after scenario_router.route(): {st.session_state.context}')
-            if st.session_state.context['scenario_name'] == 'shopping_assistant_washing_machine' and 'current_step' not in st.session_state.context:
+            if st.session_state.context['scenario_name'] == 'shopping_assistant_washing_machine':
                 # initial
                 st.session_state.scenario_object = ShoppingAssistantScenario()
                 st.session_state.context['current_step'] = 'verify'
+            elif st.session_state.context['scenario_name'] == 'sberbank_consultant' and 'current_step' not in st.session_state.context:
+                st.session_state.scenario_object = SberbankConsultant()
             elif st.session_state.context['scenario_name'] == 'just_chatting':
                 st.session_state.scenario_object = JustChattingScenario()  # stateless (no current_step) by design
 

@@ -12,13 +12,15 @@ import json
 from loguru import logger
 
 route_to_description = (
-    # "just_chatting: разговор на любые темы",
-    "shopping_assistant_washing_machine: поиск, выбор, покупка стиральной или стирально-сушильной машины"
+    "just_chatting: разговор на любые темы",
+    "shopping_assistant_washing_machine: поиск, выбор, покупка стиральной или стирально-сушильной машины",
+    "sberbank_consultant: консультация по всем вопросам, связанным с банковскими продуктами, услугами (Сбер Банк Беларусь)"
 )
 
 class Route(str, Enum):
     just_chatting = "just_chatting"
     shopping_assistant_washing_machine = "shopping_assistant_washing_machine"
+    sberbank_consultant = "sberbank_consultant"
 
 class SelectedRoute(BaseModel):
     Route
@@ -82,13 +84,14 @@ class ScenarioRouter:
             with open(grammar_path, 'r') as f:
                 grammar = f.read()
         generation_result = call_generation_api(
-            prompt = self.prompt.format(**{"user_input": user_query, "route_to_description": self.route_to_description}),
+            prompt= self.prompt.format(**{"user_input": user_query, "route_to_description": self.route_to_description}),
             grammar=grammar,
             stop=stop,
         )
         logger.debug(f'2805 - router - {generation_result}')
         selected_route_dict = json.loads(generation_result)
         selected_route = selected_route_dict.get('selected_route')
+        logger.warning(selected_route)
         if isinstance(selected_route, list):
             assert len(selected_route) == 1
             selected_route_str = selected_route[0]  # 'just_chatting' / 'shopping_assistant_washing_machine'
@@ -100,8 +103,8 @@ class ScenarioRouter:
 if __name__ == '__main__':
     # pass
     router = ScenarioRouter()
-    route = router.route(user_query="подбери стиральную машину: производители Атлант, Хаер, Ханса, Самсунг",
+    route = router.route(user_query="какие кредиты есть в сбере?",
                          stop=['<|eot_id|>'],
-                         grammar_path='/home/amstel/llm/src/grammars/scenario_router.gbnf'
+                         # grammar_path='/home/amstel/llm/src/grammars/scenario_router.gbnf'
                          )
     print(route)

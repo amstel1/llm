@@ -166,6 +166,8 @@ async def generate_from_query(input_data: LLMEndpointInput) -> Dict[str, Any]:
 
 @app.post("/generate")
 async def generate(input: dict) -> Dict[str, Any]:
+    # output str?
+    """input keys: prompt (required), grammar (optional), stop (optional) """
     prompt = input.get('prompt')
     grammar = input.get('grammar')
     stop = input.get('stop')

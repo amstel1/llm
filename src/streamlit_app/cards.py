@@ -20,7 +20,7 @@ class ItemDisplay:
         st.markdown(f"[**{item['name']}**]({item['product_url']})")
         st.write(f"price: {item['price']}")
         if item.get('rating_value'): st.write(f"rating_value: {item['rating_value']}")
-        if item.get('rating_count'): st.write(f"rating_value: {item['rating_count']}")
+        if item.get('rating_count'): st.write(f"rating_count: {item['rating_count']}")
         if item.get('depth'): st.write(f"depth: {item['depth']}")
         if item.get('max_load'): st.write(f"max_load: {item['max_load']}")
         if item.get('drying'): st.write(f"drying: {item['drying']}")
