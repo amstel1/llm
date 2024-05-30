@@ -1,0 +1,23 @@
+# Root rule defining the overall output must be a JSON object
+root ::= json-object
+
+# Define a JSON object with exactly one key-value pair
+json-object ::= "{" key-value "}"
+
+# Define the key-value pair where the key is enclosed in brackets and one of the specified options, and the value is a list of strings
+key-value ::= ("\advantages\" | "[\"disadvantages\"]" | "[\"comments\"]") ":" string-list
+
+# Define a list of strings, must contain at least one string
+string-list ::= "[" strings "]"
+
+# Define the strings inside the list; at least one string is required, more are optional
+strings ::= string ("," string)*
+
+# Define a JSON string; escaping and other string rules are simplified here
+string ::= "\"" ( [^"\n\\] | escape-sequence )* "\""
+
+# Define common escape sequences in JSON strings
+escape-sequence ::= "\\" ( ["\\/bfnrt] | "u" hex hex hex hex )
+
+# Define hexadecimal characters
+hex ::= [0-9a-fA-F]

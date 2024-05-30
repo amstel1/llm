@@ -1,0 +1,13 @@
+root ::= "{" ws key ws ":" ws array ws "}"
+
+key ::= "\"" "selected_route" "\""
+
+array ::= "[" ws values? ws "]"
+
+values ::= value (ws "," ws value)*
+
+value ::= "\"" ("just_chatting" | "shopping_assistant_washing_machine" | "sberbank_consultant") "\""
+
+ws ::= [ \t\n]*
+
+ws01 ::= [ \t\n]?
