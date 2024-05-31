@@ -2,7 +2,7 @@ from typing import Any
 import sys
 sys.path.append('/home/amstel/llm')
 sys.path.append('/home/amstel/llm/src')
-
+import pickle
 sys.path.append('/')
 import numpy as np
 from loguru import logger
@@ -19,6 +19,17 @@ from langchain.retrievers import ContextualCompressionRetriever
 from langchain.retrievers.document_compressors import FlashrankRerank
 from general_llm.langchain_llama_cpp_api_warpper import LlamaCppApiWrapper
 from scenarios.base import BaseScenario
+from langchain_milvus import MilvusCollectionHybridSearchRetriever
+
+from pymilvus import (
+    Collection,
+    CollectionSchema,
+    DataType,
+    FieldSchema,
+    WeightedRanker,
+    RRFRanker,
+    connections,
+)
 
 # def cosine_similarity(a,b):
 #     return np.dot(a,b)/(np.linalg.norm(a)*np.linalg.norm(b))
@@ -36,11 +47,29 @@ def def_debugger(inp):
 
 class SberbankConsultant(BaseScenario):
     def __init__(self,):
-        self.embedding_model = HuggingFaceEmbeddings(
+        # rag_collections = [
+        #     'credits_400_0',
+        #     'deposits_400_0',
+        #     'cards_400_0',
+        #     'other_400_0',
+        # ]
+        self.rag_collections = [
+            'credits',
+            'deposits',
+            'cards',
+            'other',
+        ]
+        self.dense_embedding_model = HuggingFaceEmbeddings(
             model_name=EMBEDDING_MODEL_NAME,
             model_kwargs={'device': 'cpu'},
             encode_kwargs={'normalize_embeddings': True}
         )
+        self.sparse_model_2_rag_collections = {}
+        for rag_collection in self.rag_collections:
+            with open(f'/home/amstel/llm/src/rag/sparse_embedding_model_{rag_collection}.pkl', 'rb') as f:
+                model = pickle.load(f)
+            self.sparse_model_2_rag_collections[rag_collection] = model
+
 
     def retriever_router(self, input: str):
         # input: str
@@ -51,20 +80,32 @@ class SberbankConsultant(BaseScenario):
             "карта платежная дебетовая манэбэк money-back кэшбэк cash-back",
             "страховки подписка cберпрайм sberprime сбол банковские продукты услуги условия обслуживания",
         ]
-        rag_collections = [
-            'credits_400_0',
-            'deposits_400_0',
-            'cards_400_0',
-            'other_400_0',
-        ]
-        prompt_embeddings = self.embedding_model.embed_documents(options)
-        query_embedding = self.embedding_model.embed_query(input.lower())
+
+        prompt_embeddings = self.dense_embedding_model.embed_documents(options)
+        query_embedding = self.dense_embedding_model.embed_query(input.lower())
         similarity = cosine_similarity([query_embedding], prompt_embeddings)[0]
         logger.info(f'similarities: {similarity}')
-        chosen_rag_collection = rag_collections[similarity.argmax()]
+        chosen_rag_collection = self.rag_collections[similarity.argmax()]
+        self.sparse_embedding_model = self.sparse_model_2_rag_collections[chosen_rag_collection]
 
-        db = Milvus(embedding_function=self.embedding_model, collection_name=chosen_rag_collection, )
-        retriever = db.as_retriever(search_type='mmr', search_kwargs={"k": N_NEIGHBORS, })
+        sparse_search_params = {"metric_type": "IP"}
+        dense_search_params = {"metric_type": "IP", "params": {}}
+
+        CONNECTION_URI = "http://localhost:19530"
+        connections.connect(uri=CONNECTION_URI)
+
+        collection = Collection(name=chosen_rag_collection)
+        retriever = MilvusCollectionHybridSearchRetriever(
+            collection=collection,
+            # rerank=WeightedRanker(0.01, 0.99),
+            rerank=RRFRanker(),
+            anns_fields=['dense_vector', 'sparse_vector'],
+            field_embeddings=[self.dense_embedding_model, self.sparse_embedding_model],
+            field_search_params=[dense_search_params, sparse_search_params],
+            top_k=N_NEIGHBORS,
+            text_field="text",
+        )
+
 
         if USE_RERANKER:
             # DEFAULT:  ms-marco-MultiBERT-L-12 - лучшая
@@ -72,8 +113,7 @@ class SberbankConsultant(BaseScenario):
             # ms-marco-MiniLM-L-12-v2 -- дерьмо какое то
             # rank-T5-flan - kind of okay
             # try: doc2query/msmarco-russian-mt5-base-v1 - весит 2+ gb
-            compressor = FlashrankRerank(top_n=N_RERANK_RESULTS,
-                                         model=RERANKING_MODEL)  # doc2query/msmarco-russian-mt5-base-v1
+            compressor = FlashrankRerank(top_n=N_RERANK_RESULTS,  model='ms-marco-MultiBERT-L-12')  # doc2query/msmarco-russian-mt5-base-v1
             compression_retriever = ContextualCompressionRetriever(
                 base_compressor=compressor, base_retriever=retriever
             )
@@ -108,7 +148,7 @@ class SberbankConsultant(BaseScenario):
         return response, context
 
 if __name__ == '__main__':
-    q = "Какие есть кредиты для физических лиц?"
+    q = "условия по СберКарта"
 
     consultant = SberbankConsultant()
     response, context = consultant.handle(user_query=q)

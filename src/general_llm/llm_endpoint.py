@@ -83,7 +83,7 @@ async def load_llm():
         n_gpu_layers=33,
         max_tokens=-1,
         n_batch=512,
-        n_ctx=2048,
+        n_ctx=6144,
         f16_kv=False,
         verbose=True,
         temperature=0.0,
