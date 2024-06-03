@@ -8,7 +8,7 @@ from langchain_experimental.text_splitter import SemanticChunker
 from langchain.retrievers import ParentDocumentRetriever
 from langchain_core.documents import Document
 from rag_config import RAG_COLLECTION_NAME, EMBEDDING_MODEL_NAME, CHUNK_SIZE, CHUNK_OVERLAP, SPLITTER_SEPARATORS
-from custom_splitter import MarkdownTextSplitter
+from utils import MarkdownTextSplitter
 
 if __name__ == '__main__':
     # with open('/home/amstel/llm/src/web_scraping/bank_scraper/docs_final.pkl', 'rb') as f:

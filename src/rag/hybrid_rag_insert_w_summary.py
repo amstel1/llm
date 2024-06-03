@@ -1,6 +1,6 @@
 import pickle
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from MIlvusHybrid import MilvusHybrid
+# from MIlvusHybrid import MilvusHybrid
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from loguru import logger
 from rag_config import RAG_COLLECTION_NAME
@@ -8,7 +8,7 @@ from langchain_experimental.text_splitter import SemanticChunker
 from langchain.retrievers import ParentDocumentRetriever
 from langchain_core.documents import Document
 from rag_config import RAG_COLLECTION_NAME, EMBEDDING_MODEL_NAME, CHUNK_SIZE, CHUNK_OVERLAP, SPLITTER_SEPARATORS
-from custom_splitter import MarkdownTextSplitter
+from utils import MarkdownTextSplitter
 from langchain_milvus.utils.sparse import BM25SparseEmbedding
 from pymilvus import (
     Collection,
@@ -25,11 +25,11 @@ def main(slug: str):
         results = pickle.load(f)
 
     dense_embedding_model = HuggingFaceEmbeddings(
-        # model_name="sentence-transformers/distiluse-base-multilingual-cased-v1",
-        model_name=EMBEDDING_MODEL_NAME,  # "intfloat/multilingual-e5-large"
-        model_kwargs={'device': 'cpu'},
-        encode_kwargs={'normalize_embeddings': True},
-    )
+            model_name='BAAI/bge-m3',  # Specify the model name
+            model_kwargs={'device':'cuda:0',}
+              # Specify the device to use, e.g., 'cpu' or 'cuda:0'
+             # Specify whether to use fp16. Set to `False` if `device` is `cpu`.
+        )
 
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=CHUNK_SIZE,
@@ -65,7 +65,7 @@ def main(slug: str):
         language='ru',
     )  # it is fitted at initialization
 
-    with open(f'sparse_embedding_model_{slug}.pkl', 'wb') as f:
+    with open(f'sparse_embedding_model_bge_{slug}.pkl', 'wb') as f:
         pickle.dump(sparse_embedding_model, f)
 
 
@@ -85,13 +85,13 @@ def main(slug: str):
             auto_id=True,
             max_length=100,
         ),
-        FieldSchema(name=dense_field, dtype=DataType.FLOAT_VECTOR, dim=512),
+        FieldSchema(name=dense_field, dtype=DataType.FLOAT_VECTOR, dim=1024),
         FieldSchema(name=sparse_field, dtype=DataType.SPARSE_FLOAT_VECTOR),
         FieldSchema(name=text_field, dtype=DataType.VARCHAR, max_length=65_535),
     ]
     schema = CollectionSchema(fields=fields, enable_dynamic_field=False)
     collection = Collection(
-        name=slug, schema=schema, consistency_level="Strong"
+        name='bge_'+slug, schema=schema, consistency_level="Strong"
     )
     dense_index = {"index_type": "FLAT", "metric_type": "IP"}
     collection.create_index("dense_vector", dense_index)
