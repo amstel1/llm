@@ -4,10 +4,10 @@
 EMBEDDING_MODEL_NAME = "sentence-transformers/distiluse-base-multilingual-cased-v1"
 
 # RAG INFERCENCE
-N_NEIGHBORS = 6
-N_RERANK_RESULTS = 6
-USE_RERANKER = False
-RERANKING_MODEL = 'ms-marco-MultiBERT-L-12'  # ms-marco-MultiBERT-L-12 / rank-T5-flan
+N_NEIGHBORS = 25
+N_RERANK_RESULTS = 2
+USE_RERANKER = True
+RERANKING_MODEL = 'BAAI/bge-reranker-v2-m3' # 'ms-marco-MultiBERT-L-12'  # ms-marco-MultiBERT-L-12 / rank-T5-flan
 
 # RAG INDEXING
 CHUNK_SIZE = 400                                # 500
