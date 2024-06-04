@@ -12,7 +12,7 @@ RERANKING_MODEL = 'BAAI/bge-reranker-v2-m3' # 'ms-marco-MultiBERT-L-12'  # ms-ma
 
 # RAG INDEXING
 CHUNK_SIZE = 400                                # 500
-CHUNK_OVERLAP = 0                             # 200
+CHUNK_OVERLAP = 50                             # 200
 SPLITTER_SEPARATORS = ["\n", '**', '#', ]  # "\n\n\n"
 RAG_COLLECTION_NAME = f'cards_{CHUNK_SIZE}_{CHUNK_OVERLAP}'
 

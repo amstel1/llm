@@ -26,7 +26,7 @@ def main(slug: str):
 
     dense_embedding_model = HuggingFaceEmbeddings(
             model_name='BAAI/bge-m3',  # Specify the model name
-            model_kwargs={'device':'cuda:0',}
+            model_kwargs={'device':'cpu',}
               # Specify the device to use, e.g., 'cpu' or 'cuda:0'
              # Specify whether to use fp16. Set to `False` if `device` is `cpu`.
         )
@@ -113,5 +113,10 @@ def main(slug: str):
 
 
 if __name__ == '__main__':
-    for slug in ['other', 'cards', 'credits', 'deposits']:
+    for slug in [
+        # 'other',
+        # 'cards',
+        # 'credits',
+        # 'deposits'
+    ]:
         main(slug)

@@ -182,8 +182,8 @@ class SberbankConsultant(BaseScenario):
 
 
 if __name__ == '__main__':
-    # q = "условия по СберКарте"
-    q = "безотзывный депозит в белорусских рублях (BYN) сохраняй, какие ставки?"
+    q = "условия по СберКарте"
+    # q = "безотзывный депозит в белорусских рублях (BYN) сохраняй, какие ставки?"
 
     consultant = SberbankConsultant()
     response, context = consultant.handle(user_query=q)

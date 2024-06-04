@@ -282,7 +282,7 @@ if __name__ == '__main__':
     transformed_docs = parse_sberbank_docs(docs=documents)
     # logger.info(transformed_docs)
 
-    with open('docs_all_12052024.pkl', 'wb') as f:
+    with open('docs_all_04062024.pkl', 'wb') as f:
         pickle.dump(transformed_docs, f)
 
     # for doc in transformed_docs:
