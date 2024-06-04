@@ -1,13 +1,12 @@
-# todo: decide between reranking models
-
 # RAG INFERCENCE & INDEXING
-EMBEDDING_MODEL_NAME = "sentence-transformers/distiluse-base-multilingual-cased-v1"
+EMBEDDING_MODEL_NAME =  'BAAI/bge-m3'
 
 # RAG INFERCENCE
-N_NEIGHBORS = 10
+N_EMBEDDING_RESULTS = 10  # embedding
 N_RERANK_RESULTS = 5
 USE_RERANKER = True
-ELBOW = True
+ELBOW = True  # elbow rule both for embedding and rerarnker
+MOST_RELEVANT_AT_THE_TOP = False  # False means relevant result are close to the output
 RERANKING_MODEL = 'BAAI/bge-reranker-v2-m3' # 'ms-marco-MultiBERT-L-12'  # ms-marco-MultiBERT-L-12 / rank-T5-flan
 
 

@@ -12,14 +12,16 @@ from langchain_core.prompts import PromptTemplate
 from langchain_community.llms import LlamaCpp
 from langchain_community.vectorstores import Milvus
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from rag.rag_config import N_NEIGHBORS, SEPARATOR, TO_REPLACE_SEPARATOR, REPLACE_SEPARATOR_WITH, EMBEDDING_MODEL_NAME, N_RERANK_RESULTS, USE_RERANKER, RERANKING_MODEL, ELBOW
+from rag.rag_config import N_EMBEDDING_RESULTS, SEPARATOR, TO_REPLACE_SEPARATOR, REPLACE_SEPARATOR_WITH, EMBEDDING_MODEL_NAME, N_RERANK_RESULTS, USE_RERANKER, RERANKING_MODEL, ELBOW, MOST_RELEVANT_AT_THE_TOP
 from langchain_community.llms import Ollama
 from langchain.utils.math import cosine_similarity
 from langchain.retrievers import ContextualCompressionRetriever
 from langchain.retrievers.document_compressors import FlashrankRerank
 from general_llm.langchain_llama_cpp_api_warpper import LlamaCppApiWrapper
 from scenarios.base import BaseScenario
-from langchain_milvus import MilvusCollectionHybridSearchRetriever
+# from langchain_milvus import MilvusCollectionHybridSearchRetriever
+from rag.utils import ExtendedMilvusCollectionHybridSearchRetriever as MilvusCollectionHybridSearchRetriever
+
 
 from rag.utils import BGEDocumentCompressor
 
@@ -62,8 +64,8 @@ class SberbankConsultant(BaseScenario):
             'bge_other',
         ]
         self.dense_embedding_model = bge_m3_ef = HuggingFaceEmbeddings(
-            model_name='BAAI/bge-m3',  # Specify the model name
-            model_kwargs={'device':'cpu',}
+            model_name=EMBEDDING_MODEL_NAME,  # Specify the model name
+            model_kwargs={'device': 'cpu',}
               # Specify the device to use, e.g., 'cpu' or 'cuda:0'
              # Specify whether to use fp16. Set to `False` if `device` is `cpu`.
         )
@@ -93,9 +95,6 @@ class SberbankConsultant(BaseScenario):
         prompt_embeddings = self.dense_embedding_model.embed_documents(options)
         query_embedding = self.dense_embedding_model.embed_query(input.lower())
 
-
-        # prompt_embeddings = self.dense_embedding_model.embed_documents(options)
-        # query_embedding = self.dense_embedding_model.embed_query(input.lower())
         similarity = cosine_similarity([query_embedding], prompt_embeddings)[0]
         logger.info(f'similarities: {similarity}')
         chosen_rag_collection = self.rag_collections[similarity.argmax()]
@@ -124,11 +123,11 @@ class SberbankConsultant(BaseScenario):
             FieldSchema(name=text_field, dtype=DataType.VARCHAR, max_length=65_535),
         ]
         schema = CollectionSchema(fields=fields, enable_dynamic_field=False)
-        collection = Collection(
-            name=chosen_rag_collection, schema=schema, consistency_level="Strong"
-        )
+        # collection = Collection(
+        #     name=chosen_rag_collection, schema=schema, consistency_level="Strong"
+        # )
 
-        # collection = Collection(name=chosen_rag_collection)
+        collection = Collection(name=chosen_rag_collection)
         retriever = MilvusCollectionHybridSearchRetriever(
             collection=collection,
             rerank=WeightedRanker(0.5, 0.5),
@@ -136,19 +135,18 @@ class SberbankConsultant(BaseScenario):
             anns_fields=['dense_vector', 'sparse_vector'],
             field_embeddings=[self.dense_embedding_model, self.sparse_embedding_model],
             field_search_params=[dense_search_params, sparse_search_params],
-            top_k=N_NEIGHBORS,
+            top_k=N_EMBEDDING_RESULTS,
             text_field="text",
+            use_elbow_for_embedding=ELBOW,
         )
 
-
         if USE_RERANKER:
-            # DEFAULT:  ms-marco-MultiBERT-L-12 - лучшая
-            # ce-esci-MiniLM-L12-v2 - плоховато
-            # ms-marco-MiniLM-L-12-v2 -- дерьмо какое то
-            # rank-T5-flan - kind of okay
-            # try: doc2query/msmarco-russian-mt5-base-v1 - весит 2+ gb
-
-            compressor = BGEDocumentCompressor(top_n=N_RERANK_RESULTS, model_name_or_path=RERANKING_MODEL, elbow=ELBOW)  # doc2query/msmarco-russian-mt5-base-v1
+            compressor = BGEDocumentCompressor(
+                top_n=N_RERANK_RESULTS,
+                model_name_or_path=RERANKING_MODEL,
+                elbow=ELBOW,
+                most_relevant_at_the_top=MOST_RELEVANT_AT_THE_TOP,
+            )
             compression_retriever = ContextualCompressionRetriever(
                 base_compressor=compressor, base_retriever=retriever
             )
@@ -181,6 +179,7 @@ class SberbankConsultant(BaseScenario):
         context['previous_steps'].append('sberbank_consultant')
         context['scenario_name'] = "just_chatting"
         return response, context
+
 
 if __name__ == '__main__':
     # q = "условия по СберКарте"
