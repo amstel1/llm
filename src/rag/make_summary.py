@@ -77,7 +77,7 @@ def process(slug='credit'):
 
 if __name__ == '__main__':
     product = 'cards' # other, credits, cards, deposits
-    for product in ['other', 'credits', 'cards']:
+    for product in ['other', 'credits', 'deposits']:
         with open('/home/amstel/llm/src/web_scraping/bank_scraper/docs_all_04062024.pkl', 'rb') as f:
             docs = pickle.load(f)
 
@@ -109,20 +109,34 @@ if __name__ == '__main__':
         llama_raw_template_system = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\nТы наилучшим образом делаешь то что тебе говорят.<|eot_id|>"
         llama_raw_template_user = "<|start_header_id|>user<|end_header_id|>\nКонтекст:\n\n{context}\n\nВопрос:\n{question}<|eot_id|><|start_header_id|>assistant<|end_header_id|>"
 
-        formatting_template = ("<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n"
-                               # "You are tasked with compessing the content from the user. This informtaion will later be used to judge if the content is worthy and viable. You must make it readable and coherent. Save the full extent of the details. You can omit useless information.<|eot_id|>"
-                               " Ты знаешь только русский язык. Ты эксперт в структурировании и суммаризации информации. Ты отлично распознаешь паттерны, крайне внимателен к деталям и великолепен в выделении главного. В суждениях ты всегда опираешься на предоставленную информацию.<|eot_id|>"
+        if product == 'cards':
+            formatting_template = ("<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n"
+                               "Ты эксперт в структурировании и суммаризации информации. Ты отлично распознаешь паттерны, очень внимателен к деталям, великолепен в выделении главного. В суждениях ты опираешься только на предоставленное Описание. <|eot_id|>"
                                "<|start_header_id|>user<|end_header_id|>\n"
                                "Описание:\n{input}\n\n"
-                               # "below is a description of a bank product."
-                               # " extract key features including but not limited to: full name, currency, percentage rate, term, where to open, if it can be recalled."
-                               # " if possible the resut must contain all possible combinations of currency, term, rate. используй только русский язык."
-                               " Выше - описание банковского продукта."
-                               " Извлеки из него ключевые характеристики. "
-                               " включая, но не ограничиваясь: точное название, валюта, ставка процента, срок, где открыть, отзывный / безотзывный."
-                               " Если возможно, результат должен содержать все возможные комбинации валюты, срока, ставки."
-                               " Результат должен быть кратким. Используй только русский язык."
+                                "Выше - описание банковской карты (или похожего банковского продукта). Извлеки из него ключевые условия / характеристики, например: точное название, валюта, срок действия, где и как открыть, условия money-back, стоимость оформления и использования. Результат должен быть кратким. Используй только русский язык. "
                                "<|eot_id|><|start_header_id|>assistant<|end_header_id|>")
+        elif product == 'credits':
+            formatting_template = ("<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n"
+                                   "Ты эксперт в структурировании и суммаризации информации. Ты отлично распознаешь паттерны, очень внимателен к деталям, великолепен в выделении главного. В суждениях ты всегда опираешься только на предоставленное Описание. <|eot_id|>"
+                                   "<|start_header_id|>user<|end_header_id|>\n"
+                                   "Описание:\n{input}\n\n"
+                                   "Выше - описание банковского кредитного продукта. Извлеки из него ключевые условия / характеристики, например: точное название, процентная ставка, сумма, срок, где и как открыть, прочие условия. Результат должен быть кратким. Используй только русский язык. "
+                                   "<|eot_id|><|start_header_id|>assistant<|end_header_id|>")
+        elif product == 'other':
+            formatting_template = ("<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n"
+                                   "Ты эксперт в структурировании и суммаризации информации. Ты отлично распознаешь паттерны, очень внимателен к деталям, великолепен в выделении главного. В суждениях ты всегда опираешься только на предоставленное Описание. <|eot_id|>"
+                                   "<|start_header_id|>user<|end_header_id|>\n"
+                                   "Описание:\n{input}\n\n"
+                                   "Выше - описание банковского продукта или услуги. Извлеки из него все возомжные условия / характеристики. Результат должен быть кратким. Используй только русский язык. "
+                                   "<|eot_id|><|start_header_id|>assistant<|end_header_id|>")
+        elif product == 'deposits':
+            formatting_template = ("<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n"
+                                 "Ты эксперт в структурировании и суммаризации информации. Ты отлично распознаешь паттерны, очень внимателен к деталям, великолепен в выделении главного. В суждениях ты всегда опираешься только на предоставленное Описание. <|eot_id|>"
+                                 "<|start_header_id|>user<|end_header_id|>\n"
+                                 "Описание:\n{input}\n\n"
+                                 "Выше - описание банковского депозита (вклада) или другого банковского продукта для накопления сбережений. Извлеки из него ключевые условия / характеристики, например: точное название, валюта, процентная ставка, срок, где и как открыть, отзывный / безотзывный. Если возможно, результат должен содержать все возможные комбинации валюты, срока, ставки. Результат должен быть кратким. Используй только русский язык. "
+                                 "<|eot_id|><|start_header_id|>assistant<|end_header_id|>")
         # Create the formatting prompt
         # formatting_prompt = PromptTemplate.from_template(template=llama_raw_template_system + llama_raw_template_user)  # formatting_template
         formatting_prompt = PromptTemplate.from_template(template=formatting_template)  # formatting_template
@@ -131,7 +145,7 @@ if __name__ == '__main__':
         formatting_chain = formatting_prompt | llm | StrOutputParser()
 
         # Define the summarization template and prompt
-        summarize_template = ("<|begin_of_text|><|start_header_id|>system<|end_header_id|>\nТы наилучшим образом делаешь то что тебе говорят.<|eot_id|><|start_header_id|>user<|end_header_id|>\nОписание:\n{input}\n\nИз описания выше извлеки название банковского продукта, о котором идет речь. Используй русский язык. Верни только само название продукта и ничего кроме.<|eot_id|><|start_header_id|>assistant<|end_header_id|>")
+        summarize_template = ("<|begin_of_text|><|start_header_id|>system<|end_header_id|>\nТы наилучшим образом делаешь то что тебе говорят.<|eot_id|><|start_header_id|>user<|end_header_id|>\nОписание:\n{input}\n\nИз описания выше извлеки название банковского продукта, о котором идет речь. Используй русский язык. Верни только само название продукта и ничего кроме. <|eot_id|><|start_header_id|>assistant<|end_header_id|>")
         summarization_prompt = PromptTemplate.from_template(template=summarize_template)
 
         # Define summarization chain, ensuring input is formatted as expected

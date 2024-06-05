@@ -49,7 +49,8 @@ def main(slug: str):
                 stop_word_present = True
                 break
         if not stop_word_present:
-            for frag in text_splitter.split_text(formatted):
+            for _ in [0]: #text_splitter.split_text(formatted):
+                frag = formatted
                 new_documents.append(
                     Document(
                         page_content=summarized + ' || ' + frag,
@@ -91,7 +92,7 @@ def main(slug: str):
     ]
     schema = CollectionSchema(fields=fields, enable_dynamic_field=False)
     collection = Collection(
-        name='bge_'+slug, schema=schema, consistency_level="Strong"
+        name='full_bge_'+slug, schema=schema, consistency_level="Strong"
     )
     dense_index = {"index_type": "FLAT", "metric_type": "IP"}
     collection.create_index("dense_vector", dense_index)
@@ -114,9 +115,9 @@ def main(slug: str):
 
 if __name__ == '__main__':
     for slug in [
-        # 'other',
-        # 'cards',
-        # 'credits',
-        # 'deposits'
+        'other',
+        'cards',
+        'credits',
+        'deposits'
     ]:
         main(slug)

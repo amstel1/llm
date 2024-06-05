@@ -9,6 +9,7 @@ from langchain_core.callbacks import Callbacks
 from langchain_core.documents import BaseDocumentCompressor, Document
 from langchain_core.pydantic_v1 import Extra, root_validator
 from langchain_core.utils import get_from_dict_or_env
+from loguru import logger
 
 class MarkdownTextSplitter(TextSplitter):
     def __init__(self, patterns = [r"\*\*(.*?)\*\*"]):
@@ -61,12 +62,18 @@ class BGEDocumentCompressor(BaseDocumentCompressor):
         res = {}
         for i, document in enumerate(documents):
             res[i] = self.client.compute_score([query, document.page_content], normalize=True)
+        if max(res.values()) <= 0.09:
+            # it's unreasonable to use reranking when the reranking model considers the docs so irreleavant
+            logger.debug(f'emergency exit from reranking, max score is: {max(res.values())}')
+            return documents
         sorted_res = sorted(res.items(), key=lambda x: x[1], reverse=True)
         output = []
         if self.elbow:
             # self.top_n is ignored
             scores = pd.Series(data=[x[1] for x in sorted_res], index=[x[0] for x in sorted_res])
+            logger.debug(f'reranking before elbow: {scores}')
             argmin = scores.diff().argmin()
+            logger.debug(f'reranking argmin, remain: {argmin} out of {len(scores)}')
             self.top_n = argmin
         for i, _score in sorted_res[:self.top_n]:
             output.append(documents[i])
@@ -239,10 +246,19 @@ class ExtendedMilvusCollectionHybridSearchRetriever(BaseRetriever):
         )
         documents = self._process_search_result(search_result)
         if self.use_elbow_for_embedding:
-            # elbow
+            # elbow embedding
             scores = pd.Series(data=[x.metadata.get('distance') for x in documents], index=[i for i, _ in enumerate(documents)])
+            logger.debug(f'embedding before elbow: {scores}')
             argmin = scores.diff().argmin()
-            documents = documents[:argmin]
+            logger.debug(f'embedding argmin, remain: {argmin} out of {len(scores)}')
+            if scores.diff().min() <= -0.05:
+                # enough of a gap to use elbow
+                documents = documents[:argmin]
+                logger.debug('embedding, the gap is enough to apply elbow')
+            else:
+                logger.debug('embedding, the gap is NOT enough to apply elbow')
+
+            logger.debug(f'embedding, n documents: {len(documents)}')
         if not self.most_relevant_at_the_top:
             documents = documents[::-1]
         return documents

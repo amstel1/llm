@@ -12,7 +12,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain_community.llms import LlamaCpp
 from langchain_community.vectorstores import Milvus
 from langchain_community.embeddings import HuggingFaceEmbeddings
-from rag.rag_config import N_EMBEDDING_RESULTS, SEPARATOR, TO_REPLACE_SEPARATOR, REPLACE_SEPARATOR_WITH, EMBEDDING_MODEL_NAME, N_RERANK_RESULTS, USE_RERANKER, RERANKING_MODEL, ELBOW, MOST_RELEVANT_AT_THE_TOP
+from rag.rag_config import N_EMBEDDING_RESULTS, SEPARATOR, TO_REPLACE_SEPARATOR, REPLACE_SEPARATOR_WITH, EMBEDDING_MODEL_NAME, N_RERANK_RESULTS, USE_RERANKER, RERANKING_MODEL, ELBOW_EMBEDDING, ELBOW_RERANKING, MOST_RELEVANT_AT_THE_TOP
 from langchain_community.llms import Ollama
 from langchain.utils.math import cosine_similarity
 from langchain.retrievers import ContextualCompressionRetriever
@@ -57,11 +57,17 @@ class SberbankConsultant(BaseScenario):
         #     'cards_400_0',
         #     'other_400_0',
         # ]
+        # self.rag_collections = [
+        #     'bge_credits',
+        #     'bge_deposits',
+        #     'bge_cards',
+        #     'bge_other',
+        # ]
         self.rag_collections = [
-            'bge_credits',
-            'bge_deposits',
-            'bge_cards',
-            'bge_other',
+            'full_bge_credits',
+            'full_bge_deposits',
+            'full_bge_cards',
+            'full_bge_other',
         ]
         self.dense_embedding_model = bge_m3_ef = HuggingFaceEmbeddings(
             model_name=EMBEDDING_MODEL_NAME,  # Specify the model name
@@ -78,7 +84,7 @@ class SberbankConsultant(BaseScenario):
 
         self.sparse_model_2_rag_collections = {}
         for rag_collection in self.rag_collections:
-            with open(f'/home/amstel/llm/src/rag/sparse_embedding_model_{rag_collection}.pkl', 'rb') as f:
+            with open(f'/home/amstel/llm/src/rag/sparse_embedding_model_{rag_collection.replace("full_", "")}.pkl', 'rb') as f:
                 model = pickle.load(f)
             self.sparse_model_2_rag_collections[rag_collection] = model
 
@@ -137,14 +143,14 @@ class SberbankConsultant(BaseScenario):
             field_search_params=[dense_search_params, sparse_search_params],
             top_k=N_EMBEDDING_RESULTS,
             text_field="text",
-            use_elbow_for_embedding=ELBOW,
+            use_elbow_for_embedding=ELBOW_EMBEDDING,
         )
 
         if USE_RERANKER:
             compressor = BGEDocumentCompressor(
                 top_n=N_RERANK_RESULTS,
                 model_name_or_path=RERANKING_MODEL,
-                elbow=ELBOW,
+                elbow=ELBOW_RERANKING,
                 most_relevant_at_the_top=MOST_RELEVANT_AT_THE_TOP,
             )
             compression_retriever = ContextualCompressionRetriever(
@@ -182,8 +188,20 @@ class SberbankConsultant(BaseScenario):
 
 
 if __name__ == '__main__':
+    # q = "Какие есть карты для физических лиц?"
     q = "условия по СберКарте"
     # q = "безотзывный депозит в белорусских рублях (BYN) сохраняй, какие ставки?"
+    # q = "Какие есть карты для физических лиц?"
+    # q = "как накопить ребенку на образование"
+    # q = "Сравни карты"
+    # q = "Какой кредит самый выгодный?"
+    # q = "Самый выгодный процент по кредиту на авто"
+    # q = "Собираюсь в отпуск в Турцию. Подбери мне страховку."
+    # q = "Подбери мне страховку"
+    # q = "Подбери мне карту"
+    # q = "Подбери мне кредит"
+    # q = "Подбери мне депозит"
+    # q = "Какой депозит самый выгодный?"
 
     consultant = SberbankConsultant()
     response, context = consultant.handle(user_query=q)
@@ -197,56 +215,49 @@ if __name__ == '__main__':
     # logger.warning(q)
     # response = rag_chain.invoke(q)
 
+    # logger.warning(q)
+    # response = rag_chain.invoke(q)
+    # logger.info(f"response: {response}")
     #
     # logger.warning(q)
     # response = rag_chain.invoke(q)
     # logger.info(f"response: {response}")
     #
-    # q = "Какие есть карты для физических лиц?"
     # logger.warning(q)
     # response = rag_chain.invoke(q)
     # logger.info(f"response: {response}")
     #
-    # q = "Какие есть карты для физических лиц?"
     # logger.warning(q)
     # response = rag_chain.invoke(q)
     # logger.info(f"response: {response}")
     #
-    # q = "как накопить ребенку на образование"
-    # logger.warning(q)
-    # response = rag_chain.invoke(q)
-    # logger.info(f"response: {response}")
-    #
-    # q = "Сравни карты"
     # logger.warning(q)
     # response = rag_chain.invoke(q)
     # logger.info(f"response: {response}")
     # #
-    # q = "Какой кредит самый выгодный?"
     # logger.warning(q)
     # response = rag_chain.invoke(q)
     # logger.info(f"response: {response}")
     #
-    # response = rag_chain.invoke("Какой депозит самый выгодный?")
+    # response = rag_chain.invoke()
     # logger.info(f"response: {response}")
-    # q = "Самый выгодный процент по кредиту на авто"
     # logger.warning(q)
     # response = rag_chain.invoke(q)
     # logger.info(f"response: {response}")
 
     #
-    # response = rag_chain.invoke("Подбери мне кредит")
+    # response = rag_chain.invoke()
     # logger.info(f"response: {response}")
     #
-    # response = rag_chain.invoke("Подбери мне депозит")
+    # response = rag_chain.invoke()
     # logger.info(f"response: {response}")
     #
-    # response = rag_chain.invoke("Подбери мне карту")
+    # response = rag_chain.invoke()
     # logger.info(f"response: {response}")
     #
-    # response = rag_chain.invoke("Подбери мне страховку")
+    # response = rag_chain.invoke()
     # logger.info(f"response: {response}")
     #
-    # response = rag_chain.invoke("Собираюсь в отпуск в Турцию. Подбери мне страховку.")
+    # response = rag_chain.invoke()
     # logger.info(f"response: {response}")
 
