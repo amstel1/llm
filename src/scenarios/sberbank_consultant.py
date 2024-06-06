@@ -21,7 +21,7 @@ from general_llm.langchain_llama_cpp_api_warpper import LlamaCppApiWrapper
 from scenarios.base import BaseScenario
 # from langchain_milvus import MilvusCollectionHybridSearchRetriever
 from rag.utils import ExtendedMilvusCollectionHybridSearchRetriever as MilvusCollectionHybridSearchRetriever
-from rag.utils import BGEDocumentCompressor, BM25
+from rag.utils import BGEDocumentCompressor
 
 from pymilvus import (
     Collection,
@@ -46,9 +46,13 @@ def def_debugger(inp):
     return inp
 
 
-def min_max_scaling(values):
+def min_max_scaling(values, min_=None, max_=None):
+    if min_ is None:
+        min_ = min(values)
+    if max_ is None:
+        max_ = max(values)
     values = np.array(values)
-    values = (values - min(values)) / (max(values) - min(values))
+    values = (values - min_) / (max_ - min_)
     return values
 
 
@@ -90,14 +94,14 @@ class SberbankConsultant(BaseScenario):
             sparse_similarity[sparse_embedding_model_name] = sum(sparse_embedding_model.embed_query(input.lower()).values())
         dense_similarity = cosine_similarity([dense_query_embedding], prompt_embeddings)[0]
 
-        dense_similarity = min_max_scaling(dense_similarity)
+        dense_similarity = min_max_scaling(dense_similarity, min_=0, max_=1)
         sparse_similarity = min_max_scaling(list(sparse_similarity.values()))
 
-        combined_similarity_sum = dense_similarity + sparse_similarity
+        combined_similarity_sum = (dense_similarity * 0.9) + (sparse_similarity * 0.1)
         combined_similarity_product = dense_similarity * sparse_similarity
 
         logger.info(f'dense similarities: {dense_similarity}')
-        logger.info(f'dense similarities: {sparse_similarity}')
+        logger.info(f'sparse similarities: {sparse_similarity}')
 
         logger.info(f'combined_similarity_sum: {combined_similarity_sum}')
         logger.info(f'combined_similarity_product: {combined_similarity_product}')
@@ -208,12 +212,13 @@ if __name__ == '__main__':
     # q = "Сравни карты по выгоде"
     # q = "Какой кредит самый выгодный?"
     # q = "Самый выгодный процент по кредиту на авто"
-    q = "Купи авто в Online условия"
+    # q = "Купи авто в Online условия"
     # q = "Собираюсь в отпуск в Турцию. Подбери мне страховку."
     # q = "Подбери мне страховку"
     # q = "Подбери мне карту"
+    # q = "максимальные ставки по безотзывным депозитам в белорусских рублях таблица"
     # q = "Подбери мне кредит"
-    # q = "Подбери мне депозит"
+    q = "Подбери мне депозит"
     # q = "Какой депозит самый выгодный?"
 
     consultant = SberbankConsultant()

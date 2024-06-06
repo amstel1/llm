@@ -264,36 +264,36 @@ class ExtendedMilvusCollectionHybridSearchRetriever(BaseRetriever):
             documents = documents[::-1]
         return documents
 
-class BM25:
-
-    def fit(self, data=None):
-        if not data:
-            data = self.data
-        self.bse = BM25SparseEmbedding(corpus=data, language='ru')
-
-    def transform(self, data:str) -> Dict:
-        '''return bse'''
-        assert self.bse
-        return self.bse.embed_query(data)  # dict
-
-    def load_data_one(self, pkl_input_filepath: str):
-        with open(pkl_input_filepath, 'rb') as f:
-            data = pickle.load(f)
-        self.data = data
-
-    def load_data_many(self, pkl_input_filepaths:list[str]):
-        results = []
-        for filepath in pkl_input_filepaths:
-            with open(filepath, 'rb') as f:
-                data = pickle.load(f)
-            results.append(data)
-        self.data = results  # must be list[str
-
-    def save_bse_model(self, filepath='router_bm25_model.pkl'):
-        assert self.bse
-        with open(filepath, 'wb') as f:
-            pickle.dump(self.bse, f)
-
-    def load_bse_model(self, filepath='router_bm25_model.pkl'):
-        with open(filepath, 'rb') as f:
-            self.bse = pickle.load(f)
+# class BM25:
+#
+#     def fit(self, data=None):
+#         if not data:
+#             data = self.data
+#         self.bse = BM25SparseEmbedding(corpus=data, language='ru')
+#
+#     def transform(self, data:str) -> Dict:
+#         '''return bse'''
+#         assert self.bse
+#         return self.bse.embed_query(data)  # dict
+#
+#     def load_data_one(self, pkl_input_filepath: str):
+#         with open(pkl_input_filepath, 'rb') as f:
+#             data = pickle.load(f)
+#         self.data = data
+#
+#     def load_data_many(self, pkl_input_filepaths:list[str]):
+#         results = []
+#         for filepath in pkl_input_filepaths:
+#             with open(filepath, 'rb') as f:
+#                 data = pickle.load(f)
+#             results.append(data)
+#         self.data = results  # must be list[str
+#
+#     def save_bse_model(self, filepath='router_bm25_model.pkl'):
+#         assert self.bse
+#         with open(filepath, 'wb') as f:
+#             pickle.dump(self.bse, f)
+#
+#     def load_bse_model(self, filepath='router_bm25_model.pkl'):
+#         with open(filepath, 'rb') as f:
+#             self.bse = pickle.load(f)
