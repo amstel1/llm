@@ -21,9 +21,7 @@ from general_llm.langchain_llama_cpp_api_warpper import LlamaCppApiWrapper
 from scenarios.base import BaseScenario
 # from langchain_milvus import MilvusCollectionHybridSearchRetriever
 from rag.utils import ExtendedMilvusCollectionHybridSearchRetriever as MilvusCollectionHybridSearchRetriever
-
-
-from rag.utils import BGEDocumentCompressor
+from rag.utils import BGEDocumentCompressor, BM25
 
 from pymilvus import (
     Collection,
@@ -48,21 +46,14 @@ def def_debugger(inp):
     return inp
 
 
+def min_max_scaling(values):
+    values = np.array(values)
+    values = (values - min(values)) / (max(values) - min(values))
+    return values
+
 
 class SberbankConsultant(BaseScenario):
     def __init__(self,):
-        # rag_collections = [
-        #     'credits_400_0',
-        #     'deposits_400_0',
-        #     'cards_400_0',
-        #     'other_400_0',
-        # ]
-        # self.rag_collections = [
-        #     'bge_credits',
-        #     'bge_deposits',
-        #     'bge_cards',
-        #     'bge_other',
-        # ]
         self.rag_collections = [
             'full_bge_credits',
             'full_bge_deposits',
@@ -72,15 +63,7 @@ class SberbankConsultant(BaseScenario):
         self.dense_embedding_model = bge_m3_ef = HuggingFaceEmbeddings(
             model_name=EMBEDDING_MODEL_NAME,  # Specify the model name
             model_kwargs={'device': 'cpu',}
-              # Specify the device to use, e.g., 'cpu' or 'cuda:0'
-             # Specify whether to use fp16. Set to `False` if `device` is `cpu`.
         )
-
-        # self.dense_embedding_model = HuggingFaceEmbeddings(
-        #     model_name=EMBEDDING_MODEL_NAME,
-        #     model_kwargs={'device': 'cpu'},
-        #     encode_kwargs={'normalize_embeddings': True}
-        # )
 
         self.sparse_model_2_rag_collections = {}
         for rag_collection in self.rag_collections:
@@ -93,17 +76,35 @@ class SberbankConsultant(BaseScenario):
         # input: str
         logger.debug(input)
         options = [
-            "кредит овердрафт рефинансирование долг",
-            "депозит вклад сбережения накопления pay",
-            "карта платежная дебетовая манэбэк money-back кэшбэк cash-back сберкарта",
-            "страховки подписка прайм prime сбол банковские продукты услуги",
+            "кредит овердрафт рефинансирование долг",  # assert credit
+            "депозит вклад сбережения накопления pay", # assert deposit
+            "карта платежная дебетовая манибэк money-back кэшбэк cash-back сберкарта",  # # assert card
+            "страховки подписка прайм prime сбол банковские продукты услуги",   # assert other
         ]
         prompt_embeddings = self.dense_embedding_model.embed_documents(options)
-        query_embedding = self.dense_embedding_model.embed_query(input.lower())
+        dense_query_embedding = self.dense_embedding_model.embed_query(input.lower())
+        # todo: change cosine similarity to bm25
+        sparse_similarity = {}
+        for sparse_embedding_model_name, sparse_embedding_model in self.sparse_model_2_rag_collections.items():
+            # assert order: credit, deposit, card, other
+            sparse_similarity[sparse_embedding_model_name] = sum(sparse_embedding_model.embed_query(input.lower()).values())
+        dense_similarity = cosine_similarity([dense_query_embedding], prompt_embeddings)[0]
 
-        similarity = cosine_similarity([query_embedding], prompt_embeddings)[0]
-        logger.info(f'similarities: {similarity}')
-        chosen_rag_collection = self.rag_collections[similarity.argmax()]
+        dense_similarity = min_max_scaling(dense_similarity)
+        sparse_similarity = min_max_scaling(list(sparse_similarity.values()))
+
+        combined_similarity_sum = dense_similarity + sparse_similarity
+        combined_similarity_product = dense_similarity * sparse_similarity
+
+        logger.info(f'dense similarities: {dense_similarity}')
+        logger.info(f'dense similarities: {sparse_similarity}')
+
+        logger.info(f'combined_similarity_sum: {combined_similarity_sum}')
+        logger.info(f'combined_similarity_product: {combined_similarity_product}')
+
+        chosen_rag_collection = self.rag_collections[combined_similarity_sum.argmax()]
+        # chosen_rag_collection = self.rag_collections[dense_similarity.argmax()]
+
         self.sparse_embedding_model = self.sparse_model_2_rag_collections[chosen_rag_collection]
 
         sparse_search_params = {"metric_type": "IP"}
@@ -129,9 +130,7 @@ class SberbankConsultant(BaseScenario):
             FieldSchema(name=text_field, dtype=DataType.VARCHAR, max_length=65_535),
         ]
         schema = CollectionSchema(fields=fields, enable_dynamic_field=False)
-        # collection = Collection(
-        #     name=chosen_rag_collection, schema=schema, consistency_level="Strong"
-        # )
+
 
         collection = Collection(name=chosen_rag_collection)
         if not self.sparse_embedding_model.embed_query(input):
@@ -204,10 +203,12 @@ if __name__ == '__main__':
     # q = "условия по СберКарте"
     # q = "безотзывный депозит в белорусских рублях (BYN) сохраняй, какие ставки?"
     # q = "Какие есть карты для физических лиц?"
-    q = "как накопить ребенку на образование"
+    # q = "как накопить ребенку на образование"
     # q = "Сравни карты"
+    # q = "Сравни карты по выгоде"
     # q = "Какой кредит самый выгодный?"
     # q = "Самый выгодный процент по кредиту на авто"
+    q = "Купи авто в Online условия"
     # q = "Собираюсь в отпуск в Турцию. Подбери мне страховку."
     # q = "Подбери мне страховку"
     # q = "Подбери мне карту"
