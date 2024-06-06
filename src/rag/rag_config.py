@@ -8,7 +8,7 @@ USE_RERANKER = True
 N_RERANK_RESULTS = 5
 ELBOW_RERANKING = True
 
-MOST_RELEVANT_AT_THE_TOP = False  # False means relevant result are close to the output
+MOST_RELEVANT_AT_THE_TOP = False  # False means relevant result are close to the output, seems to work better
 
 # RAG INDEXING
 CHUNK_SIZE = 400                                # 500
@@ -17,7 +17,7 @@ SPLITTER_SEPARATORS = ["\n", '**', '#', ]  # "\n\n\n"
 RAG_COLLECTION_NAME = f'cards_{CHUNK_SIZE}_{CHUNK_OVERLAP}'
 
 # OBSOLETE
-SEPARATOR = ' '                               # ' | '
+SEPARATOR = ' || '                               # used in creating vectordb collection. will be used for managing context length in retriever
 TO_REPLACE_SEPARATOR = False                    # False
 REPLACE_SEPARATOR_WITH = ' '                    # ' '
 

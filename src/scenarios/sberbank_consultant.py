@@ -134,17 +134,30 @@ class SberbankConsultant(BaseScenario):
         # )
 
         collection = Collection(name=chosen_rag_collection)
-        retriever = MilvusCollectionHybridSearchRetriever(
-            collection=collection,
-            rerank=WeightedRanker(0.5, 0.5),
-            # rerank=RRFRanker(k=1),
-            anns_fields=['dense_vector', 'sparse_vector'],
-            field_embeddings=[self.dense_embedding_model, self.sparse_embedding_model],
-            field_search_params=[dense_search_params, sparse_search_params],
-            top_k=N_EMBEDDING_RESULTS,
-            text_field="text",
-            use_elbow_for_embedding=ELBOW_EMBEDDING,
-        )
+        if not self.sparse_embedding_model.embed_query(input):
+            # empty bm25
+            retriever = MilvusCollectionHybridSearchRetriever(
+                collection=collection,
+                rerank=WeightedRanker(1.0),
+                anns_fields=['dense_vector'],
+                field_embeddings=[self.dense_embedding_model],
+                field_search_params=[dense_search_params],
+                top_k=N_EMBEDDING_RESULTS,
+                text_field="text",
+                use_elbow_for_embedding=ELBOW_EMBEDDING,
+            )
+        else:
+            retriever = MilvusCollectionHybridSearchRetriever(
+                collection=collection,
+                rerank=WeightedRanker(0.5, 0.5),
+                # rerank=RRFRanker(k=1),
+                anns_fields=['dense_vector', 'sparse_vector'],
+                field_embeddings=[self.dense_embedding_model, self.sparse_embedding_model],
+                field_search_params=[dense_search_params, sparse_search_params],
+                top_k=N_EMBEDDING_RESULTS,
+                text_field="text",
+                use_elbow_for_embedding=ELBOW_EMBEDDING,
+            )
 
         if USE_RERANKER:
             compressor = BGEDocumentCompressor(
@@ -188,11 +201,10 @@ class SberbankConsultant(BaseScenario):
 
 
 if __name__ == '__main__':
-    # q = "Какие есть карты для физических лиц?"
-    q = "условия по СберКарте"
+    # q = "условия по СберКарте"
     # q = "безотзывный депозит в белорусских рублях (BYN) сохраняй, какие ставки?"
     # q = "Какие есть карты для физических лиц?"
-    # q = "как накопить ребенку на образование"
+    q = "как накопить ребенку на образование"
     # q = "Сравни карты"
     # q = "Какой кредит самый выгодный?"
     # q = "Самый выгодный процент по кредиту на авто"

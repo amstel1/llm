@@ -7,7 +7,7 @@ from rag_config import RAG_COLLECTION_NAME
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain.retrievers import ParentDocumentRetriever
 from langchain_core.documents import Document
-from rag_config import RAG_COLLECTION_NAME, EMBEDDING_MODEL_NAME, CHUNK_SIZE, CHUNK_OVERLAP, SPLITTER_SEPARATORS
+from rag_config import RAG_COLLECTION_NAME, EMBEDDING_MODEL_NAME, CHUNK_SIZE, CHUNK_OVERLAP, SPLITTER_SEPARATORS, SEPARATOR
 from utils import MarkdownTextSplitter
 from langchain_milvus.utils.sparse import BM25SparseEmbedding
 from pymilvus import (
@@ -53,7 +53,7 @@ def main(slug: str):
                 frag = formatted
                 new_documents.append(
                     Document(
-                        page_content=summarized + ' || ' + frag,
+                        page_content=summarized + SEPARATOR + frag,
                         # page_content=formatted,
                         metadata=metadata
                     )

@@ -154,7 +154,7 @@ class ExtendedMilvusCollectionHybridSearchRetriever(BaseRetriever):
 
     def _validate_fields_num(self) -> None:
         assert (
-            len(self.anns_fields) >= 2
+            len(self.anns_fields) >= 1
         ), "At least two fields are required for hybrid search."
         lengths = [len(self.anns_fields)]
         if self.field_limits is not None:
