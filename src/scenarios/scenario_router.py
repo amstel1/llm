@@ -1,6 +1,7 @@
 import sys
 sys.path.append('/home/amstel/llm')
 sys.path.append('/home/amstel/llm/src')
+from scenarios.shopping_assistant import chat_history_list_to_str
 from enum import Enum
 from langchain_core.pydantic_v1 import BaseModel, Field
 from llama_cpp import LlamaGrammar
@@ -61,8 +62,21 @@ class ScenarioRouter:
         #               "<|eot_id|><|start_header_id|>assistant<|end_header_id|>",
         # )
         # self.chain = self.prompt | self.llm | JsonOutputParser()
-        self.prompt = """<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n
+        self.prompt_without_chat_history = """<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n
         You are a state-of-the-art intent classifer.<|eot_id|><|start_header_id|>user<|end_header_id|>\n
+        Given user_input and mapping of possible routes and their descriptions you must select the most appropriate route for the user_input.\n
+        Here is the route to description mapping:\n{route_to_description}\n\n
+        Given the user input below, think step-by-step to determine which route it should take:\n
+        user_input:\n{user_input}\n
+        Step-by-step reasoning:\n
+        1. Analyze the content of the user input to determine if it essence relates to one of the route descriptions.\n
+        2. If not, assign just_chatting.\n
+        Based on your reasoning, decide on the route as JSON.\n
+        <|eot_id|><|start_header_id|>assistant<|end_header_id|>\nJSON:"""
+        self.prompt_with_chat_history = """<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n
+        You are a state-of-the-art intent classifer.<|eot_id|><|start_header_id|>user<|end_header_id|>\n
+        Here is the previous chat history: {chat_history}
+        
         Given user_input and mapping of possible routes and their descriptions you must select the most appropriate route for the user_input.\n
         Here is the route to description mapping:\n{route_to_description}\n\n
         Given the user input below, think step-by-step to determine which route it should take:\n
@@ -83,11 +97,22 @@ class ScenarioRouter:
         if grammar_path and not grammar:
             with open(grammar_path, 'r') as f:
                 grammar = f.read()
-        generation_result = call_generation_api(
-            prompt= self.prompt.format(**{"user_input": user_query, "route_to_description": self.route_to_description}),
-            grammar=grammar,
-            stop=stop,
-        )
+        if chat_history is None or not chat_history:
+            generation_result = call_generation_api(
+                prompt= self.prompt_without_chat_history.format(**{"user_input": user_query, "route_to_description": self.route_to_description}),
+                grammar=grammar,
+                stop=stop,
+            )
+        else:
+            # done: chat_history must be parsed, already implemented at .shopping_assistant, reuse
+            str_chat_history = chat_history_list_to_str(chat_history)
+
+            generation_result = call_generation_api(
+                prompt=self.prompt_with_chat_history.format(
+                    **{"user_input": user_query, "chat_history":str_chat_history, "route_to_description": self.route_to_description}),
+                grammar=grammar,
+                stop=stop,
+            )
         logger.debug(f'2805 - router - {generation_result}')
         selected_route_dict = json.loads(generation_result)
         selected_route = selected_route_dict.get('selected_route')

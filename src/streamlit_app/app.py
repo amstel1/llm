@@ -9,7 +9,7 @@ from general_llm.llm_endpoint import call_generation_api, call_generate_from_his
 from scenarios.scenario_router import ScenarioRouter
 from scenarios.shopping_assistant import ShoppingAssistantScenario
 from scenarios.just_chatting import JustChattingScenario
-from streamlit_app.cards import create_preview_card, ItemDisplay
+from streamlit_app.cards import ItemDisplay
 from streamlit_app.backend_ops import DataServer
 from scenarios.sberbank_consultant import SberbankConsultant
 
@@ -70,7 +70,9 @@ if __name__ == '__main__':
                 # execute once per scenario_name / scenraio_object
                 logger.critical('We must see this only either at the specific scenario start (once) OR after every message in just_chatting')
                 selected_route_str = scenario_router.route(
-                    user_query=prompt, stop=['<|eot_id|>'],
+                    user_query=prompt,
+                    chat_history=st.session_state.chat_history,
+                    stop=['<|eot_id|>'],
                     grammar_path='/home/amstel/llm/src/grammars/scenario_router.gbnf'
                 )
                 st.session_state.context['scenario_name'] = selected_route_str

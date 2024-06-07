@@ -80,13 +80,30 @@ class ShoppingAssistantScenario(BaseScenario):
 # Here is the user query you need to evaluate: {user_query}
 # """
 
-        user_content = f"""Ты должен решить, содержит ли запрос пользователя хотя бы один описательный атрибут / характеристику / определение любого рода.
+        user_content_without_history = f"""Ты должен решить, содержит ли запрос пользователя хотя бы один описательный атрибут / характеристику / определение любого рода.
 Верни true или false.
 Верни false, если запрос не содержит какие-либо желаемые свойства / характеристики / определения.
 Верни true, если пользователь упомянул хотя бы одно из желаемых свойств, характеристик или атрибутов, например: размер, ширину, качество, бренд, цену, название, рейтинг, особенности продукта.
 
 Запрос пользователя: {user_query}"""
-        prompt = get_llama3_template_from_history(system_prompt_clean='Ты объективный семантический оценщик.', chat_history=[{'role': 'user', 'content': user_content}])
+
+        user_content_with_history = """История разговора:\n{str_chat_history}\n        
+Ты должен решить, содержит ли запрос пользователя хотя бы один описательный атрибут / характеристику / определение любого рода.
+Верни true или false.
+Верни false, если запрос не содержит какие-либо желаемые свойства / характеристики / определения.
+Верни true, если пользователь упомянул хотя бы одно из желаемых свойств, характеристик или атрибутов, например: размер, ширину, качество, бренд, цену, название, рейтинг, особенности продукта.
+
+Запрос пользователя: {user_query}"""
+        if chat_history is None or not chat_history:
+            prompt = get_llama3_template_from_history(system_prompt_clean='Ты объективный семантический оценщик.', chat_history=[{'role': 'user', 'content': user_content_without_history}])
+        else:
+            # it's very incosistent, but here i construct chat history as a history of messages with roles according to the template
+            # an alternative approach is: combine the that history into str, pass it in the user turn:
+            # prompt = get_llama3_template_from_history(system_prompt_clean='Ты объективный семантический оценщик.', chat_history=chat_history)
+
+            str_chat_history = chat_history_list_to_str(chat_history)
+            user_query_input = user_content_with_history.format(user_query=user_query, str_chat_history=str_chat_history)
+            prompt = get_llama3_template_from_user_query(system_prompt_clean='Ты объективный семантический оценщик.', user_query=user_query_input)
         return call_generation_api(prompt=prompt, grammar='root ::= "true" | "false"')
 
 
@@ -236,21 +253,21 @@ class ShoppingAssistantScenario(BaseScenario):
             context['previous_steps'] = previous_steps
             current_step = 'exit'
             context['current_step'] = current_step
-            context['scenario_name'] = "just_chatting"
+            # context['scenario_name'] = "just_chatting"
             return df, context
 
 
 if __name__ == '__main__':
 
-    user_query = "подбери стиральную машину"
-    chat_history = []
-    current_scenario = ShoppingAssistantScenario()
-    verification_result = current_scenario.verify(
-        user_query=user_query,
-        chat_history=chat_history,
-        context={"scenario": "shopping_assistant_washing_machine", "previous_steps": [], "current_step": "verify"})
-    print(verification_result)  #  :bool = true | false
-
+    # user_query = "подбери стиральную машину фирмы атлант"
+    # chat_history = []
+    # current_scenario = ShoppingAssistantScenario()
+    # verification_result = current_scenario.verify(
+    #     user_query=user_query,
+    #     chat_history=chat_history,
+    #     context={"scenario": "shopping_assistant_washing_machine", "previous_steps": [], "current_step": "verify"})
+    # print(verification_result)  #  :bool = true | false
+    #
     # ch = [{'role': 'user', 'content': 'Привет'},
     #       {'role': 'assistant', 'content': 'Привет! Как я могу помочь вам сегодня?'},
     #       {'role': 'user', 'content': 'подбери стиральную машину'}]
@@ -279,7 +296,6 @@ if __name__ == '__main__':
     # )
     # print(reformulate_result)
 
-    # user_input = 'Недорогая стиральная машина с хорошими характеристиками.'
-    # response = SqlToText.sql_query(user_input=user_input)
-    # print(response)
-    pass
+    user_query = 'подбери стиральную машину фирмы bosch'
+    response = SqlToText.sql_query(user_query=user_query)
+    print(response)

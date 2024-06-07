@@ -29,7 +29,10 @@ class DataServer():
             results.update(sql_details)
         logger.debug(name)
         postgres_reader = PostgresDataFrameRead(table=self.sql_render_db, where=f"product_name = '{name}'")
-        assert len(postgres_reader.read().get("step_0")) > 0
+        try:
+            assert len(postgres_reader.read().get("step_0")) > 0
+        except AssertionError:
+            return {}
         sql_render = postgres_reader.read().get("step_0").to_dict(orient='records')[0]
         if sql_render:
             results.update(sql_render)
@@ -49,7 +52,8 @@ class DataServer():
         for i, name in enumerate(names):
             if i < self.max_items:
                 item_data = self.collect_one_item_data(name)
-                results.append(item_data)
+                if item_data:
+                    results.append(item_data)
             else:
                 break
         return results

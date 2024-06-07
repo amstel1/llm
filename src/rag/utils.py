@@ -74,8 +74,9 @@ class BGEDocumentCompressor(BaseDocumentCompressor):
             logger.debug(f'reranking before elbow: {scores}')
             argmin = scores.diff().argmin()
             logger.debug(f'reranking argmin, remain: {argmin} out of {len(scores)}')
-            self.top_n = argmin
-        for i, _score in sorted_res[:self.top_n]:
+        if argmin > 0:
+            sorted_res = sorted_res[:argmin]
+        for i, _score in sorted_res:
             output.append(documents[i])
         if not self.most_relevant_at_the_top:
             output = output[::-1]

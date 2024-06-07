@@ -14,33 +14,58 @@ class ItemDisplay:
     def __init__(self, items):
         self.items = items
 
-    def display_item(self, item):
-        logger.debug(item)
-        st.image(item['product_image_url'], use_column_width=True)
-        st.markdown(f"[**{item['name']}**]({item['product_url']})")
-        st.write(f"price: {item['price']}")
-        if item.get('rating_value'): st.write(f"rating_value: {item['rating_value']}")
-        if item.get('rating_count'): st.write(f"rating_count: {item['rating_count']}")
-        if item.get('depth'): st.write(f"depth: {item['depth']}")
-        if item.get('max_load'): st.write(f"max_load: {item['max_load']}")
-        if item.get('drying'): st.write(f"drying: {item['drying']}")
+    def display_item(self, item, upper=False):
+        if upper:
+            description = ''
+            for k,v in item.items():
+                if k in ['price', 'rating_value', 'rating_count', 'depth', 'max_load', 'drying']:
+                    if v:
+                        description += f'{k}: {v}<br>'
+            create_preview_card(
+                url=item.get('product_url'),
+                title=item.get('name'),
+                image_url=item.get('product_image_url'),
+                description=description,
+            )
+        else:
+            st.markdown(f"""<img src="{item['product_image_url']}" alt="{item.get('name')}" style="border-radius: 4px; width: 100%; max-width: 110px; height: auto; object-fit: cover;">""", unsafe_allow_html=True)
+            st.markdown(
+                f"<div style='text-align: left;'><a href='{item['product_url']}' style='text-decoration: none; color: black;'><strong>{item['name']}</strong></a></div>",
+                unsafe_allow_html=True)
+            if item.get('price'): st.write(f"<div style='text-align: left;'>price: {item['price']}</div>",
+                                           unsafe_allow_html=True)
+            if item.get('rating_value'): st.write(
+                f"<div style='text-align: left;'>rating_value: {item['rating_value']}</div>", unsafe_allow_html=True)
+            if item.get('rating_count'): st.write(
+                f"<div style='text-align: left;'>rating_count: {item['rating_count']}</div>", unsafe_allow_html=True)
+            if item.get('depth'): st.write(f"<div style='text-align: left;'>depth: {item['depth']}</div>",
+                                           unsafe_allow_html=True)
+            if item.get('max_load'): st.write(f"<div style='text-align: left;'>max_load: {item['max_load']}</div>",
+                                              unsafe_allow_html=True)
+            if item.get('drying'): st.write(f"<div style='text-align: left;'>drying: {item['drying']}</div>",
+                                            unsafe_allow_html=True)
+
 
     def display_upper_row(self):
         """ Display the upper row with a big item. """
         if self.items:
-            st.write("### Upper Row")
-            col1, col2, col3 = st.columns([1, 2, 1])
+            st.markdown("<h3 style='text-align: center;'>Лучший выбор</h3>", unsafe_allow_html=True)
+            # st.write("### Лучший выбор")
+            col1, col2, col3 = st.columns([1, 10, 1])
             with col1:
                 st.empty()
             with col2:
-                self.display_item(self.items[0])
+                self.display_item(self.items[0], upper=True)
             with col3:
                 st.empty()
+
 
     def display_lower_row(self, lower_grid_cols):
         """ Display the lower row with configurable number of small items. """
         if lower_grid_cols > 0 and len(self.items) > 1:
-            st.write("### Lower Row")
+            st.empty()
+            st.markdown("<h4 style='text-align: center;'>Хорошие альтернативы</h4>", unsafe_allow_html=True)
+            # Start the styled container
             lower_grid_cols_2_empty_cols = {
                 1: 3,
                 2: 2,
@@ -53,6 +78,8 @@ class ItemDisplay:
                 if idx >= empty_cols and idx < empty_cols + lower_grid_cols and idx - empty_cols + 1 < len(self.items):
                     with col:
                         self.display_item(self.items[idx - empty_cols + 1])
+            # Close the styled container
+
 
     def display_grid(self, lower_grid_cols):
         """ Display the grid with upper and lower rows. """
@@ -74,14 +101,14 @@ def create_preview_card(
     """Function to create a website preview card in Streamlit."""
     card_html = f"""
     <div style="display: flex; flex-direction: row; align-items: flex-start; gap: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 6px 0 rgba(0,0,0,0.1);">
-        <a href="{url}" target="_blank" style="text-decoration: none; color: #000;">
-            <img src="{image_url}" alt="{title}" style="width: 120px; height: 120px; border-radius: 8px; object-fit: cover;">
-        </a>
-        <div style="flex-grow: 1;">
-            <h4><a href="{url}" target="_blank" style="text-decoration: none; color: #000;">{title}</a></h4>
-            <p>{description}</p>
-        </div>
+    <a href="{url}" target="_blank" style="text-decoration: none; color: #000;">
+        <img src="{image_url}" alt="{title}" style="border-radius: 8px; width: 110%; max-width: 150px; height: auto; object-fit: cover;">
+    </a>
+    <div style="flex-grow: 1;">
+        <h4><a href="{url}" target="_blank" style="text-decoration: none; color: #000;">{title}</a></h4>
+        <p>{description}</p>
     </div>
+</div>
     """
     st.markdown(card_html, unsafe_allow_html=True)
 
@@ -143,17 +170,17 @@ class WashingMachineRenderer(Renderer):
 
 
 
-def generate_features(features):
-    features_html = ""
-    for i, feature in enumerate(features, start=1):
-        features_html += f"<p style='margin-bottom: 10px; font-size: 0.8rem;'>" \
-                         f"{feature}" \
-                         f"</p>"
-    return f"""
-    <div style="display: flex; flex-direction: column; align-items: flex-start;">
-        {features_html}
-    </div>
-    """
+# def generate_features(features):
+#     features_html = ""
+#     for i, feature in enumerate(features, start=1):
+#         features_html += f"<p style='margin-bottom: 10px; font-size: 0.8rem;'>" \
+#                          f"{feature}" \
+#                          f"</p>"
+#     return f"""
+#     <div style="display: flex; flex-direction: column; align-items: flex-start;">
+#         {features_html}
+#     </div>
+#     """
 
 
 if __name__ == '__main__':
@@ -170,3 +197,5 @@ if __name__ == '__main__':
 
     item_display = ItemDisplay(items)
     item_display.display_grid(lower_grid_cols=n)
+
+    st.empty()

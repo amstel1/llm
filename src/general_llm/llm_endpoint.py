@@ -62,6 +62,7 @@ def call_generate_from_query_api(
     return r
 
 def call_generation_api(prompt: str, grammar: str = None, stop: list = None) -> str:
+    logger.debug(f'0706 debug: {prompt}')
     response = requests.post(
         'http://localhost:8000/generate',
         json={"prompt": prompt, "grammar": grammar, "stop": stop}
@@ -83,10 +84,11 @@ async def load_llm():
         n_gpu_layers=33,
         max_tokens=-1,
         n_batch=512,
-        n_ctx=6144,
+        n_ctx=8192,
         f16_kv=False,
         verbose=True,
         temperature=0.0,
+        flash_attn=True,
     )
 
 

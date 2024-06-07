@@ -95,9 +95,9 @@ class SberbankConsultant(BaseScenario):
         dense_similarity = cosine_similarity([dense_query_embedding], prompt_embeddings)[0]
 
         dense_similarity = min_max_scaling(dense_similarity, min_=0, max_=1)
-        sparse_similarity = min_max_scaling(list(sparse_similarity.values()))
+        sparse_similarity = min_max_scaling(list(sparse_similarity.values()), min_=0.01, max_=10)
 
-        combined_similarity_sum = (dense_similarity * 0.9) + (sparse_similarity * 0.1)
+        combined_similarity_sum = (dense_similarity * 0.95) + (sparse_similarity * 0.05)
         combined_similarity_product = dense_similarity * sparse_similarity
 
         logger.info(f'dense similarities: {dense_similarity}')
@@ -218,8 +218,8 @@ if __name__ == '__main__':
     # q = "Подбери мне карту"
     # q = "максимальные ставки по безотзывным депозитам в белорусских рублях таблица"
     # q = "Подбери мне кредит"
-    q = "Подбери мне депозит"
-    # q = "Какой депозит самый выгодный?"
+    # q = "Подбери мне депозит"
+    q = "Какой депозит самый выгодный?"
 
     consultant = SberbankConsultant()
     response, context = consultant.handle(user_query=q)

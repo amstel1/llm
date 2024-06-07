@@ -8,7 +8,7 @@ from langchain_experimental.text_splitter import SemanticChunker
 from langchain.retrievers import ParentDocumentRetriever
 from langchain_core.documents import Document
 from rag_config import RAG_COLLECTION_NAME, EMBEDDING_MODEL_NAME, CHUNK_SIZE, CHUNK_OVERLAP, SPLITTER_SEPARATORS, SEPARATOR
-from utils import MarkdownTextSplitter, BM25
+from utils import MarkdownTextSplitter
 from langchain_milvus.utils.sparse import BM25SparseEmbedding
 from pymilvus import (
     Collection,
@@ -121,14 +121,14 @@ if __name__ == '__main__':
     #     'deposits'
     # ]:
         # main(slug)
-
-    pkl_input_filepaths = [
-        'rag_w_summary_results_other.pkl',
-        'rag_w_summary_results_cards.pkl',
-        'rag_w_summary_results_credits.pkl',
-        'rag_w_summary_results_deposits.pkl',
-    ]
-    bm = BM25()
-    bm.load_data_many(pkl_input_filepaths=pkl_input_filepaths)
-    bm.fit()
-    bm.save_bse_model(filepath='router_bm25_model.pkl')
+    pass
+    # pkl_input_filepaths = [
+    #     'rag_w_summary_results_other.pkl',
+    #     'rag_w_summary_results_cards.pkl',
+    #     'rag_w_summary_results_credits.pkl',
+    #     'rag_w_summary_results_deposits.pkl',
+    # ]
+    # bm = BM25()
+    # bm.load_data_many(pkl_input_filepaths=pkl_input_filepaths)
+    # bm.fit()
+    # bm.save_bse_model(filepath='router_bm25_model.pkl')
