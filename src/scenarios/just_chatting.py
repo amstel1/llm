@@ -16,7 +16,8 @@ class JustChattingScenario(BaseScenario):
         assert 'previous_steps' in context
         assert isinstance(context.get('previous_steps'), list)
         response = call_generate_from_history_api(
-            system_prompt='Ты вежливый, умный и эффективный ИИ-помощник. Ты всегда стараешься выполнять пожелания пользователя наилучшим образом.',
+            # system_prompt='Ты вежливый, умный и эффективный ИИ-помощник. Ты всегда стараешься выполнять пожелания пользователя наилучшим образом.',
+            system_prompt='Отвечай точно.',
             chat_history=chat_history,
             stop=['<|eot_id|>'],
         )

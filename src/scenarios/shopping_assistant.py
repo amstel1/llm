@@ -38,8 +38,8 @@ from general_llm.llm_endpoint import call_generation_api, call_generate_from_his
 def chat_history_list_to_str(chat_history: list):
     str_chat_history = ''
     for i, d in enumerate(chat_history):
-        if i < len(chat_history) - 1:
-            str_chat_history += d.get('role') + ': ' + d.get('content') + '\n'
+        if i <= len(chat_history) - 1:
+            str_chat_history += d.get('role').strip('\n') + ': ' + d.get('content').strip('\n') + '\n'
         else:
             # assert d.get('content') == user_query
             pass
@@ -81,18 +81,18 @@ class ShoppingAssistantScenario(BaseScenario):
 # """
 
         user_content_without_history = f"""Ты должен решить, содержит ли запрос пользователя хотя бы один описательный атрибут / характеристику / определение любого рода.
-Верни true или false.
-Верни false, если запрос не содержит какие-либо желаемые свойства / характеристики / определения.
-Верни true, если пользователь упомянул хотя бы одно из желаемых свойств, характеристик или атрибутов, например: размер, ширину, качество, бренд, цену, название, рейтинг, особенности продукта.
+Верни "True" или "False".
+Верни "False", если запрос не содержит какие-либо желаемые свойства / характеристики / определения.
+Верни "True", если пользователь упомянул хотя бы одно из желаемых свойств, характеристик или атрибутов, например: размер, ширину, качество, бренд, цену, название, рейтинг, особенности продукта.
 
 Запрос пользователя: {user_query}"""
 
-        user_content_with_history = """История разговора:\n{str_chat_history}\n        
-Ты должен решить, содержит ли запрос пользователя хотя бы один описательный атрибут / характеристику / определение любого рода.
-Верни true или false.
-Верни false, если запрос не содержит какие-либо желаемые свойства / характеристики / определения.
-Верни true, если пользователь упомянул хотя бы одно из желаемых свойств, характеристик или атрибутов, например: размер, ширину, качество, бренд, цену, название, рейтинг, особенности продукта.
+        user_content_with_history = """Используй историю разговора и запрос пользователя. Ты должен решить, содержит ли запрос пользователя хотя бы один описательный атрибут / характеристику / определение любого рода.
+Верни "True" или "False".
+Верни "False", если запрос не содержит какие-либо желаемые свойства / характеристики / определения.
+Верни "True", если пользователь упомянул хотя бы одно из желаемых свойств, характеристик или атрибутов, например: размер, ширину, качество, бренд, цену, название, рейтинг, особенности продукта.
 
+История разговора:\n{str_chat_history}\n   
 Запрос пользователя: {user_query}"""
         if chat_history is None or not chat_history:
             prompt = get_llama3_template_from_history(system_prompt_clean='Ты объективный семантический оценщик.', chat_history=[{'role': 'user', 'content': user_content_without_history}])
@@ -101,10 +101,12 @@ class ShoppingAssistantScenario(BaseScenario):
             # an alternative approach is: combine the that history into str, pass it in the user turn:
             # prompt = get_llama3_template_from_history(system_prompt_clean='Ты объективный семантический оценщик.', chat_history=chat_history)
 
-            str_chat_history = chat_history_list_to_str(chat_history)
+            str_chat_history = chat_history_list_to_str(chat_history[:-1])  # edit last user message is eliminated
             user_query_input = user_content_with_history.format(user_query=user_query, str_chat_history=str_chat_history)
             prompt = get_llama3_template_from_user_query(system_prompt_clean='Ты объективный семантический оценщик.', user_query=user_query_input)
-        return call_generation_api(prompt=prompt, grammar='root ::= "true" | "false"')
+            with open('Ты объективный семантический оценщик.txt', 'w') as f:
+                f.write(prompt)
+        return call_generation_api(prompt=prompt, grammar='root ::= "True"|"False"')
 
 
     def get_possible_filters(self) -> Iterable:
@@ -184,10 +186,17 @@ class ShoppingAssistantScenario(BaseScenario):
             logger.debug(f'ready_for_sql - {ready_for_sql}')
             previous_steps.append(current_step)
             if ready_for_sql:
+                # reformulate
+                current_step = 'reformulate'
+                response = self.reformulate(user_query=user_query, chat_history=chat_history, context=context)
+                logger.critical(f'reformulated: {response}')
+                logger.debug(f'current step - {current_step}')
+                previous_steps.append(current_step)
+
                 current_step = 'sql'
                 logger.debug(f'current step - {current_step}')
                 context['current_step'] = current_step
-                df = SqlToText.sql_query(user_query=user_query)
+                df = SqlToText.sql_query(user_query=response)  # pass reformulated response here, no need to pass history - already done at reformulate step
                 previous_steps.append(current_step)
                 context['previous_steps'] = previous_steps
                 current_step = 'exit'
@@ -248,7 +257,7 @@ class ShoppingAssistantScenario(BaseScenario):
                 return response, context
         elif current_step == 'sql':
             logger.debug(f'current step - {current_step}')
-            df = SqlToText.sql_query(user_input=user_query)
+            df = SqlToText.sql_query(user_query=user_query)
             previous_steps.append(current_step)
             context['previous_steps'] = previous_steps
             current_step = 'exit'
@@ -259,14 +268,52 @@ class ShoppingAssistantScenario(BaseScenario):
 
 if __name__ == '__main__':
 
-    # user_query = "подбери стиральную машину фирмы атлант"
-    # chat_history = []
-    # current_scenario = ShoppingAssistantScenario()
-    # verification_result = current_scenario.verify(
-    #     user_query=user_query,
-    #     chat_history=chat_history,
-    #     context={"scenario": "shopping_assistant_washing_machine", "previous_steps": [], "current_step": "verify"})
-    # print(verification_result)  #  :bool = true | false
+#     s = """ <|begin_of_text|><|start_header_id|>system<|end_header_id|>
+#
+#         You are a state-of-the-art intent classifer.<|eot_id|><|start_header_id|>user<|end_header_id|>
+#
+#         Here is the previous chat history: user: привет
+# assistant: Привет! Рад видеть тебя! Как я могу помочь тебе сегодня? У меня есть масса идей, но я готов слушать и помогать в любом вопросе или задаче, который ты хочешь решить. Пожалуйста, не стесняйся спрашивать!
+# user: найти хорошую стиралку
+# user: рейтинг от 4,9 \ глубина до 43 см
+#
+#
+#         Given user_input and mapping of possible routes and their descriptions you must select the most appropriate route for the user_input.
+#
+#         Here is the route to description mapping:
+# just_chatting: разговор на любые темы, shopping_assistant_washing_machine: поиск, выбор, покупка стиральной или стирально-сушильной машины, sberbank_consultant: консультация по всем вопросам, связанным с банковскими продуктами, услугами (Сбер Банк Беларусь)
+#
+#
+#         Given the user input below, think step-by-step to determine which route it should take:
+#
+#         user_input:
+#
+#
+#         Step-by-step reasoning:
+#
+#         1. Analyze the content of the user input to determine if it essence relates to one of the route descriptions.
+#
+#         2. If not, assign just_chatting.
+#
+#         Based on your reasoning, decide on the route as JSON.
+#
+#         <|eot_id|><|start_header_id|>assistant<|end_header_id|>
+# JSON:
+# """
+
+    user_query = "такая же, только LG "
+    chat_history = [
+        {'role': 'user', 'content': 'привет'},
+        {'role': 'assistant', 'content': 'Привет! Рад видеть тебя! Как я могу помочь тебе сегодня? У меня есть масса идей, но я готов слушать и помогать в любом вопросе или задаче, который ты хочешь решить. Пожалуйста, не стесняйся спрашивать!'},
+        {'role': 'user', 'content': 'найти хорошую стиралку'},
+        {'role': 'user', 'content': 'рейтинг от 4,9 \ глубина до 43 см'},
+    ]
+    current_scenario = ShoppingAssistantScenario()
+    verification_result = current_scenario.handle(
+        user_query=user_query,
+        chat_history=chat_history,
+        context={"scenario": "shopping_assistant_washing_machine", "previous_steps": [], "current_step": "verify"})
+    print(verification_result)  #  :bool = true | false
     #
     # ch = [{'role': 'user', 'content': 'Привет'},
     #       {'role': 'assistant', 'content': 'Привет! Как я могу помочь вам сегодня?'},
@@ -296,6 +343,6 @@ if __name__ == '__main__':
     # )
     # print(reformulate_result)
 
-    user_query = 'подбери стиральную машину фирмы bosch'
-    response = SqlToText.sql_query(user_query=user_query)
-    print(response)
+    # user_query = 'подбери стиральную машину фирмы bosch'
+    # response = SqlToText.sql_query(user_query=user_query)
+    # print(response)

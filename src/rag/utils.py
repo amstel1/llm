@@ -59,27 +59,56 @@ class BGEDocumentCompressor(BaseDocumentCompressor):
         query: str,
         callbacks: Optional[Callbacks] = None,
     ) -> Sequence[Document]:
-        res = {}
+        res = {}  # ix, score
         for i, document in enumerate(documents):
-            res[i] = self.client.compute_score([query, document.page_content], normalize=True)
-        if max(res.values()) <= 0.09:
+            res[i] = (self.client.compute_score([query, document.page_content], normalize=True), document)
+        # try and rewrite that
+        df = pd.DataFrame(res).T
+        df.columns = ['score', 'document']
+        df['score'] = df['score'].astype(float)
+        df['ix'] = range(df.shape[0])
+
+        if df['score'].max() <= 0.09:
             # it's unreasonable to use reranking when the reranking model considers the docs so irreleavant
-            logger.debug(f'emergency exit from reranking, max score is: {max(res.values())}')
+            logger.debug(f'emergency exit from reranking, max score is: { df["score"].max() }')
             return documents
-        sorted_res = sorted(res.items(), key=lambda x: x[1], reverse=True)
+        # sorted_res = sorted(res.items(), key=lambda x: x[1], reverse=True)  # [(argmax_ix, max_score), (ix, score), ...]
+        df.sort_values('score', inplace=True, ascending=False)
+        # df['sorted_ix'] = range(df.shape[0])
+        df.reset_index(drop=True, inplace=True)
         output = []
+        logger.warning(df)
         if self.elbow:
             # self.top_n is ignored
-            scores = pd.Series(data=[x[1] for x in sorted_res], index=[x[0] for x in sorted_res])
-            logger.debug(f'reranking before elbow: {scores}')
-            argmin = scores.diff().argmin()
-            logger.debug(f'reranking argmin, remain: {argmin} out of {len(scores)}')
-        if argmin > 0:
-            sorted_res = sorted_res[:argmin]
-        for i, _score in sorted_res:
-            output.append(documents[i])
+            # scores = pd.Series(data=[x[1] for x in sorted_res], index=[x[0] for x in sorted_res])  # data = score, index = ix,
+            logger.debug(f'reranking before elbow: {df.score}')
+            argmin_1 = df['score'].diff().nsmallest(1).tail(1).index[0]  # second best argmin - less conservative; take everything in SCORES up to this point
+            argmin_2 = df['score'].diff().nsmallest(2).tail(1).index[0]  # second best argmin - less conservative; take everything in SCORES up to this point
+            argmin = max(argmin_1, argmin_2)
+            if argmin and df.shape[0] - 1 > 0:
+                logger.warning('reranking, elbow - A')
+                df = df.loc[:argmin]
+                ixes_to_take = df.head(df.shape[0] - 1)['ix'].tolist()
+            elif not argmin:
+                ixes_to_take = df['ix'].tolist()
+                logger.warning('reranking, elbow - B')
+            else:
+                raise AttributeError("не должны были сюда зайьт")
+
+
+        if len(ixes_to_take) > 0:
+            # sorted_res = sorted_res[:argmin]
+            logger.critical(ixes_to_take)
+            for i in ixes_to_take:
+                output.append(documents[i])
+                logger.critical(documents[i])
+        else:
+            # excatly one candidate?
+            output = documents
         if not self.most_relevant_at_the_top:
             output = output[::-1]
+        # argmin = scores.diff().argmin() # first best argmin
+        logger.debug(f'reranking argmin, remain: {len(output)} out of {len(documents)}')
         return output
 
 from typing import Any, Dict, List, Optional, Union

@@ -65,7 +65,7 @@ if __name__ == '__main__':
         st.session_state.chat_history.append({"role": "user", "content": prompt})
 
         if prompt:
-            if (not 'scenario_name' in st.session_state.context) or (st.session_state.context.get('scenario_name') == 'just_chatting'):
+            if (not 'scenario_name' in st.session_state.context) or (st.session_state.context.get('scenario_name') == 'just_chatting') or (st.session_state.context.get('current_state') == 'exit'):
                 logger.critical(f'context before scenario_router.route(): {st.session_state.context }')
                 # execute once per scenario_name / scenraio_object
                 logger.critical('We must see this only either at the specific scenario start (once) OR after every message in just_chatting')
@@ -109,11 +109,12 @@ if __name__ == '__main__':
                 lgc = max(0, len(items)-1)
                 item_display.display_grid(lower_grid_cols=lgc)
 
-            if 'current_step' in st.session_state.context and st.session_state.context['current_step'] == 'exit':
-                logger.debug(f'current_step -- {st.session_state.context["current_step"]}')
-                st.session_state.context.pop('scenario_name')  # when exited scenario, nullify
-                st.session_state.context.pop('current_step')  # when exited scenario, nullify
-                st.session_state.scenario_object = None
+            # 10 06 temporarily disable
+            # if 'current_step' in st.session_state.context and st.session_state.context['current_step'] == 'exit':
+            #     logger.debug(f'current_step -- {st.session_state.context["current_step"]}')
+            #     st.session_state.context.pop('scenario_name')  # when exited scenario, nullify
+            #     st.session_state.context.pop('current_step')  # when exited scenario, nullify
+            #     st.session_state.scenario_object = None
 
 
 

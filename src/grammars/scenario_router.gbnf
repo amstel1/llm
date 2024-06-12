@@ -1,6 +1,6 @@
 root ::= "{" ws key ws ":" ws array ws "}"
 
-key ::= "\"" "selected_route" "\""
+key ::= "\"" "route" "\""
 
 array ::= "[" ws values? ws "]"
 

@@ -63,6 +63,7 @@ def call_generate_from_query_api(
 
 def call_generation_api(prompt: str, grammar: str = None, stop: list = None) -> str:
     logger.debug(f'0706 debug: {prompt}')
+    logger.critical(f'{len(prompt)}')
     response = requests.post(
         'http://localhost:8000/generate',
         json={"prompt": prompt, "grammar": grammar, "stop": stop}
@@ -85,7 +86,7 @@ async def load_llm():
         max_tokens=-1,
         n_batch=512,
         n_ctx=8192,
-        f16_kv=False,
+        f16_kv=True,
         verbose=True,
         temperature=0.0,
         flash_attn=True,
@@ -98,7 +99,7 @@ async def hello() -> dict[str, str]:
 
 
 @app.post("/generate-from-history")
-async def generate_from_listory(input_data: LLMEndpointInput) -> Dict[str, Any]:
+async def generate_from_history(input_data: LLMEndpointInput) -> Dict[str, Any]:
     system_prompt = input_data.system_prompt
     chat_history = input_data.chat_history
     grammar_path = input_data.grammar_path
@@ -111,9 +112,10 @@ async def generate_from_listory(input_data: LLMEndpointInput) -> Dict[str, Any]:
     # template_str = get_chatml_template(chat_history)
 
     # llama 3
-    template_str = get_llama3_template_from_history(system_prompt_clean=system_prompt, chat_history=chat_history)
+    template_str = get_llama3_template_from_history(system_prompt_clean=system_prompt, chat_history=chat_history)  # todo: 1206, incorrect - correct
+    logger.debug(f"1106 debug chatting: {template_str.replace('<|begin_of_text|>', '')}")
     result = llm(
-        prompt=template_str,
+        prompt=template_str.replace('<|begin_of_text|>', ''),
         grammar=grammar,
         stop=stop,
         echo=False,
@@ -135,8 +137,8 @@ async def generate_from_listory(input_data: LLMEndpointInput) -> Dict[str, Any]:
 
 @app.post("/generate-from-query")
 async def generate_from_query(input_data: LLMEndpointInput) -> Dict[str, Any]:
-    user_prompt = input_data.user_prompt
-    system_prompt = input_data.system_prompt
+    user_prompt = input_data.user_prompt.replace('<|begin_of_text|>', '')
+    system_prompt = input_data.system_prompt.replace('<|begin_of_text|>', '')
     grammar_path = input_data.grammar_path
     stop = input_data.stop
     grammar = None

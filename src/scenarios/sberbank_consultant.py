@@ -176,10 +176,11 @@ class SberbankConsultant(BaseScenario):
         return retriever
 
     def handle(self, user_query: Any, chat_history: Any = [], context: Any = {}):
-        #todo: chat_history is not used
+        #todo: chat_history
+        # is not used
         retriever = RunnableLambda(self.retriever_router)
 
-        llama_raw_template_system = """<|begin_of_text|><|start_header_id|>system<|end_header_id|>\nТы - приветливый ИИ, разработанный в Сбер Банке (Беларусь). Ты знаешь только русский язык. Основываясь на контексте ниже, правдиво и полно отвечай на вопросы.<|eot_id|>"""
+        llama_raw_template_system = """<|start_header_id|>system<|end_header_id|>\nТы - приветливый ИИ, разработанный в Сбер Банке (Беларусь). Ты знаешь только русский язык. Основываясь на контексте ниже, правдиво и полно отвечай на вопросы.<|eot_id|>"""
         llama_raw_template_user = """<|start_header_id|>user<|end_header_id|>\nКонтекст:\n\n{context}\n\nВопрос:\n{question}<|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
 
         # Prompt

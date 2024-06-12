@@ -8,7 +8,7 @@ USE_RERANKER = True
 N_RERANK_RESULTS = 5
 ELBOW_RERANKING = True
 
-MOST_RELEVANT_AT_THE_TOP = False  # False means relevant result are close to the output, seems to work better
+MOST_RELEVANT_AT_THE_TOP = True  # False means relevant result are close to the output, seems to work better
 
 # RAG INDEXING
 CHUNK_SIZE = 400                                # 500
