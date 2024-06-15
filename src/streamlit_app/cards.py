@@ -20,7 +20,7 @@ radiobutton_options = {
 
 class ItemDisplay:
 
-    def __init__(self, items: list[dict], duration_2_terms: dict[int, str], sql_result_ix:int):
+    def __init__(self, items: list[dict], duration_2_terms: dict[int, str], sql_result_ix: int):
         self.items = items
         self.duration_2_terms = duration_2_terms
         self.loan_terms_defined = False
@@ -42,26 +42,27 @@ class ItemDisplay:
         else:
             st.markdown(f"""<img src="{item['product_image_url']}" alt="{item.get('name')}" style="border-radius: 4px; width: 100%; max-width: 110px; height: auto; object-fit: cover;">""", unsafe_allow_html=True)
             st.markdown(
-                f"<div style='text-align: left;'><a href='{item['product_url']}' style='text-decoration: none; color: black;'><strong>{item['name']}</strong></a></div>",
+                f"<div style='text-align: left;'><a href='{item['product_url']}' style='text-decoration: none; color: black; font-size: 14px;'><strong>{item['name']}</strong></a></div>",
                 unsafe_allow_html=True)
-            if item.get('price'): st.write(f"<div style='text-align: left;'>price: {item['price']}</div>",
+            if item.get('price'): st.write(f"<div style='text-align: left; font-size: 14px;'>price: {item['price']}</div>",
                                            unsafe_allow_html=True)
             if item.get('rating_value'): st.write(
-                f"<div style='text-align: left;'>rating_value: {item['rating_value']}</div>", unsafe_allow_html=True)
+                f"<div style='text-align: left; font-size: 14px;'>rating_value: {item['rating_value']}</div>", unsafe_allow_html=True)
             if item.get('rating_count'): st.write(
-                f"<div style='text-align: left;'>rating_count: {item['rating_count']}</div>", unsafe_allow_html=True)
-            if item.get('depth'): st.write(f"<div style='text-align: left;'>depth: {item['depth']}</div>",
+                f"<div style='text-align: left; font-size: 14px;'>rating_count: {item['rating_count']}</div>", unsafe_allow_html=True)
+            if item.get('depth'): st.write(f"<div style='text-align: left; font-size: 14px;'>depth: {item['depth']}</div>",
                                            unsafe_allow_html=True)
-            if item.get('max_load'): st.write(f"<div style='text-align: left;'>max_load: {item['max_load']}</div>",
+            if item.get('max_load'): st.write(f"<div style='text-align: left; font-size: 14px;'>max_load: {item['max_load']}</div>",
                                               unsafe_allow_html=True)
-            if item.get('drying'): st.write(f"<div style='text-align: left;'>drying: {item['drying']}</div>",
+            if item.get('drying'): st.write(f"<div style='text-align: left; font-size: 14px;'>drying: {item['drying']}</div>",
                                             unsafe_allow_html=True)
 
 
     def display_upper_row(self):
         """ Display the upper row with a big item. """
         if self.items:
-            st.markdown("<h3 style='text-align: center;'>Лучший выбор</h3>", unsafe_allow_html=True)
+            st.empty()
+            st.markdown("<h2 style='text-align: center; font-weight: bold; font-size: 18px;'>Лучший выбор</h2>", unsafe_allow_html=True)
             # st.write("### Лучший выбор")
             col1, col2, col3 = st.columns([1, 10, 1])
             with col1:
@@ -81,12 +82,24 @@ class ItemDisplay:
                 """
                 st.markdown(tailwind_css, unsafe_allow_html=True)
 
-                # Radio button options
+                # Custom CSS to make radio buttons horizontal
+                # st.markdown(
+                #     """
+                #     <style>
+                #     div[data-baseweb="radio"] > div {
+                #         display: flex;
+                #         flex-direction: row;
+                #     }
+                #     </style>
+                #     """,
+                #     unsafe_allow_html=True
+                # )
                 _ = st.radio(
                     "Выберите срок кредита:",
                     list(radiobutton_options.keys()),
-                    key=f'selected_option',
+                    key=f'selected_option_{self.sql_result_ix}',
                     format_func=lambda x: x,
+                    horizontal=True,
                     # on_change= self.on_change_callback,
                 )
                 # if not self.loan_terms_defined:
@@ -97,13 +110,17 @@ class ItemDisplay:
                 except:
                     self.result_placeholder = st.empty()
                 self.on_change_callback()
+                st.link_button(label="Оформить",
+                               url="https://www.sber-bank.by/credit-potreb/online-credit/conditions",
+                               type="primary",
+                               use_container_width=True)
 
             with col3:
                 st.empty()
 
     def on_change_callback(self):
-        selected_str = st.session_state[f'selected_option']
-        logger.critical(selected_str)
+        selected_str = st.session_state[f'selected_option_{self.sql_result_ix}']
+        logger.critical(f'selected_option_{self.sql_result_ix} --- {selected_str}')
         calculator = InterestCalculator()
         selected_int = radiobutton_options[selected_str]
         loan_terms = calculator.gpt4o(self.items[0].get('price'), selected_int)
@@ -114,7 +131,7 @@ class ItemDisplay:
         """ Display the lower row with configurable number of small items. """
         if lower_grid_cols > 0 and len(self.items) > 1:
             st.empty()
-            st.markdown("<h4 style='text-align: center;'>Хорошие альтернативы</h4>", unsafe_allow_html=True)
+            st.markdown("<h4 style='text-align: center; font-weight: bold;'>Хорошие альтернативы</h4>", unsafe_allow_html=True)
             # Start the styled container
             lower_grid_cols_2_empty_cols = {
                 1: 3,
@@ -155,7 +172,7 @@ def create_preview_card(
         <img src="{image_url}" alt="{title}" style="border-radius: 8px; width: 110%; max-width: 150px; height: auto; object-fit: cover;">
     </a>
     <div style="flex-grow: 1;">
-        <h4><a href="{url}" target="_blank" style="text-decoration: none; color: #000;">{title}</a></h4>
+        <h4><a href="{url}" target="_blank" style="text-decoration: none; color: #000; font-weight: bold;">{title}</a></h4>
         <p>{description}</p>
     </div>
 </div>

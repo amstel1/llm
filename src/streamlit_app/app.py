@@ -46,7 +46,6 @@ if __name__ == '__main__':
 
     # Initialize chat history if it doesn't exist
     if 'chat_history' not in st.session_state:
-        st.session_state.sql_result_ix = 0  # int
         st.session_state['chat_history'] = []
         st.session_state['context'] = {
             # 'scenario': "",
@@ -57,6 +56,7 @@ if __name__ == '__main__':
 
     # Creating a container for chat history to improve alignment and appearance
     with st.container():
+        sql_result_ix = 0  # int
         for chat in st.session_state['chat_history']:
             if chat['role'] in ('assistant', 'user'):
                 with st.chat_message(chat['role']):
@@ -74,7 +74,8 @@ if __name__ == '__main__':
                     duration_2_terms[month_duration] = loan_terms
 
                 # display here
-                item_display = ItemDisplay(items, duration_2_terms=duration_2_terms, sql_result_ix=st.session_state.sql_result_ix)
+                item_display = ItemDisplay(items, duration_2_terms=duration_2_terms, sql_result_ix=sql_result_ix)
+                sql_result_ix += 1
                 lgc = max(0, len(items) - 1)
                 item_display.display_grid(lower_grid_cols=lgc)
 
@@ -140,8 +141,7 @@ if __name__ == '__main__':
                     duration_2_terms[month_duration] = loan_terms
 
                 logger.debug(len(items))
-                item_display = ItemDisplay(items, duration_2_terms=duration_2_terms, sql_result_ix=st.session_state.sql_result_ix)
-                # st.session_state.sql_result_ix += 1
+                item_display = ItemDisplay(items, duration_2_terms=duration_2_terms, sql_result_ix=sql_result_ix)
                 lgc = max(0, len(items)-1)
                 item_display.display_grid(lower_grid_cols=lgc)
 
