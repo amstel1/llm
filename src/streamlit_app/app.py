@@ -9,9 +9,11 @@ from general_llm.llm_endpoint import call_generation_api, call_generate_from_his
 from scenarios.scenario_router import ScenarioRouter
 from scenarios.shopping_assistant import ShoppingAssistantScenario
 from scenarios.just_chatting import JustChattingScenario
-from streamlit_app.cards import ItemDisplay
+from streamlit_app.cards import ItemDisplay, radiobutton_options
 from streamlit_app.backend_ops import DataServer
 from scenarios.sberbank_consultant import SberbankConsultant
+from api.credit_interset_calculator import InterestCalculator
+
 
 # link to the selected product / products
 # todo: routing between scenarios
@@ -30,11 +32,11 @@ if __name__ == '__main__':
 
 
     scenario_router = ScenarioRouter()
-    st.sidebar.title("Chat Settings")
-    st.title("Langchain Chat App")
+    st.sidebar.title("Настройки")
+    st.title("Прототип")
 
     # Clear the conversation using a sidebar button for better accessibility
-    if st.sidebar.button("Clear Conversation"):
+    if st.sidebar.button("Очистить разговор"):
         st.session_state.chat_history = []
         st.session_state.context = {
             # 'scenario': "",
@@ -44,6 +46,7 @@ if __name__ == '__main__':
 
     # Initialize chat history if it doesn't exist
     if 'chat_history' not in st.session_state:
+        st.session_state.sql_result_ix = 0  # int
         st.session_state['chat_history'] = []
         st.session_state['context'] = {
             # 'scenario': "",
@@ -51,12 +54,29 @@ if __name__ == '__main__':
             'previous_steps': [],
         }
 
+
     # Creating a container for chat history to improve alignment and appearance
     with st.container():
         for chat in st.session_state['chat_history']:
-            with st.chat_message(chat['role']):
-                st.markdown(chat['content'])
+            if chat['role'] in ('assistant', 'user'):
+                with st.chat_message(chat['role']):
+                    st.markdown(chat['content'])
+            elif chat['role'] == 'html':
+                items = chat.get('items')
 
+                # repeated code
+                top_item = items[0]
+                top_item_price = top_item.get('price')
+                calculator = InterestCalculator()
+                duration_2_terms = {}
+                for month_duration in radiobutton_options.values():
+                    loan_terms = calculator.gpt4o(top_item_price, month_duration)
+                    duration_2_terms[month_duration] = loan_terms
+
+                # display here
+                item_display = ItemDisplay(items, duration_2_terms=duration_2_terms, sql_result_ix=st.session_state.sql_result_ix)
+                lgc = max(0, len(items) - 1)
+                item_display.display_grid(lower_grid_cols=lgc)
 
     if prompt := st.chat_input("Enter you question here"):
         logger.critical(f'context checkpoint 1: {st.session_state.context}')
@@ -90,6 +110,8 @@ if __name__ == '__main__':
             data, context = st.session_state.scenario_object.handle(user_query=prompt, chat_history=st.session_state.chat_history, context=st.session_state.context)
             st.session_state.context = context
             assert 'scenario_name' in st.session_state.context
+            if st.session_state.context.get('current_step') in ('sql','exit') and 'sql_items' in st.session_state:
+                st.session_state.pop('sql_items')
             logger.critical(f'context after scenario_object.handle(): {st.session_state.context }')
             if isinstance(data, str):
                 response_text = data
@@ -102,12 +124,28 @@ if __name__ == '__main__':
                 assert 'name' in data.columns
                 assert data.shape[0] > 0
                 logger.debug(data.shape)
-                items = data_server.collect_data(data['name'])
-                items = items[:4]
+                if 'sql_items' not in st.session_state:
+                    items = data_server.collect_data(data['name'])
+                    items = items[:4]
+                    st.session_state['sql_items'] = items
+                    st.session_state.chat_history.append({"role": "html", "items": items})
+                items = st.session_state['sql_items']
+                # show loan terms for the top option
+                top_item = items[0]
+                top_item_price = top_item.get('price')
+                calculator = InterestCalculator()
+                duration_2_terms = {}
+                for month_duration in radiobutton_options.values():
+                    loan_terms = calculator.gpt4o(top_item_price, month_duration)
+                    duration_2_terms[month_duration] = loan_terms
+
                 logger.debug(len(items))
-                item_display = ItemDisplay(items)
+                item_display = ItemDisplay(items, duration_2_terms=duration_2_terms, sql_result_ix=st.session_state.sql_result_ix)
+                # st.session_state.sql_result_ix += 1
                 lgc = max(0, len(items)-1)
                 item_display.display_grid(lower_grid_cols=lgc)
+
+
 
             # 10 06 temporarily disable
             # if 'current_step' in st.session_state.context and st.session_state.context['current_step'] == 'exit':

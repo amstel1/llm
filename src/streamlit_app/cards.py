@@ -8,11 +8,23 @@ from src.mongodb.utils import MongoConnector
 from abc import ABC
 from loguru import logger
 from backend_ops import DataServer
+from api.credit_interset_calculator import InterestCalculator
+
+radiobutton_options = {
+                    "12 месяцев": 12,
+                    "24 месяца": 24,
+                    "36 месяцев": 36
+                }
+
 
 
 class ItemDisplay:
-    def __init__(self, items):
+
+    def __init__(self, items: list[dict], duration_2_terms: dict[int, str], sql_result_ix:int):
         self.items = items
+        self.duration_2_terms = duration_2_terms
+        self.loan_terms_defined = False
+        self.sql_result_ix = sql_result_ix
 
     def display_item(self, item, upper=False):
         if upper:
@@ -56,9 +68,47 @@ class ItemDisplay:
                 st.empty()
             with col2:
                 self.display_item(self.items[0], upper=True)
+                st.empty()
+
+                # Tailwind CSS for styling
+
+                tailwind_css = """
+                <html> 
+                <head> 
+                  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"> 
+                </head> 
+                </html>
+                """
+                st.markdown(tailwind_css, unsafe_allow_html=True)
+
+                # Radio button options
+                _ = st.radio(
+                    "Выберите срок кредита:",
+                    list(radiobutton_options.keys()),
+                    key=f'selected_option',
+                    format_func=lambda x: x,
+                    # on_change= self.on_change_callback,
+                )
+                # if not self.loan_terms_defined:
+                #
+                #     self.on_change_callback()
+                try:
+                    self.result_placeholder
+                except:
+                    self.result_placeholder = st.empty()
+                self.on_change_callback()
+
             with col3:
                 st.empty()
 
+    def on_change_callback(self):
+        selected_str = st.session_state[f'selected_option']
+        logger.critical(selected_str)
+        calculator = InterestCalculator()
+        selected_int = radiobutton_options[selected_str]
+        loan_terms = calculator.gpt4o(self.items[0].get('price'), selected_int)
+        self.result_placeholder.markdown(loan_terms)
+        # self.loan_terms_defined = True
 
     def display_lower_row(self, lower_grid_cols):
         """ Display the lower row with configurable number of small items. """

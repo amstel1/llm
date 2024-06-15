@@ -37,8 +37,9 @@ from general_llm.llm_endpoint import call_generation_api, call_generate_from_his
 
 def chat_history_list_to_str(chat_history: list):
     str_chat_history = ''
-    for i, d in enumerate(chat_history):
-        if i <= len(chat_history) - 1:
+    clean_chat_history = [x for x in chat_history if x.get('role') in ('user', 'assistant')]  # there can also be role==html
+    for i, d in enumerate(clean_chat_history):
+        if i <= len(clean_chat_history) - 1:
             str_chat_history += d.get('role').strip('\n') + ': ' + d.get('content').strip('\n') + '\n'
         else:
             # assert d.get('content') == user_query
