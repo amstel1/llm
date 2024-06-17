@@ -19,6 +19,7 @@ from langchain.retrievers import ContextualCompressionRetriever
 from langchain.retrievers.document_compressors import FlashrankRerank
 from general_llm.langchain_llama_cpp_api_warpper import LlamaCppApiWrapper
 from scenarios.base import BaseScenario
+from scenarios.scenario_router import ScenarioRouter
 from scenarios.shopping_assistant import chat_history_list_to_str
 # from langchain_milvus import MilvusCollectionHybridSearchRetriever
 from rag.utils import ExtendedMilvusCollectionHybridSearchRetriever as MilvusCollectionHybridSearchRetriever
@@ -36,6 +37,43 @@ from pymilvus import (
 
 # def cosine_similarity(a,b):
 #     return np.dot(a,b)/(np.linalg.norm(a)*np.linalg.norm(b))
+
+class RetrieverRouter(ScenarioRouter):
+    # define only init
+    # call with proper grammar
+    def __init__(self):
+        self.prompt_without_chat_history = """<|start_header_id|>system<|end_header_id|>
+You are a state-of-the-art intent classifer.<|eot_id|><|start_header_id|>user<|end_header_id|>
+Based on the user input identify which route the user's input most closely relates to. Respond with the most relevant route name from the given mapping.
+
+route mapping: 
+full_bge_credits: кредит овердрафт рефинансирование долг
+full_bge_deposits: депозит вклад сбережения накопления pay
+full_bge_cards: карта платежная дебетовая манибэк money-back кэшбэк cash-back сберкарта
+full_bge_other: страховки подписка прайм prime сбол банковские продукты услуги
+
+user input:
+{user_input}
+<|eot_id|><|start_header_id|>assistant<|end_header_id|>\nJSON:"""
+
+
+        self.prompt_with_chat_history = """<|start_header_id|>system<|end_header_id|>
+You are a state-of-the-art intent classifer.<|eot_id|><|start_header_id|>user<|end_header_id|>
+Based on the user input and the chat history, identify which route the user's input most closely relates to. Your decision should take into account the context provided by the chat history. Respond with the most relevant route name from the given mapping.
+
+route mapping: 
+full_bge_credits: кредит овердрафт рефинансирование долг
+full_bge_deposits: депозит вклад сбережения накопления pay
+full_bge_cards: карта платежная дебетовая манибэк money-back кэшбэк cash-back сберкарта
+full_bge_other: страховки подписка прайм prime сбол банковские продукты услуги
+
+chat history:
+{chat_history}
+
+user_input:
+{user_input}
+
+Please respond with the most relevant route name as JSON.<|eot_id|><|start_header_id|>assistant<|end_header_id|>\nJSON:"""
 
 def format_docs(docs):
     if TO_REPLACE_SEPARATOR:
@@ -77,39 +115,46 @@ class SberbankConsultant(BaseScenario):
             self.sparse_model_2_rag_collections[rag_collection] = model
 
 
-    def retriever_router(self, input: str):
+    def retriever_router(self, input: str, chat_history: list):
         # todo: big problem is - it does not take chat_history into account
         # input: str
         logger.debug(input)
-        options = [
-            "кредит овердрафт рефинансирование долг",  # assert credit
-            "депозит вклад сбережения накопления pay", # assert deposit
-            "карта платежная дебетовая манибэк money-back кэшбэк cash-back сберкарта",  # # assert card
-            "страховки подписка прайм prime сбол банковские продукты услуги",   # assert other
-        ]
-        prompt_embeddings = self.dense_embedding_model.embed_documents(options)
-        dense_query_embedding = self.dense_embedding_model.embed_query(input.lower())
-        sparse_similarity = {}
-        for sparse_embedding_model_name, sparse_embedding_model in self.sparse_model_2_rag_collections.items():
-            # assert order: credit, deposit, card, other
-            sparse_similarity[sparse_embedding_model_name] = sum(sparse_embedding_model.embed_query(input.lower()).values())
-        dense_similarity = cosine_similarity([dense_query_embedding], prompt_embeddings)[0]
+        # options = [
+        #     "кредит овердрафт рефинансирование долг",  # assert credit
+        #     "депозит вклад сбережения накопления pay", # assert deposit
+        #     "карта платежная дебетовая манибэк money-back кэшбэк cash-back сберкарта",  # # assert card
+        #     "страховки подписка прайм prime сбол банковские продукты услуги",   # assert other
+        # ]
+        # prompt_embeddings = self.dense_embedding_model.embed_documents(options)
+        # dense_query_embedding = self.dense_embedding_model.embed_query(input.lower())
+        # sparse_similarity = {}
+        # for sparse_embedding_model_name, sparse_embedding_model in self.sparse_model_2_rag_collections.items():
+        #     # assert order: credit, deposit, card, other
+        #     sparse_similarity[sparse_embedding_model_name] = sum(sparse_embedding_model.embed_query(input.lower()).values())
+        # dense_similarity = cosine_similarity([dense_query_embedding], prompt_embeddings)[0]
+        #
+        # dense_similarity = min_max_scaling(dense_similarity, min_=0, max_=1)
+        # sparse_similarity = min_max_scaling(list(sparse_similarity.values()), min_=0.01, max_=10)
+        #
+        # combined_similarity_sum = (dense_similarity * 0.95) + (sparse_similarity * 0.05)
+        # combined_similarity_product = dense_similarity * sparse_similarity
+        #
+        # logger.info(f'dense similarities: {dense_similarity}')
+        # logger.info(f'sparse similarities: {sparse_similarity}')
+        #
+        # logger.info(f'combined_similarity_sum: {combined_similarity_sum}')
+        # logger.info(f'combined_similarity_product: {combined_similarity_product}')
+        #
+        # chosen_rag_collection = self.rag_collections[combined_similarity_sum.argmax()]
 
-        dense_similarity = min_max_scaling(dense_similarity, min_=0, max_=1)
-        sparse_similarity = min_max_scaling(list(sparse_similarity.values()), min_=0.01, max_=10)
-
-        combined_similarity_sum = (dense_similarity * 0.95) + (sparse_similarity * 0.05)
-        combined_similarity_product = dense_similarity * sparse_similarity
-
-        logger.info(f'dense similarities: {dense_similarity}')
-        logger.info(f'sparse similarities: {sparse_similarity}')
-
-        logger.info(f'combined_similarity_sum: {combined_similarity_sum}')
-        logger.info(f'combined_similarity_product: {combined_similarity_product}')
-
-        chosen_rag_collection = self.rag_collections[combined_similarity_sum.argmax()]
-        # chosen_rag_collection = self.rag_collections[dense_similarity.argmax()]
-
+        retriever_router = RetrieverRouter()
+        chosen_rag_collection = retriever_router.route(
+            user_query=input,
+            chat_history=chat_history,
+            grammar=None,
+            grammar_path='/home/amstel/llm/src/grammars/sberbank_consultant_router.gbnf',  # force json output
+            stop=['<|eot_id|>'],
+        )
         self.sparse_embedding_model = self.sparse_model_2_rag_collections[chosen_rag_collection]
 
         sparse_search_params = {"metric_type": "IP"}
@@ -179,8 +224,9 @@ class SberbankConsultant(BaseScenario):
     def handle(self, user_query: Any, chat_history: Any = [], context: Any = {}):
         #todo: chat_history
         # is not used
-        retriever = RunnableLambda(self.retriever_router)
-        chat_history_str = chat_history_list_to_str(chat_history)
+
+        # retriever = RunnableLambda(self.retriever_router)
+        retriever = self.retriever_router(input=user_query, chat_history=chat_history)
         llama_raw_template_system = """<|start_header_id|>system<|end_header_id|>\nТы - сотрудник Сбер Банка (Беларусь). Основываясь на контексте ниже, правдиво и полно отвечай на вопросы.<|eot_id|>"""
         llama_raw_template_user = """<|start_header_id|>user<|end_header_id|>история разговора: {chat_history_str}\nконтекст:{context}\nВопрос:{question}<|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
 
@@ -189,6 +235,7 @@ class SberbankConsultant(BaseScenario):
         prompt = PromptTemplate.from_template(template=llama_raw_template_system + llama_raw_template_user)
 
         llm = LlamaCppApiWrapper()
+        chat_history_str = chat_history_list_to_str(chat_history)
         # Chain
         rag_chain = (
                 {"context": retriever | format_docs, "question": RunnablePassthrough(), "chat_history_str": RunnableLambda(lambda x: chat_history_str)}

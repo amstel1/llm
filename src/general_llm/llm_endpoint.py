@@ -62,7 +62,7 @@ def call_generate_from_query_api(
     return r
 
 def call_generation_api(prompt: str, grammar: str = None, stop: list = None) -> str:
-    logger.debug(f'0706 debug: {prompt}')
+    logger.debug(f'1706 debug: {prompt}')
     logger.critical(f'{len(prompt)}')
     response = requests.post(
         'http://localhost:8000/generate',

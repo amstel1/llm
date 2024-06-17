@@ -6,7 +6,7 @@ array ::= "[" ws value ws "]"
 
 
 
-value ::= "\"" ("just_chatting" | "shopping_assistant_washing_machine" | "sberbank_consultant") "\""
+value ::= "\"" ("full_bge_credits" | "full_bge_deposits" | "full_bge_cards" | "full_bge_other") "\""
 
 ws ::= [ \t\n]*
 

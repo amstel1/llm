@@ -29,39 +29,7 @@ class Route(BaseModel):
 
 class ScenarioRouter:
     def __init__(self,
-                 llama_cpp_model_path = '/home/amstel/llm/models/Publisher/Repository/Meta-Llama-3-8B-Instruct-Q6_K.gguf',
-                 llama_cpp_stop: List[str] = ['<|eot_id|>'],
-                 # route_to_description=route_to_description,
-                 grammar_path='/home/amstel/llm/src/grammars/scenario_router.gbnf',
                  ):
-        # self.llm = LlamaCpp(
-        #     model_path=llama_cpp_model_path,
-        #     n_gpu_layers=33,
-        #     max_tokens=1024,
-        #     n_batch=1024,
-        #     n_ctx=2048,
-        #     f16_kv=True,
-        #     verbose=True,
-        #     temperature=0.0,
-        #     grammar_path=grammar_path,
-        #     stop=llama_cpp_stop,
-        # )
-
-        # self.route_to_description = ', '.join(route_to_description)
-        # self.prompt = PromptTemplate.from_template(
-        #     template="<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n"
-        #               "You are a state-of-the-art intent classifer.<|eot_id|><|start_header_id|>user<|end_header_id|>\n"
-        #               "Given user_input and mapping of possible routes and their descriptions you must select the most appropriate route for the user_input.\n"
-        #               "Here is the route to description mapping:\n{route_to_description}\n\n"
-        #              "Given the user input below, think step-by-step to determine which route it should take:\n"
-        #              "user_input:\n{user_input}\n"
-        #             "Step-by-step reasoning:\n"
-        #             "1. Analyze the content of the user input to determine if it essence relates to one of the route descriptions.\n"
-        #             "2. If not, assign just_chatting.\n"
-        #             "Based on your reasoning, decide on the route as JSON.\nJSON:"
-        #               "<|eot_id|><|start_header_id|>assistant<|end_header_id|>",
-        # )
-        # self.chain = self.prompt | self.llm | JsonOutputParser()
         self.prompt_without_chat_history = """<|start_header_id|>system<|end_header_id|>
 You are a state-of-the-art intent classifer.<|eot_id|><|start_header_id|>user<|end_header_id|>
 Given user input and mapping of possible routes and their descriptions select the most appropriate route for the user input.
@@ -112,17 +80,16 @@ Please respond with the most relevant route name as JSON.<|eot_id|><|start_heade
                 grammar = f.read()
         if (chat_history is None) or (not chat_history) or (len(chat_history)==1):
             generation_result = call_generation_api(
-                prompt= self.prompt_without_chat_history.format(**{"user_input": user_query, }),
+                prompt = self.prompt_without_chat_history.format(**{"user_input": user_query, }),
                 grammar=grammar,
                 stop=stop,
             )
         else:
             # done: chat_history must be parsed, already implemented at .shopping_assistant, reuse
             str_chat_history = chat_history_list_to_str(chat_history)
-
             generation_result = call_generation_api(
                 prompt=self.prompt_with_chat_history.format(
-                    **{"user_input": user_query, "chat_history":str_chat_history, }),
+                    **{"user_input": user_query, "chat_history": str_chat_history, }),
                 grammar=grammar,
                 stop=stop,
             )
