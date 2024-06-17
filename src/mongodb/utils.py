@@ -112,7 +112,13 @@ class MongoWrite(Write):
                 except Exception as e:
                     data = [item for sublist in data for item in sublist]
         if len(data) > 0:
-            self.mongo_connector.write_many(data)
+            # self.mongo_connector.write_many(data)
+            for i, element in enumerate(data):
+                try:
+                    self.mongo_connector.write_one(element)
+                    logger.debug(i)
+                except Exception as e:
+                    logger.debug(e)
             # logger.info(f'written: {data}')
         # cursor = MongoConnector(operation='write', db_name='scraped_data', collection_name='product_details')
         # cursor.write_many(product_details)

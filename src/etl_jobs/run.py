@@ -274,55 +274,55 @@ if __name__ == '__main__':
 
 
 
-    # # step 3.A - prepare data, save to pickle
-    # # Read: 3.1
-    # mongo_read_product_reviews = MongoRead(operation='read', db_name='scraped_data', collection_name='product_reviews')
-    # # Read 3.2
-    # mongo_read_product_details = MongoRead(operation='read', db_name='scraped_data', collection_name='product_details')
-    # # Read: 3.3
-    # postgres_read_item_list = PostgresDataFrameRead(
-    #     table='scraped_data.item_details_washing_machine',
-    #     where="offer_count is not null order by offer_count desc, min_price asc limit 500"
-    # )
-    # # Read: 3.4
-    # postgres_read_query_attempts = PostgresDataFrameRead(table='scraped_data.product_query_attempts')
-    # # Part 3A
-    # logger.warning('Start - Job 3A')
-    # scrape_internet_part_A = Job(
-    #     reader=ReadChainSearchParsePart1(readers=[
-    #         mongo_read_product_reviews,
-    #         mongo_read_product_details,
-    #         postgres_read_item_list,
-    #         postgres_read_query_attempts
-    #     ]),
-    #     writer=PickleDataWrite(filepath='temp_2005_A.pkl'),
-    # )
-    # scrape_internet_part_A.run()
-    # logger.warning('End - Job 3A')
-    #
-    # # # step 3B
-    # logger.warning('Start - Job 3B')
-    # internet_reader = SearchParseRead()
-    # scrape_internet_part_C = Job(
-    #     reader=ReadChainSearchParsePart2(readers=[
-    #         PickleDataRead(filepath='temp_2005_A.pkl'),
-    #         internet_reader,
-    #     ]),
-    #     processor=DoChain(processors=[
-    #         AttemptProductsDo(),
-    #         YandexMarketDo()
-    #     ]),
-    #     writer=WriteChain(writers=[
-    #             PostgresDataFrameWrite(schema_name='scraped_data', table_name='product_query_attempts', insert_unique=False),  # todo: bug when False
-    #             WriteChain(writers=[
-    #                 MongoWrite(operation='write', db_name='scraped_data', collection_name='product_details'),
-    #                 MongoWrite(operation='write', db_name='scraped_data', collection_name='product_reviews')
-    #             ]),  # details & reviews
-    #         ],
-    #     )
-    # )
-    # scrape_internet_part_C.run()
-    # logger.warning('End - Job 3B')
+    # step 3.A - prepare data, save to pickle
+    # Read: 3.1
+    mongo_read_product_reviews = MongoRead(operation='read', db_name='scraped_data', collection_name='product_reviews')
+    # Read 3.2
+    mongo_read_product_details = MongoRead(operation='read', db_name='scraped_data', collection_name='product_details')
+    # Read: 3.3
+    postgres_read_item_list = PostgresDataFrameRead(
+        table='scraped_data.item_details_washing_machine',
+        where="offer_count is not null order by offer_count desc, min_price asc limit 5000"
+    )
+    # Read: 3.4
+    postgres_read_query_attempts = PostgresDataFrameRead(table='scraped_data.product_query_attempts')
+    # Part 3A
+    logger.warning('Start - Job 3A')
+    scrape_internet_part_A = Job(
+        reader=ReadChainSearchParsePart1(readers=[
+            mongo_read_product_reviews,
+            mongo_read_product_details,
+            postgres_read_item_list,
+            # postgres_read_query_attempts
+        ]),
+        writer=PickleDataWrite(filepath='temp_2005_A.pkl'),
+    )
+    scrape_internet_part_A.run()
+    logger.warning('End - Job 3A')
+
+    # # step 3B
+    logger.warning('Start - Job 3B')
+    internet_reader = SearchParseRead()
+    scrape_internet_part_C = Job(
+        reader=ReadChainSearchParsePart2(readers=[
+            PickleDataRead(filepath='temp_2005_A.pkl'),
+            internet_reader,
+        ]),
+        processor=DoChain(processors=[
+            AttemptProductsDo(),
+            YandexMarketDo()
+        ]),
+        writer=WriteChain(writers=[
+                PostgresDataFrameWrite(schema_name='scraped_data', table_name='product_query_attempts', insert_unique=False),  # todo: bug when False
+                WriteChain(writers=[
+                    MongoWrite(operation='write', db_name='scraped_data', collection_name='product_details'),
+                    MongoWrite(operation='write', db_name='scraped_data', collection_name='product_reviews')
+                ]),  # details & reviews
+            ],
+        )
+    )
+    scrape_internet_part_C.run()
+    logger.warning('End - Job 3B')
 
     # todo: 2905 after lunch
     # Job 4 -> Fill in the details from the sites that have no product_details microdata
@@ -338,17 +338,17 @@ if __name__ == '__main__':
     # DetailsFillIn.run()
 
     # Job 5 - Mongo Details -> PostgresDetails
-    # ReviewsProductDetails = Job(
-    #     reader=MongoRead(operation='read', db_name='scraped_data', collection_name='product_details'),
-    #     processor=ReviewsProductDetailsDo(),
-    #     writer=PostgresDataFrameWrite(
-    #         schema_name='scraped_data',
-    #         table_name='reviews_product_details',
-    #         insert_unique=True,
-    #         index_column='product_url'
-    #     )
-    # )
-    # ReviewsProductDetails.run()
+    ReviewsProductDetails = Job(
+        reader=MongoRead(operation='read', db_name='scraped_data', collection_name='product_details'),
+        processor=ReviewsProductDetailsDo(),
+        writer=PostgresDataFrameWrite(
+            schema_name='scraped_data',
+            table_name='reviews_product_details',
+            insert_unique=True,
+            index_column='product_url'
+        )
+    )
+    ReviewsProductDetails.run()
 
     # todo: correct empty rating from postgres view - decide in Job 3 what to scrape based on that
 

@@ -19,6 +19,7 @@ from langchain.retrievers import ContextualCompressionRetriever
 from langchain.retrievers.document_compressors import FlashrankRerank
 from general_llm.langchain_llama_cpp_api_warpper import LlamaCppApiWrapper
 from scenarios.base import BaseScenario
+from scenarios.shopping_assistant import chat_history_list_to_str
 # from langchain_milvus import MilvusCollectionHybridSearchRetriever
 from rag.utils import ExtendedMilvusCollectionHybridSearchRetriever as MilvusCollectionHybridSearchRetriever
 from rag.utils import BGEDocumentCompressor
@@ -77,6 +78,7 @@ class SberbankConsultant(BaseScenario):
 
 
     def retriever_router(self, input: str):
+        # todo: big problem is - it does not take chat_history into account
         # input: str
         logger.debug(input)
         options = [
@@ -87,7 +89,6 @@ class SberbankConsultant(BaseScenario):
         ]
         prompt_embeddings = self.dense_embedding_model.embed_documents(options)
         dense_query_embedding = self.dense_embedding_model.embed_query(input.lower())
-        # todo: change cosine similarity to bm25
         sparse_similarity = {}
         for sparse_embedding_model_name, sparse_embedding_model in self.sparse_model_2_rag_collections.items():
             # assert order: credit, deposit, card, other
@@ -179,9 +180,9 @@ class SberbankConsultant(BaseScenario):
         #todo: chat_history
         # is not used
         retriever = RunnableLambda(self.retriever_router)
-
-        llama_raw_template_system = """<|start_header_id|>system<|end_header_id|>\nТы - приветливый ИИ, разработанный в Сбер Банке (Беларусь). Ты знаешь только русский язык. Основываясь на контексте ниже, правдиво и полно отвечай на вопросы.<|eot_id|>"""
-        llama_raw_template_user = """<|start_header_id|>user<|end_header_id|>\nКонтекст:\n\n{context}\n\nВопрос:\n{question}<|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
+        chat_history_str = chat_history_list_to_str(chat_history)
+        llama_raw_template_system = """<|start_header_id|>system<|end_header_id|>\nТы - сотрудник Сбер Банка (Беларусь). Основываясь на контексте ниже, правдиво и полно отвечай на вопросы.<|eot_id|>"""
+        llama_raw_template_user = """<|start_header_id|>user<|end_header_id|>история разговора: {chat_history_str}\nконтекст:{context}\nВопрос:{question}<|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
 
         # Prompt
         debugger = RunnablePassthrough(def_debugger)
@@ -190,7 +191,7 @@ class SberbankConsultant(BaseScenario):
         llm = LlamaCppApiWrapper()
         # Chain
         rag_chain = (
-                {"context": retriever | format_docs, "question": RunnablePassthrough()}
+                {"context": retriever | format_docs, "question": RunnablePassthrough(), "chat_history_str": RunnableLambda(lambda x: chat_history_str)}
                 | prompt
                 | def_debugger
                 | llm

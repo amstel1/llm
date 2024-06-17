@@ -35,6 +35,7 @@ import requests
 from loguru import logger
 from general_llm.llm_endpoint import call_generation_api, call_generate_from_history_api, call_generate_from_query_api
 
+# todo: move to general_llm
 def chat_history_list_to_str(chat_history: list):
     str_chat_history = ''
     clean_chat_history = [x for x in chat_history if x.get('role') in ('user', 'assistant')]  # there can also be role==html
@@ -105,8 +106,7 @@ class ShoppingAssistantScenario(BaseScenario):
             str_chat_history = chat_history_list_to_str(chat_history[:-1])  # edit last user message is eliminated
             user_query_input = user_content_with_history.format(user_query=user_query, str_chat_history=str_chat_history)
             prompt = get_llama3_template_from_user_query(system_prompt_clean='Ты объективный семантический оценщик.', user_query=user_query_input)
-            with open('Ты объективный семантический оценщик.txt', 'w') as f:
-                f.write(prompt)
+
         return call_generation_api(prompt=prompt, grammar='root ::= "True"|"False"')
 
 
