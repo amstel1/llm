@@ -227,7 +227,7 @@ class SberbankConsultant(BaseScenario):
 
         # retriever = RunnableLambda(self.retriever_router)
         retriever = self.retriever_router(input=user_query, chat_history=chat_history)
-        llama_raw_template_system = """<|start_header_id|>system<|end_header_id|>\nТы - сотрудник Сбер Банка (Беларусь). Основываясь на контексте ниже, правдиво и полно отвечай на вопросы.<|eot_id|>"""
+        llama_raw_template_system = """<|start_header_id|>system<|end_header_id|>\nТы - сотрудник Сбер Банка (Беларусь). Ты знаешь только русский язык. Основываясь на контексте ниже, правдиво и полно отвечай на вопросы.<|eot_id|>"""
         llama_raw_template_user = """<|start_header_id|>user<|end_header_id|>история разговора: {chat_history_str}\nконтекст:{context}\nВопрос:{question}<|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
 
         # Prompt

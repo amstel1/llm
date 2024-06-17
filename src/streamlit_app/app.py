@@ -102,7 +102,7 @@ if __name__ == '__main__':
                 # initial
                 st.session_state.scenario_object = ShoppingAssistantScenario()
                 st.session_state.context['current_step'] = 'verify'
-            elif st.session_state.context['scenario_name'] == 'sberbank_consultant' and 'current_step' not in st.session_state.context:
+            elif st.session_state.context['scenario_name'] == 'sberbank_consultant':
                 st.session_state.scenario_object = SberbankConsultant()
             elif st.session_state.context['scenario_name'] == 'just_chatting':
                 st.session_state.scenario_object = JustChattingScenario()  # stateless (no current_step) by design

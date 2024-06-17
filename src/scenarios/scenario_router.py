@@ -32,15 +32,16 @@ class ScenarioRouter:
                  ):
         self.prompt_without_chat_history = """<|start_header_id|>system<|end_header_id|>
 You are a state-of-the-art intent classifer.<|eot_id|><|start_header_id|>user<|end_header_id|>
-Given user input and mapping of possible routes and their descriptions select the most appropriate route for the user input.
 
 route mapping: 
 just_chatting: разговор на любые темы
 shopping_assistant_washing_machine: поиск, выбор, покупка стиральной или стирально-сушильной машины
-sberbank_consultant: консультация по всем вопросам, связанным с банковскими продуктами (карта, депозит, кредит), услугами (покупай валюту, страховка) (Сбер Банк Беларусь)
+sberbank_consultant: консультация по всем вопросам, связанным с накоплением и сбережением, банковскими продуктами (карта, депозит, кредит), услугами (покупай валюту, страховка) (Сбер Банк Беларусь)
 
 user input:
 {user_input}
+
+Given user input and mapping of possible routes and their descriptions select the most appropriate route for the user input.
 
 Use step-by-step reasoning:
 1. Analyze the content of the user input to determine if it essence relates to one of the route descriptions.
@@ -51,7 +52,6 @@ Based on your reasoning, decide on the route as JSON.<|eot_id|><|start_header_id
 
         self.prompt_with_chat_history = """<|start_header_id|>system<|end_header_id|>
 You are a state-of-the-art intent classifer.<|eot_id|><|start_header_id|>user<|end_header_id|>
-Based on the user input and the chat history, identify which route the user's input most closely relates to. Your decision should take into account the context provided by the chat history. Respond with the most relevant route name from the given mapping.
 
 chat history:
 {chat_history}
@@ -62,9 +62,9 @@ user_input:
 route mapping: 
 just_chatting: разговор на любые темы
 shopping_assistant_washing_machine: поиск, выбор, покупка стиральной или стирально-сушильной машины
-sberbank_consultant: консультация по всем вопросам, связанным с банковскими продуктами (карта, депозит, кредит), услугами (покупай валюту, страховка) (Сбер Банк Беларусь)
+sberbank_consultant: консультация по всем вопросам, связанным с накоплением и сбережением, банковскими продуктами (карта, депозит, кредит), услугами (покупай валюту, страховка) (Сбер Банк Беларусь)
 
-
+Based on the user input and the chat history, identify which route the user's input most closely relates to. Your decision should take into account the context provided by the chat history. Respond with the most relevant route name from the given mapping.
 Please respond with the most relevant route name as JSON.<|eot_id|><|start_header_id|>assistant<|end_header_id|>\nJSON:"""
 
     def route(self,
