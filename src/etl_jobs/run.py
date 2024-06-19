@@ -36,6 +36,7 @@ class YandexMarketDo(Do):
         results = []
         for user_query in user_queries:
             triple = data.get(user_query)
+            logger.critical(triple)
             try:
                 assert len(triple) == 3
                 item_name = triple[0]
@@ -226,13 +227,13 @@ class ReviewsProductDetailsDo(Do):
 if __name__ == '__main__':
     pass
 
-    # step 1. ItemList from sites to Postgres
+    ## step 1. ItemList from sites to Postgres
     # logger.warning('Start - Job 1')
-    # product_type_name='Стиральная машина'
+    # product_type_name='Холодильник'  # Стиральная машина, Холодильник
     #
-    # # product_type_url = [f'https://shop.by/stiralnye_mashiny/?page_id={i}' for i in range(1, 30)]  # 1,30
-    # # product_type_url=[f'https://www.21vek.by/washing_machines/page:{i}/' for i in range(1, 11)]  # 2,11
-    # product_type_url=[f'https://catalog.onliner.by/washingmachine?page={i}' for i in range(1, 50)]  # 2,50
+    # # product_type_url = [f'https://shop.by/holodilniki/?page_id={i}' for i in range(1, 105+1)]  # 1,30
+    # # product_type_url=[f'https://www.21vek.by/refrigerators/page:{i}/' for i in range(2, 15)]  # 2,11
+    # product_type_url=[f'https://catalog.onliner.by/refrigerator?page={i}' for i in range(2, 155)]  # 2,50
     #
     # ItemlList_2_Postgres = Job(
     #     # reader=EcomItemListRead(extractor_name='ShopByExtractor', product_type_url=product_type_url, product_type_name=product_type_name),
@@ -242,8 +243,8 @@ if __name__ == '__main__':
     #     processor=ItemListDo(),
     #
     #     writer=PostgresDataFrameWrite(
-    #         schema_name='scraped_data',
-    #         table_name='product_item_list_to_fill2',  # product_item_list_to_fill, product_item_list
+    #         schema_name='fridge',
+    #         table_name='product_item_list',  # product_item_list_to_fill, product_item_list
     #         insert_unique=True,
     #         index_column="product_url",
     #     ),
@@ -254,19 +255,21 @@ if __name__ == '__main__':
 
 
 
-    # step 2. Read: ItemList from Postgres, Do: Scrapy ProductDetails, Write: to Postgres
+    # # step 2. Read: ItemList from Postgres, Do: Scrapy ProductDetails, Write: to Postgres
     # logger.warning('Start - Job 2')
     # ItemDetails_2_Postgres = Job(
     #     reader=ItemDetailsRead(
-        #         step1__table='scraped_data.product_item_list',
-    #         step1__where=None,
+    #         step1__table='fridge.product_item_list',
+    #         step1__where="product_url ilike '%%shop.by%%'",
     #         step1_urls_attribute='product_url'
     #     ),
-    #     processor=ItemDetailsDo(),
+    #     processor=ItemDetailsDo(product_type_name='Холодильник'),
     #     writer=PostgresDataFrameWrite(
-    #         schema_name='scraped_data',
-    #         table_name='item_details_washing_machine'),
+    #         schema_name='fridge',
+    #         table_name='item_details_fridge',
+    #         insert_unique=True),
     # )
+    # # raise NotImplementedError  # todo: resolve custom item_details parsing classes
     # ItemDetails_2_Postgres.run()
     # logger.warning('End - Job 2')
 
@@ -276,16 +279,16 @@ if __name__ == '__main__':
 
     # step 3.A - prepare data, save to pickle
     # Read: 3.1
-    mongo_read_product_reviews = MongoRead(operation='read', db_name='scraped_data', collection_name='product_reviews')
+    mongo_read_product_reviews = MongoRead(operation='read', db_name='fridge', collection_name='product_reviews')
     # Read 3.2
-    mongo_read_product_details = MongoRead(operation='read', db_name='scraped_data', collection_name='product_details')
+    mongo_read_product_details = MongoRead(operation='read', db_name='fridge', collection_name='product_details')
     # Read: 3.3
     postgres_read_item_list = PostgresDataFrameRead(
-        table='scraped_data.item_details_washing_machine',
-        where="offer_count is not null order by offer_count desc, min_price asc limit 5000"
+        table='fridge.item_details_fridge',
+        where=" (offer_count is not null or offer_count is null) and height_cm >= 195 order by min_price asc limit 200"
     )
     # Read: 3.4
-    postgres_read_query_attempts = PostgresDataFrameRead(table='scraped_data.product_query_attempts')
+    postgres_read_query_attempts = PostgresDataFrameRead(table='fridge.product_query_attempts')
     # Part 3A
     logger.warning('Start - Job 3A')
     scrape_internet_part_A = Job(
@@ -313,10 +316,10 @@ if __name__ == '__main__':
             YandexMarketDo()
         ]),
         writer=WriteChain(writers=[
-                PostgresDataFrameWrite(schema_name='scraped_data', table_name='product_query_attempts', insert_unique=False),  # todo: bug when False
+                PostgresDataFrameWrite(schema_name='fridge', table_name='product_query_attempts', insert_unique=True),  # todo: bug when False
                 WriteChain(writers=[
-                    MongoWrite(operation='write', db_name='scraped_data', collection_name='product_details'),
-                    MongoWrite(operation='write', db_name='scraped_data', collection_name='product_reviews')
+                    MongoWrite(operation='write', db_name='fridge', collection_name='product_details'),
+                    MongoWrite(operation='write', db_name='fridge', collection_name='product_reviews')
                 ]),  # details & reviews
             ],
         )
@@ -324,32 +327,33 @@ if __name__ == '__main__':
     scrape_internet_part_C.run()
     logger.warning('End - Job 3B')
 
-    # todo: 2905 after lunch
-    # Job 4 -> Fill in the details from the sites that have no product_details microdata
-    # DetailsFillIn = Job(
-    #     reader=ReadChain(readers=[
-    #         PostgresDataFrameRead(table='scraped_data.item_details_washing_machine', where=''),
-    #         PostgresDataFrameRead(table='scraped_data.product_item_list_to_fill', where=''),
-    #         PostgresDataFrameRead(table='scraped_data.product_item_list', where=''),
-    #     ]),
-    #     processor=FillInDo(),
-    #     writer=PostgresDataFrameWrite(schema_name='scraped_data', table_name='item_details_washing_machine', insert_unique=False)
+
+    # # todo: 2905 after lunch
+    # # Job 4 -> Fill in the details from the sites that have no product_details microdata
+    # # DetailsFillIn = Job(
+    # #     reader=ReadChain(readers=[
+    # #         PostgresDataFrameRead(table='scraped_data.item_details_washing_machine', where=''),
+    # #         PostgresDataFrameRead(table='scraped_data.product_item_list_to_fill', where=''),
+    # #         PostgresDataFrameRead(table='scraped_data.product_item_list', where=''),
+    # #     ]),
+    # #     processor=FillInDo(),
+    # #     writer=PostgresDataFrameWrite(schema_name='scraped_data', table_name='item_details_washing_machine', insert_unique=False)
+    # # )
+    # # DetailsFillIn.run()
+    #
+    # # Job 5 - Mongo Details -> PostgresDetails
+    # ReviewsProductDetails = Job(
+    #     reader=MongoRead(operation='read', db_name='scraped_data', collection_name='product_details'),
+    #     processor=ReviewsProductDetailsDo(),
+    #     writer=PostgresDataFrameWrite(
+    #         schema_name='scraped_data',
+    #         table_name='reviews_product_details',
+    #         insert_unique=True,
+    #         index_column='product_url'
+    #     )
     # )
-    # DetailsFillIn.run()
-
-    # Job 5 - Mongo Details -> PostgresDetails
-    ReviewsProductDetails = Job(
-        reader=MongoRead(operation='read', db_name='scraped_data', collection_name='product_details'),
-        processor=ReviewsProductDetailsDo(),
-        writer=PostgresDataFrameWrite(
-            schema_name='scraped_data',
-            table_name='reviews_product_details',
-            insert_unique=True,
-            index_column='product_url'
-        )
-    )
-    ReviewsProductDetails.run()
-
-    # todo: correct empty rating from postgres view - decide in Job 3 what to scrape based on that
-
-    # Job 6 - to complete -
+    # ReviewsProductDetails.run()
+    #
+    # # todo: correct empty rating from postgres view - decide in Job 3 what to scrape based on that
+    #
+    # # Job 6 - to complete -

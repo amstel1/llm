@@ -13,10 +13,6 @@ MongoRole = Literal['reader', 'writer',]
 CONFIG = {
     'host': 'localhost',
     'port': 27017,
-    'credentials': {
-        'reader': {'username': 'reader', 'password': 'reader'},
-        'writer': {'username': 'writer', 'password': 'writer'},
-    }
 }
 
 CREDENTIALS = {
@@ -73,10 +69,10 @@ class MongoRead(Read):
         self.collection_name = collection_name
         self.mongo_connector = MongoConnector(operation=self.operation, db_name=self.db_name,
                                          collection_name=self.collection_name)
-        if operation in ('read', 'check_exists'):
-            self.mongo_connector.auth(role='reader')
-        elif operation in ('write', 'delete'):
-            self.mongo_connector.auth(role='writer')
+        # if operation in ('read', 'check_exists'):
+        #     self.mongo_connector.auth(role='reader')
+        # elif operation in ('write', 'delete'):
+        #     self.mongo_connector.auth(role='writer')
         assert self.mongo_connector.db is not None
         assert self.mongo_connector.collection is not None
 
@@ -126,7 +122,27 @@ class MongoWrite(Write):
         # cursor = MongoConnector(operation='write', db_name='scraped_data', collection_name='product_reviews')
         # cursor.write_many(reviews_details)
 
-
+def delete_empty():
+    role = 'write'
+    query = {"$and": [{"_id": {"$exists": True}},
+                      {"$expr": {"$eq": [{"$objectToArray": "$$ROOT"}, [{"k": "_id", "v": "$_id"}]]}}]}
+    CONFIG = {
+        'host': 'localhost',
+        'port': 27017,
+    }
+    CREDENTIALS = {
+        'reader': {'username': 'reader', 'password': 'reader'},
+        'writer': {'username': 'writer', 'password': 'writer'},
+    }
+    username = CREDENTIALS.get(role).get('username')
+    password = CREDENTIALS.get(role).get('password')
+    client = pymongo.MongoClient(
+        f"mongodb://{username}:{password}@{CONFIG.get('host')}:{CONFIG.get('port')}/"
+    )
+    db = client['fridge']
+    collection = db['product_details']
+    result = collection.delete_many(query)
+    print(result)
 
 
 if __name__ == '__main__':
@@ -140,7 +156,6 @@ if __name__ == '__main__':
     # con_product_details = MongoConnector(operation='read', db_name='scraped_data', collection_name='product_details')
     # cursor_product_details = con_product_details.read_many({})
     # product_details = list(cursor_product_details)
-
 
     with open('/home/amstel/llm/out/summarized_reviews.pkl', 'rb') as f:
         summarized_reviews = pickle.load(f)

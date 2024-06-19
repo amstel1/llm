@@ -297,7 +297,7 @@ def search_google(user_query: str) -> str:
     # google
     url = 'https://google.com/search'
     params = {
-        'q': 'site: market.yandex.by отзывы ' + user_query,
+        'q': 'site:market.yandex.by "отзывы" ' + user_query,
     }
 
     for i, (k, v) in enumerate(params.items()):
@@ -403,6 +403,7 @@ def thread_work(user_query: str) -> Tuple[str, Tuple[str, Dict], Tuple[str, List
         logger.info(product_url)
         try:
             product_details_list = scrape_page_playwright(url_path=product_url, parse_func=parse_product)
+            logger.debug(product_details_list)
             INTERRUPT = product_details_list[-1]
             if INTERRUPT:
                 return (user_query, (), (), INTERRUPT)

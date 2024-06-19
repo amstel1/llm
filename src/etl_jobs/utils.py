@@ -25,6 +25,13 @@ class ItemListDo(Do):
 
 
 class ItemDetailsDo(Do):
+    def __init__(self, product_type_name='Холодильник'):
+        self.product_type_name = product_type_name
+        self.handler_mappring = {
+            'Стиральная машина': self.washing_mashine_handler,
+            'Холодильник': self.fridge_handler,
+        }
+
     @staticmethod
     def remove_from_bracket(s):
         if isinstance(s, str):
@@ -33,7 +40,57 @@ class ItemDetailsDo(Do):
                 return s[:position].strip(' ')
         return s
 
-    def washing_mashine_preprocess(self, df: pd.DataFrame):
+    def fridge_handler(self, df: pd.DataFrame):
+        shop_fridge_mapping = {
+            'name': 'name',
+            'product_url': 'product_url',
+            'offer_count': 'offer_count',
+            'min_price': 'min_price',
+            "Производитель": "manufacturer",
+            "Количество камер": "number_of_chambers",
+            "Тип": "type",
+            "Компоновка": "layout",
+            "No Frost": "no_frost",
+            "Зона свежести (BioFresh)": "biofresh_zone",
+            "Цвет корпуса": "body_color",
+            "Климатический класс": "climate_class",
+            "Возможность перенавешивания дверей": "door_reversibility",
+            "Дополнительная комплектация холодильного отделения": "additional_fridge_features",
+            "Ручки": "handles",
+            "Класс энергопотребления": "energy_class",
+            "Инверторный компрессор": "inverter_compressor",
+            "Тип управления": "control_type",
+            "Расположение блока управления": "control_panel_location",
+            "Дисплей": "display",
+            # numeric
+            "Количество компрессоров": "number_of_compressors",
+            "Объем холодильной камеры, л": "fridge_volume_l",
+            "Объем морозильной камеры, л": "freezer_volume_l",
+            "Количество отделений морозильной камеры": "number_of_freezer_compartments",
+            "Мощность замораживания, кг/сутки": "freezing_capacity_kg_per_day",
+            "Высота, см": "height_cm",
+            "Ширина, см": "width_cm",
+            "Глубина, см": "depth_cm"
+        }
+
+        shop_fridge_inverse_mapping = {v: k for k, v in shop_fridge_mapping.items()}
+        cols = shop_fridge_mapping.keys()
+        # logger.debug(cols)
+
+        df = df[cols]
+        df.rename(columns=shop_fridge_mapping, inplace=True)
+
+        for col in ['offer_count','min_price', 'number_of_compressors', 'fridge_volume_l', 'freezer_volume_l',
+                    'number_of_freezer_compartments', 'freezing_capacity_kg_per_day', 'height_cm', 'width_cm',
+                    'depth_cm']:
+            df[col] = df[col].map(ItemDetailsDo.remove_from_bracket)
+            df[col] = df[col].astype(float)
+        for col in ['display', 'inverter_compressor', 'door_reversibility', 'biofresh_zone', 'no_frost']:
+            df[col] = df[col].map(ItemDetailsDo.remove_from_bracket)
+            df[col] = df[col].replace({'Есть': 'Да'})
+        return df
+
+    def washing_mashine_handler(self, df: pd.DataFrame):
         # logger.debug(df.head())
         shop_washing_machine_inverse_mapping = {
             'name': 'name',
@@ -92,8 +149,7 @@ class ItemDetailsDo(Do):
         data = data.get("step_0")
         if isinstance(data, list) and not (isinstance(data[0], list) or isinstance(data[0], tuple)):
             df = pd.DataFrame(data)
-            # logger.warning(df)
-            df = self.washing_mashine_preprocess(df)
+            df = self.handler_mappring[self.product_type_name](df)
             return {"step_0": df}
         else:
             return {"step_0": None}

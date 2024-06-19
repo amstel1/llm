@@ -9,7 +9,7 @@ db.createUser(
     user: "writer",
     pwd: "writer",
     roles: [
-      { role: "readWrite", db: "scraped_data" }
+      { role: "readWrite", db: "fridge" }
     ]
   }
 )
@@ -19,7 +19,7 @@ db.createUser(
     user: "reader",
     pwd: "reader",
     roles: [
-      { role: "read", db: "scraped_data" }
+      { role: "read", db: "fridge" }
     ]
   }
 )
