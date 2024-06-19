@@ -285,7 +285,7 @@ if __name__ == '__main__':
     # Read: 3.3
     postgres_read_item_list = PostgresDataFrameRead(
         table='fridge.item_details_fridge',
-        where=" (offer_count is not null or offer_count is null) and height_cm >= 195 order by min_price asc limit 200"
+        where=" (offer_count is not null or offer_count is null) and offer_count > 10 and height_cm >= 195 order by min_price asc limit 2000"
     )
     # Read: 3.4
     postgres_read_query_attempts = PostgresDataFrameRead(table='fridge.product_query_attempts')

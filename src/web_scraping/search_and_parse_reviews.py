@@ -297,7 +297,7 @@ def search_google(user_query: str) -> str:
     # google
     url = 'https://google.com/search'
     params = {
-        'q': 'site:market.yandex.by "отзывы" ' + user_query,
+        'q': f'site:market.yandex.by {user_query} отзывы',
     }
 
     for i, (k, v) in enumerate(params.items()):
