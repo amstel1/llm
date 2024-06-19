@@ -280,7 +280,7 @@ def google_find_link(soup, user_query) -> str:
         best_text = None
         best_href = None
     logger.info(f'{best_id}, {best_score}, {best_text}, {best_href}')
-    return best_href
+    return best_href, best_text
 
 
 def search_google(user_query: str) -> str:
@@ -341,9 +341,10 @@ def search_google(user_query: str) -> str:
         page = context.new_page()
         stealth_sync(page)
         # page.wait_for_timeout(int(np.random.uniform(0, 1000, 1)[0]))
-        page.goto(url, wait_until='load'
+        response = page.goto(url, wait_until='load'
                   # referer='https://yandex.by/',
                   )
+        interrupt = ([True for x in response.frame.child_frames if 'captcha' in x.url])
         # page.wait_for_timeout(int(np.random.uniform(2500, 5000, 1)[0]))
         content = page.content()
         try:
@@ -353,38 +354,41 @@ def search_google(user_query: str) -> str:
             pass
         # with open("duck_res.html") as fp:
         #     soup = BeautifulSoup(fp, "html.parser")
-        soup = BeautifulSoup(content, "html.parser")
-        # logger.debug('in google_find_link')
-        best_link = google_find_link(soup=soup, user_query=user_query)
+        best_link, best_text = None, None
+        if not interrupt:
+            soup = BeautifulSoup(content, "html.parser")
+            # logger.debug('in google_find_link')
+            best_link, best_text = google_find_link(soup=soup, user_query=user_query)
         # logger.debug(f'best link: {best_link}')
         context.close()
         browser.close()
-    return best_link
+    return best_link, best_text, interrupt
     # except Exception as e:
     #     logger.critical(f'error: {e}')
     #     return ''
 
 
-@logger.catch
-def thread_work(user_query: str) -> Tuple[str, Tuple[str, Dict], Tuple[str, List[Dict]], bool]:
+def search_google_parse_results(user_query: str) -> str:
     '''
-    We don't know if the returned value actually links to reviews
-    :param user_query: str - User query we search in google
+        We don't know if the returned value actually links to reviews
+        :param user_query: str - User query we search in google
 
-    :returns
-    Tuple(user_query: str, product_details_list: Tuple[str, Dict], review_details_list: Tuple[str, List[Dict]]
-    '''
+        :returns
+        Tuple(user_query: str, product_details_list: Tuple[str, Dict], review_details_list: Tuple[str, List[Dict]]
+        '''
     try:
-        some_url = search_google(user_query=user_query)  # may return None if search fails
+        some_url, yandex_product_name, interrupt = search_google(user_query=user_query)  # may return None if search fails
     except Exception as e:
-        logger.critical(f'search google error: {search_google}')
+        logger.critical(f'search google error: {e}')
+        product_url, reviews_url, yandex_product_name = None, None, None
+        interrupt = True
         some_url = None
     # logger.critical(f'some url: {some_url}')
     if some_url:
         if '/reviews' in some_url:
             logger.info('branch reviews')
             logger.info(user_query, )
-            product_url  = some_url[:some_url.find('/reviews')]
+            product_url = some_url[:some_url.find('/reviews')]
             reviews_url = some_url[:some_url.find('/reviews')] + '/reviews'
             logger.info(f'input_url: {some_url}')
             logger.info(f'reviews_url: {reviews_url}')
@@ -397,44 +401,69 @@ def thread_work(user_query: str) -> Tuple[str, Tuple[str, Dict], Tuple[str, List
             logger.warning(f'input_url {some_url}')
             logger.warning(f'reviews_url: {reviews_url}')
             logger.warning(f'product_url: {product_url}')
+        elif 'market.yandex' in some_url:
+            product_url = some_url
+            reviews_url = None
+            yandex_product_name = None
         else:
             logger.critical(f'v1 - no results for: {user_query}')
-            return (user_query, [], [], False)
+            return None, None, yandex_product_name, interrupt
         logger.info(product_url)
-        try:
-            product_details_list = scrape_page_playwright(url_path=product_url, parse_func=parse_product)
-            logger.debug(product_details_list)
-            INTERRUPT = product_details_list[-1]
-            if INTERRUPT:
-                return (user_query, (), (), INTERRUPT)
-        except Exception as e:
-            logger.critical(f'product_details_list error: {e}')
-            product_details_list = []
+    else:
+        product_url, reviews_url, yandex_product_name = None, None, None
+    return product_url, reviews_url, yandex_product_name, interrupt
 
-        # try:
-        #     review_details_list = scrape_page_playwright(url_path=reviews_url, parse_func=parse_reviews)
-        #     INTERRUPT = product_details_list[-1]
-        #     if INTERRUPT:
-        #         return (user_query, product_details_list, (), INTERRUPT)
-        # except Exception as e:
-        #     logger.critical(f'review_details_list error: {e}')
-        #     review_details_list = []
-        # if not review_details_list[-1]:  # list of reviews
-        #     # this may happen if the reviews_url logic is faulty or when product names are inconsistent and redirects happen
-        #     prod_det = product_details_list[-1]
-        #     if prod_det:
-        #         correct_product_url = prod_det.get('product_url')
-        #         logger.warning(f'correct_product_url -- {correct_product_url}')
-        #         if correct_product_url:
-        #             correct_reviews_url = correct_product_url + '/reviews'
-        #             review_details_list = scrape_page_playwright(url_path=correct_reviews_url, parse_func=parse_reviews)
-        #             INTERRUPT = product_details_list[-1]
-        #             if INTERRUPT:
-        #                 return (user_query, product_details_list, (), INTERRUPT)
+def parse_yandex_market(user_query: str, product_url: str, reviews_url: str = None) -> Tuple[str, Tuple[str, Dict], Tuple[str, List[Dict]], bool]:
+    try:
+        product_details_list = scrape_page_playwright(url_path=product_url, parse_func=parse_product)
+        logger.debug(product_details_list)
+        INTERRUPT = product_details_list[-1]
+        if INTERRUPT:
+            return (user_query, (), (), INTERRUPT)
+    except Exception as e:
+        logger.critical(f'product_details_list error: {e}')
+        product_details_list = []
+
+    # WARNING: DO NOT DELETE THE CODE BELOW. UNCOMMENT IF REVIEWS DATA IS NECCESSARY
+    review_details_list = ()
+    # try:
+    #     review_details_list = scrape_page_playwright(url_path=reviews_url, parse_func=parse_reviews)
+    #     INTERRUPT = product_details_list[-1]
+    #     if INTERRUPT:
+    #         return (user_query, product_details_list, (), INTERRUPT)
+    # except Exception as e:
+    #     logger.critical(f'review_details_list error: {e}')
+    #     review_details_list = []
+    # if not review_details_list[-1]:  # list of reviews
+    #     # this may happen if the reviews_url logic is faulty or when product names are inconsistent and redirects happen
+    #     prod_det = product_details_list[-1]
+    #     if prod_det:
+    #         correct_product_url = prod_det.get('product_url')
+    #         logger.warning(f'correct_product_url -- {correct_product_url}')
+    #         if correct_product_url:
+    #             correct_reviews_url = correct_product_url + '/reviews'
+    #             review_details_list = scrape_page_playwright(url_path=correct_reviews_url, parse_func=parse_reviews)
+    #             INTERRUPT = product_details_list[-1]
+    #             if INTERRUPT:
+    #                 return (user_query, product_details_list, (), INTERRUPT)
+    return (user_query, product_details_list, review_details_list, INTERRUPT)
 
 
-        review_details_list = ()
+@logger.catch
+def thread_work(user_query: str) -> Tuple[str, Tuple[str, Dict], Tuple[str, List[Dict]], bool]:
+    try:
+        product_url, reviews_url, yandex_product_name, INTERRUPT = search_google_parse_results(user_query=user_query)
+    except Exception as e:
+        logger.debug(e)
+    try:
+        user_query, product_details_list, review_details_list, INTERRUPT = parse_yandex_market(
+            user_query=user_query,
+            product_url=product_url,
+            reviews_url=None  # change if reviews are needed
+        )
         return (user_query, product_details_list, review_details_list, INTERRUPT)
+    except Exception as e:
+        logger.debug(e)
     logger.critical(f'v2 - no results for: {user_query}')
     return (user_query, (), (), True)
 

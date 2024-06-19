@@ -1,6 +1,9 @@
 # todo: ? save html bodies to mongo
 
 import sys
+
+import pandas as pd
+
 sys.path.append('/home/amstel/llm')
 import concurrent
 import concurrent.futures as pool
@@ -22,6 +25,7 @@ ua = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chr
 from abc import abstractmethod
 from etl_jobs.base import Read, StepNum
 from .search_and_parse_reviews import thread_work
+from .search_and_parse_reviews import search_google_parse_results, parse_yandex_market
 
 class JsonldExtractor:
     """
@@ -407,6 +411,23 @@ class EcomProductRead(Read):
         )
         return out
 
+    # def read_threading(self, product_names_to_scrape: Set) -> Any:
+    #     ex = pool.ThreadPoolExecutor(max_workers=1,
+    #                                  thread_name_prefix='thread_',
+    #                                  initializer=None, initargs=())
+    #
+    #     # Read 5
+    #     with ex as executor:
+    #         future_to_url = {executor.submit(thread_work, user_query): user_query for user_query in product_names_to_scrape}
+    #     triplets = {}
+    #     for future in concurrent.futures.as_completed(future_to_url):
+    #         url = future_to_url[future]
+    #         try:
+    #             data = future.result()
+    #             triplets[url] = data
+    #         except Exception as exc:
+    #             print(f'{url} сгенерировано исключение: {exc}')
+
 
 class SearchParseRead(Read):
     def read(self, data: Dict[StepNum, str]) -> Tuple[str, Tuple[str, Dict], Tuple[str, List[Dict]]]:
@@ -428,22 +449,54 @@ class SearchParseRead(Read):
                 pass
         return self.triplets
 
-    # def read_threading(self, product_names_to_scrape: Set) -> Any:
-    #     ex = pool.ThreadPoolExecutor(max_workers=1,
-    #                                  thread_name_prefix='thread_',
-    #                                  initializer=None, initargs=())
-    #
-    #     # Read 5
-    #     with ex as executor:
-    #         future_to_url = {executor.submit(thread_work, user_query): user_query for user_query in product_names_to_scrape}
-    #     triplets = {}
-    #     for future in concurrent.futures.as_completed(future_to_url):
-    #         url = future_to_url[future]
-    #         try:
-    #             data = future.result()
-    #             triplets[url] = data
-    #         except Exception as exc:
-    #             print(f'{url} сгенерировано исключение: {exc}')
+class SearchRead(Read):
+    # the same as SearchParseRead but only search
+    def read(self, data: Dict[StepNum, str]) -> Dict[StepNum, Dict[str, tuple]]:
+        assert isinstance(data, dict)
+
+        # cols: search_query, product_yandex_name, processed, product_details_yandex_link, product_reviews_yandex_link
+        product_url_2_details = {}
+        search_queue_df = data.get('step_0').get('step_0')
+        logger.debug(search_queue_df.columns)
+        for user_query in search_queue_df['search_query'].unique():
+            try:
+                product_url, reviews_url, product_yandex_name, interrupt = search_google_parse_results(user_query)
+            except Exception as e:
+                product_url_2_details[user_query] = (user_query, product_yandex_name, 1, product_url, reviews_url, 0)
+            if interrupt:
+                return {'step_0': product_url_2_details}
+            if product_url:
+                product_url_2_details[user_query] = (user_query, product_yandex_name, 1, product_url, reviews_url, 0)
+            else:
+                product_url_2_details[user_query] = (user_query, product_yandex_name, 0, product_url, reviews_url, 0)
+        return {'step_0': product_url_2_details}
+
+
+
+
+class ParseRead(Read):
+    def read(self, data: Dict[StepNum, str]) -> Tuple[str, Tuple[str, Dict], Tuple[str, List[Dict]]]:
+        assert isinstance(data, dict)
+        self.triplets = {}
+        logger.debug(type(data))
+        df = data.get('step_0')
+        assert isinstance(df, pd.DataFrame)
+        # data structure is: df with columns = (user_query, product_yandex_name, processed[int], product_url, reviews_url)
+        for i, row in df.iterrows():
+            user_query, product_yandex_name, searched, product_url, reviews_url, scraped = row
+            if scraped == 0:
+                try:
+                    output = parse_yandex_market(user_query=user_query, product_url=product_url, reviews_url=reviews_url)
+                    logger.critical(output)
+                    triplet = output[:3]
+                    INTERRUPT = output[-1]
+                    self.triplets[user_query] = triplet
+                    logger.critical(f"interrupt? {user_query} -- {INTERRUPT}")
+                    if INTERRUPT:
+                        break
+                except Exception as e:
+                    pass
+        return self.triplets
 
 
 if __name__ == '__main__':

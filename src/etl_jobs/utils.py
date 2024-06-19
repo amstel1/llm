@@ -1,6 +1,7 @@
 from typing import Any, List, Dict
 from base import Do, Read, Write, StepNum
 import pandas as pd
+import numpy as np
 import pickle
 from datetime import datetime
 from postgres.utils import PostgresDataFrameRead
@@ -196,4 +197,41 @@ class ItemDetailsRead(Read):
         urls = df[self.step1_urls_attribute].values.tolist()  # hardcoded
         product_details = self.step2_reader.read(urls=urls)
         return {"step_0": product_details}
+
+class PopulateQueueDo(Do):
+    # fields needed
+    # search_query, product_yandex_name, processed(int), product_details_yandex_link, product_reviews_yandex_link
+    def process(self, data: Dict[StepNum, Any]) -> Dict[StepNum, Any]:
+        names_set = data.get('step_0')  # on previous step we read from postgres, source = details, e.g. fridge.item_details_fridge
+        names = sorted(list(names_set))
+        df = pd.DataFrame()
+        df['search_query'] = names
+        df['product_yandex_name'] = None
+        df['searched'] = 0
+        df['product_details_yandex_link'] = None
+        df['product_reviews_yandex_link'] = None
+        df['scraped'] = 0
+        df['product_yandex_name'] = df['product_yandex_name'].astype(str)
+        df['product_details_yandex_link'] = df['product_details_yandex_link'].astype(str)
+        df['product_reviews_yandex_link'] = df['product_reviews_yandex_link'].astype(str)
+        return {'step_0': df}
+
+class SetSearchQueueProcessedDo(Do):
+    def process(self, data: Dict[StepNum, Any]) -> Dict[StepNum, Any]:
+        # data contains several steps.
+        # i need step 0 - tasks for search
+
+        # i need step_1 with triplets. - results of search
+        # triplets' keys are user queries
+
+        # the output must be df for fridge.search_queue with scraped = 1
+        search_queue_df = data.get('step_0').get('step_0')  # dataframe
+
+        triplets = data.get('step_1')  # dict
+        triplets_search_queries = [key for key, value in triplets.items() if value[1]]   # not empty triplet
+
+        product_details_yandex_link = search_queue_df[search_queue_df['search_query'].isin(triplets_search_queries)]['product_details_yandex_link']
+
+        search_queue_df.loc[search_queue_df['product_details_yandex_link'].isin(product_details_yandex_link), 'scraped'] = 1
+        return {'step_0': search_queue_df}
 

@@ -1,12 +1,13 @@
 import sys
 from datetime import datetime
 import pandas as pd
+import sqlalchemy.types
 from polyfuzz.models import TFIDF
 import numpy as np
 
 sys.path.append('/home/amstel/llm/src')
 from typing import Optional, Dict, Any, List, Set, Tuple, Iterable
-from base import Job, Read, Do, Write, ReadChain, WriteChain, DoChain, StepNum
+from base import Job, Read, Do, Write, ReadChain, WriteChain, DoChain, StepNum, DoChainGlobal
 import yaml
 from loguru import logger
 
@@ -21,16 +22,39 @@ from utils import ItemDetailsDo
 from postgres.utils import PostgresDataFrameWrite
 from utils import PickleDataRead, PickleDataWrite
 
+# step 2.5
+from postgres.utils import PostgresDataFrameRead
+from web_scraping.utils import SearchRead
+from utils import PopulateQueueDo
+from postgres.utils import PostgresDataFrameWrite, PostgresDataFrameUpdate
+
+# step 2.6
+from postgres.utils import PostgresDataFrameRead
+from web_scraping.utils import ParseRead   # parse details' pages of yandex market
+from utils import SetSearchQueueProcessedDo
+from mongodb.utils import MongoWrite
+
 # step 3
 from mongodb.utils import MongoRead
 from postgres.utils import PostgresDataFrameRead
 from web_scraping.utils import SearchParseRead
 from mongodb.utils import MongoWrite
 
+class SearchDo(Do):
+    def process(self, data: Dict[StepNum, Any]) -> Dict[StepNum, Any]:
+        d = data.get('step_1').get('step_0')
+        df = pd.DataFrame(data=d.values(), columns=['search_query', 'product_yandex_name', 'searched',
+                                                    'product_details_yandex_link', 'product_reviews_yandex_link',
+                                                    'scraped'])
+        df['searched'] = 1
+        return {'step_0': df}
+
 class YandexMarketDo(Do):
     #-> Tuple[Dict,List[Dict]]:
     def process(self, data: Dict[str, Tuple[str, Tuple[str, Dict], Tuple[str, List[Dict]]]]) -> Dict[str, List[Dict[str, List[Dict]]]]:
         '''all the logic to process scraping results from yandex market'''
+        if 'step_1' in data:
+            data = data.get('step_1')
         assert isinstance(data, dict)
         user_queries = list(data.keys())
         results = []
@@ -273,59 +297,134 @@ if __name__ == '__main__':
     # ItemDetails_2_Postgres.run()
     # logger.warning('End - Job 2')
 
+    # step 2.5 - записать в очередь
+    # mongo_read_product_reviews = MongoRead(operation='read', db_name='fridge', collection_name='product_reviews')
+    # mongo_read_product_details = MongoRead(operation='read', db_name='fridge', collection_name='product_details')
+    # postgres_read_item_list = PostgresDataFrameRead(
+    #     table='fridge.item_details_fridge',
+    #     # where=" (offer_count is not null or offer_count is null) and offer_count > 10 and height_cm >= 195 order by min_price asc limit 2000"
+    # )
+    # create_queue_table = Job(
+    #     reader=ReadChainSearchParsePart1(readers=[
+    #         mongo_read_product_reviews,
+    #         mongo_read_product_details,
+    #         postgres_read_item_list,
+    #     ]),
+    #     processor=PopulateQueueDo(),
+    #     writer=PostgresDataFrameWrite(
+    #         schema_name='fridge',
+    #         table_name='search_queue',
+    #         insert_unique=True,
+    #         index_column='search_query',
+    #         if_exists='fail',
+    #         dtypes={
+    #                 'search_query': sqlalchemy.types.TEXT,
+    #                 'product_yandex_name': sqlalchemy.types.TEXT,
+    #                 'searched': sqlalchemy.types.BIGINT,
+    #                 'product_details_yandex_link': sqlalchemy.types.TEXT,
+    #                 'product_reviews_yandex_link': sqlalchemy.types.TEXT,
+    #                 'scraped': sqlalchemy.types.BIGINT,
+    #                 }
+    #     ),
+    # )
+    # create_queue_table.run()
 
 
-
-
-    # step 3.A - prepare data, save to pickle
-    # Read: 3.1
-    mongo_read_product_reviews = MongoRead(operation='read', db_name='fridge', collection_name='product_reviews')
-    # Read 3.2
-    mongo_read_product_details = MongoRead(operation='read', db_name='fridge', collection_name='product_details')
-    # Read: 3.3
-    postgres_read_item_list = PostgresDataFrameRead(
-        table='fridge.item_details_fridge',
-        where=" (offer_count is not null or offer_count is null) and offer_count > 10 and height_cm >= 195 order by min_price asc limit 2000"
-    )
-    # Read: 3.4
-    postgres_read_query_attempts = PostgresDataFrameRead(table='fridge.product_query_attempts')
-    # Part 3A
-    logger.warning('Start - Job 3A')
-    scrape_internet_part_A = Job(
-        reader=ReadChainSearchParsePart1(readers=[
-            mongo_read_product_reviews,
-            mongo_read_product_details,
-            postgres_read_item_list,
-            # postgres_read_query_attempts
-        ]),
-        writer=PickleDataWrite(filepath='temp_2005_A.pkl'),
-    )
-    scrape_internet_part_A.run()
-    logger.warning('End - Job 3A')
-
-    # # step 3B
-    logger.warning('Start - Job 3B')
-    internet_reader = SearchParseRead()
-    scrape_internet_part_C = Job(
-        reader=ReadChainSearchParsePart2(readers=[
-            PickleDataRead(filepath='temp_2005_A.pkl'),
-            internet_reader,
-        ]),
-        processor=DoChain(processors=[
-            AttemptProductsDo(),
-            YandexMarketDo()
-        ]),
-        writer=WriteChain(writers=[
-                PostgresDataFrameWrite(schema_name='fridge', table_name='product_query_attempts', insert_unique=True),  # todo: bug when False
-                WriteChain(writers=[
-                    MongoWrite(operation='write', db_name='fridge', collection_name='product_details'),
-                    MongoWrite(operation='write', db_name='fridge', collection_name='product_reviews')
-                ]),  # details & reviews
-            ],
+    # step 2.6 - populate with google search
+    populate_queue_table = Job(
+        reader=ReadChain(
+            readers=[
+                PostgresDataFrameRead(table='fridge.search_queue', where="(searched is null or searched = 0) "),
+                SearchRead()  # output: Dict[user_query, tuple(fridge.search_queue attributes)]
+            ]),
+        processor=SearchDo(),
+        writer=PostgresDataFrameUpdate(
+            schema_name='fridge',
+            table_name='search_queue',
+            where_postgres_attribute='search_query',
+            where_dataframe_column_name='search_query',
         )
     )
-    scrape_internet_part_C.run()
-    logger.warning('End - Job 3B')
+    populate_queue_table.run()
+
+
+    # step 2.7
+    # parse_yandex = Job(
+    #     reader=ReadChainSearchParsePart2(readers=[
+    #         PostgresDataFrameRead(
+    #             table='fridge.search_queue',
+    #             where='searched = 1 and scraped = 0 and LENGTH(product_details_yandex_link) >= 10 limit 3'
+    #         ),
+    #         ParseRead(),
+    #     ]),
+    #     processor=DoChainGlobal(processors=[
+    #         SetSearchQueueProcessedDo(),
+    #         YandexMarketDo()
+    #     ]),
+    #     writer=WriteChain(writers=[
+    #         PostgresDataFrameUpdate(schema_name='fridge', table_name='search_queue',
+    #                                 where_dataframe_column_name='product_details_yandex_link', where_postgres_attribute='product_details_yandex_link'),
+    #         WriteChain(writers=[
+    #             MongoWrite(operation='write', db_name='fridge', collection_name='product_details'),
+    #             MongoWrite(operation='write', db_name='fridge', collection_name='product_reviews')
+    #         ]),  # details & reviews
+    #     ],
+    #     )
+    # )
+    # parse_yandex.run()
+
+
+    # ----------------------------------------------------------------------------------------------------------------
+    # step 3.A - prepare data, save to pickle
+    # Read: 3.1
+    # mongo_read_product_reviews = MongoRead(operation='read', db_name='fridge', collection_name='product_reviews')
+    # # Read 3.2
+    # mongo_read_product_details = MongoRead(operation='read', db_name='fridge', collection_name='product_details')
+    # # Read: 3.3
+    # postgres_read_item_list = PostgresDataFrameRead(
+    #     table='fridge.item_details_fridge',
+    #     where=" (offer_count is not null or offer_count is null) and offer_count > 10 and height_cm >= 195 order by min_price asc limit 2000"
+    # )
+    # # Read: 3.4
+    # postgres_read_query_attempts = PostgresDataFrameRead(table='fridge.product_query_attempts')
+    # # Part 3A
+    # logger.warning('Start - Job 3A')
+    # scrape_internet_part_A = Job(
+    #     reader=ReadChainSearchParsePart1(readers=[
+    #         mongo_read_product_reviews,
+    #         mongo_read_product_details,
+    #         postgres_read_item_list,
+    #         # postgres_read_query_attempts
+    #     ]),
+    #     writer=PickleDataWrite(filepath='temp_2005_A.pkl'),
+    # )
+    # scrape_internet_part_A.run()
+    # logger.warning('End - Job 3A')
+    #
+    # # # step 3B
+    # logger.warning('Start - Job 3B')
+    # internet_reader = SearchParseRead()
+    # scrape_internet_part_C = Job(
+    #     reader=ReadChainSearchParsePart2(readers=[
+    #         PickleDataRead(filepath='temp_2005_A.pkl'),
+    #         internet_reader,
+    #     ]),
+    #     processor=DoChain(processors=[
+    #         AttemptProductsDo(),
+    #         YandexMarketDo()
+    #     ]),
+    #     writer=WriteChain(writers=[
+    #             PostgresDataFrameWrite(schema_name='fridge', table_name='product_query_attempts', insert_unique=True),  # todo: bug when False
+    #             WriteChain(writers=[
+    #                 MongoWrite(operation='write', db_name='fridge', collection_name='product_details'),
+    #                 MongoWrite(operation='write', db_name='fridge', collection_name='product_reviews')
+    #             ]),  # details & reviews
+    #         ],
+    #     )
+    # )
+    # scrape_internet_part_C.run()
+    # logger.warning('End - Job 3B')
+    # ----------------------------------------------------------------------------------------------------------------
 
 
     # # todo: 2905 after lunch

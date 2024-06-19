@@ -19,7 +19,6 @@ class Read(ABC):
 class ReadChain(Read):
     """
     Abstract base class for chaining multiple readers together.
-    Each subclass should implement the `transform` method.
     """
 
     def __init__(self, readers: List[Read]):
@@ -34,7 +33,7 @@ class ReadChain(Read):
         Chain the read methods together and apply transformations.
         """
         for i, reader in enumerate(self.readers):
-            self.data[f'step_{i}'] = reader.read()  #
+            self.data[f'step_{i}'] = reader.read(data=self.data)  #
         return self.data
 
 
@@ -63,6 +62,16 @@ class DoChain(Do):
     def process(self, data: Dict[StepNum, Any]) -> Dict[StepNum, Any]:
         for i, processor in enumerate(self.processors):
             self.data[f'step_{i}'] = processor.process(data=data.get(f'step_{i}'))
+        return self.data
+
+class DoChainGlobal():
+    def __init__(self, processors: List[Do]):
+        self.processors = processors
+        self.data = {}   # outpur
+
+    def process(self, data: Dict[StepNum, Any]) -> Dict[StepNum, Any]:
+        for i, processor in enumerate(self.processors):
+            self.data[f'step_{i}'] = processor.process(data=data)
         return self.data
 
 

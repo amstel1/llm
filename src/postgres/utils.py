@@ -2,7 +2,8 @@ import sys
 sys.path.append('/home/amstel/llm/src')
 import pickle
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+import sqlalchemy
 from loguru import logger
 import itertools
 from datetime import datetime
@@ -16,13 +17,18 @@ class PostgresDataFrameWrite(Write):
                 schema_name: str = 'scraped_data',
                 table_name: str = 'product_item_list',
                 insert_unique: bool = False,  # whether to insert unique
-                index_column: str = "product_url",  # column to check uniqueness against
+                index_column: str = "product_url",  # column to check uniqueness against,
+                if_exists: str = 'append', # what to do
+                dtypes: dict = None
                 ):
 
         self.schema_name = schema_name
         self.table_name = table_name
         self.insert_unique = insert_unique
         self.index_column = index_column
+        assert if_exists in ('append', 'replace', 'fail')
+        self.if_exists = if_exists
+        self.dtypes = dtypes
 
     def write(
             self,
@@ -54,18 +60,78 @@ class PostgresDataFrameWrite(Write):
             engine = create_engine(connection_str)
             try:
                 logger.warning(data.dtypes)
-                data.to_sql(
-                    name=self.table_name,
-                    con=connection_str,
-                    schema=self.schema_name,
-                    index=False,
-                    if_exists='append',
-                )
+                if self.dtypes:
+                    data.to_sql(
+                        name=self.table_name,
+                        con=connection_str,
+                        schema=self.schema_name,
+                        index=False,
+                        if_exists=self.if_exists,
+                        dtype=self.dtypes
+                    )
+                else:
+                    data.to_sql(
+                        name=self.table_name,
+                        con=connection_str,
+                        schema=self.schema_name,
+                        index=False,
+                        if_exists=self.if_exists,
+                    )
                 logger.info(f'df.to_sql -- inserted successfully -- {data.shape} to {self.schema_name}.{self.table_name}')
             except Exception as e:
                 logger.error(f"error -- insert sql failed: {e}")
         except Exception as ex:
             logger.critical(f'Sorry failed to connect: {ex}')
+
+class PostgresDataFrameUpdate(Write):
+    # update is delete + insert
+    def __init__(self,
+                schema_name: str,
+                table_name: str,
+                where_postgres_attribute: str,
+                where_dataframe_column_name: str,
+                ):
+        self.appender = PostgresDataFrameWrite(
+            schema_name=schema_name,
+            table_name=table_name,
+            insert_unique=False,
+            index_column='search_query',
+            if_exists='append',
+        )
+        self.schema_name = schema_name
+        self.table_name = table_name
+        self.where_postgres_attribute = where_postgres_attribute
+        self.where_dataframe_column_name = where_dataframe_column_name
+
+
+    def write(
+            self,
+            data: Dict[StepNum, pd.DataFrame],
+    ):
+        assert isinstance(data, dict)
+        data = data.get("step_0")
+        logger.warning(data.shape)
+        logger.info(data.head())
+        try:
+            connection_str = f'postgresql://{user}:{password}@{host}:{port}/{database}'
+            engine = create_engine(connection_str)
+            with engine.connect() as connection:
+                try:
+                    assert self.where_dataframe_column_name in data.columns
+                    for _, row in data.iterrows():
+                        delete_query = text(f"""
+                            DELETE from {self.schema_name}.{self.table_name}
+                            WHERE {self.where_postgres_attribute} = '{row[self.where_dataframe_column_name]}';
+                        """)
+                        connection.execute(delete_query)
+                        connection.commit()
+                        logger.warning(f"Executing query: {delete_query}")
+                except Exception as e:
+                    logger.error(f"error -- UPDATE: {e}")
+
+        except Exception as e:
+            logger.error(f"error2 -- UPDATE2: {e}")
+        self.appender.write({"step_0": data})  # INSERT
 
 class PostgresDataFrameRead(Read):
     def __init__(self,
@@ -76,6 +142,7 @@ class PostgresDataFrameRead(Read):
 
     def read(
         self,
+        **kwargs
     ) -> Dict[StepNum, Any]:
         #######################
         connection_str = f'postgresql://{user}:{password}@{host}:{port}/{database}'
