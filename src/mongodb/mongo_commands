@@ -34,6 +34,18 @@ db.updateUser('reader', { roles: [
         { role: 'read', db: 'scraped_data' },
         { role: 'read', db: 'fridge' },
         { role: 'read', db: 'tv' },
+        { role: 'read', db: 'mobile' },
+        { role: 'read', db: 'kettle' },
+        { role: 'read', db: 'vacuumcleaner' },
+        { role: 'read', db: 'headphones' },
+        { role: 'read', db: 'smartwatch' },
+        { role: 'read', db: 'dishwasher' },
+        { role: 'read', db: 'hob_cooker' },
+        { role: 'read', db: 'oven_cooker' },
+        { role: 'read', db: 'iron' },
+        { role: 'read', db: 'conditioner' },
+        { role: 'read', db: 'waterheater' },
+        { role: 'read', db: 'microvawe' },
       ]}
 )
 
@@ -41,6 +53,18 @@ db.updateUser('writer', { roles: [
   { role: 'readWrite', db: 'scraped_data' },
   { role: 'readWrite', db: 'fridge' },
   { role: 'readWrite', db: 'tv' },
+  { role: 'readWrite', db: 'mobile' },
+  { role: 'readWrite', db: 'kettle' },
+  { role: 'readWrite', db: 'vacuumcleaner' },
+  { role: 'readWrite', db: 'headphones' },
+  { role: 'readWrite', db: 'smartwatch' },
+  { role: 'readWrite', db: 'dishwasher' },
+  { role: 'readWrite', db: 'hob_cooker' },
+  { role: 'readWrite', db: 'oven_cooker' },
+  { role: 'readWrite', db: 'iron' },
+  { role: 'readWrite', db: 'conditioner' },
+  { role: 'readWrite', db: 'waterheater' },
+  { role: 'readWrite', db: 'microvawe' },
 ]}
 )
 
