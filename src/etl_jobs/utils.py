@@ -31,7 +31,10 @@ class ItemDetailsDo(Do):
         self.handler_mappring = {
             'Стиральная машина': self.washing_mashine_handler,
             'Холодильник': self.fridge_handler,
+            'Телевизор': self.tv_handler,
+            'Мобильный телефон': self.mobile_handler,
         }
+        assert self.product_type_name in self.handler_mappring
 
     @staticmethod
     def remove_from_bracket(s):
@@ -40,6 +43,177 @@ class ItemDetailsDo(Do):
             if position != -1:
                 return s[:position].strip(' ')
         return s
+
+    def mobile_handler(self, df: pd.DataFrame):
+        shop_mapping = {
+            'name': 'name',
+            'product_url': 'product_url',
+            'offer_count': 'offer_count',
+            'min_price': 'min_price',
+            "Производитель": "manufacturer",
+            "Дата выхода": "release_date",
+            "Тип устройства": "device_type",
+            "Вид устройства": "device_category",
+            "Платформа": "platform",
+            "Версия ОС": "os_version",
+            "Серия": "series",
+            "Стандарт связи": "network_standard",
+            "Количество SIM-карт": "num_sim_cards",
+            "Тип SIM-карты": "sim_type",
+            "Диагональ экрана, \"": "screen_diagonal_inch",
+            "Разрешение экрана, точек": "screen_resolution_px",
+            "Технология экрана": "screen_technology",
+            "Частота обновления экрана": "refresh_rate_hz",
+            "Оперативная память": "ram_gb",
+            "Встроенная память": "internal_storage_gb",
+            "Поддержка карт памяти": "memory_card_support",
+            "Камера": "camera",
+            "Количество основных камер": "num_main_cameras",
+            "Разрешение основной камеры, Мп": "main_camera_resolution_mp",
+            "Максимальное разрешение видео": "max_video_resolution",
+            "Количество кадров в секунду": "fps",
+            "Беспроводная зарядка": "wireless_charging",
+            "Быстрая зарядка": "fast_charging",
+            "Обратная беспроводная зарядка": "reverse_wireless_charging",
+            "Модули камеры": "camera_modules",
+            "Конструкция корпуса": "body_construction",
+            "Материал корпуса": "body_material",
+            "Цвет корпуса": "body_color",
+            "Ударопрочный корпус": "shockproof_body",
+            "Пыле- и влагозащита": "dust_water_resistance",
+            "Степень защиты (IP)": "ip_rating",
+            "Высота, см": "height_cm",
+            "Ширина, см": "width_cm",
+            "Толщина, см": "thickness_cm",
+            "Вес, г": "weight_g",
+            "Число пикселей на дюйм, ppi": "ppi",
+            "Соотношение сторон": "aspect_ratio",
+            "Сенсорный экран": "touch_screen",
+            "Защита от царапин": "scratch_protection",
+            "Постоянная работа экрана": "always_on_display",
+            "Производитель процессора": "processor_manufacturer",
+            "Процессор": "processor",
+            "Количество ядер процессора": "num_processor_cores",
+            "Техпроцесс": "process_technology",
+            "Диафрагма": "aperture",
+            "Вспышка": "flash",
+            "Автофокус": "autofocus",
+            "Оптическая стабилизация": "optical_stabilization",
+            "Оптический зум": "optical_zoom",
+            "Макс. количество кадров в секунду": "max_fps",
+            "Количество фронтальных камер": "num_front_cameras",
+            "Разрешение фронтальной камеры, Мп": "front_camera_resolution_mp",
+            "Диафрагма фронтальной камеры": "front_camera_aperture",
+            "Вспышка фронтальной камеры": "front_camera_flash",
+            "Автофокус фронтальной камеры": "front_camera_autofocus",
+            "Разрешение видео фронтальной камеры": "front_camera_video_resolution",
+            "Стереодинамики": "stereo_speakers",
+            "Безопасность": "security_features",
+            "Навигация": "navigation",
+            "Беспроводные интерфейсы": "wireless_interfaces",
+            "Разъемы": "ports",
+            "Емкость аккумулятора, мАч": "battery_capacity_mah",
+            "Аккумулятор": "battery",
+            "Время воспроизведения видео, ч": "video_playback_time_h",
+            "Время воспроизведения аудио, ч": "audio_playback_time_h",
+            "Комплект поставки": "package_contents"
+        }
+
+        shop_tv_inverse_mapping = {v: k for k, v in shop_mapping.items()}
+        cols = shop_mapping.keys()
+
+        df = df[cols]
+        df.rename(columns=shop_mapping, inplace=True)
+
+        for col in df.columns:
+            df[col] = df[col].map(ItemDetailsDo.remove_from_bracket)
+            try:
+                df[col] = df[col].astype(float)
+            except Exception as e:
+                df[col] = df[col].replace({'Есть': 'Да'})
+
+        # for col in ['offer_count', 'min_price',
+        #             ]:
+        #     df[col] = df[col].map(ItemDetailsDo.remove_from_bracket)
+        #     df[col] = df[col].astype(float)
+        # for col in []:
+        #     df[col] = df[col].map(ItemDetailsDo.remove_from_bracket)
+        #     df[col] = df[col].replace({'Есть': 'Да'})
+        return df
+
+    def tv_handler(self, df: pd.DataFrame):
+        shop_tv_mapping = {
+            'name': 'name',
+            'product_url': 'product_url',
+            'offer_count': 'offer_count',
+            'min_price': 'min_price',
+            "Производитель": "manufacturer",
+            "Дата выхода": "release_date",
+            "Тип": "type",
+            "Диагональ экрана, \"": "screen_diagonal_inch",
+            "Разрешение экрана": "screen_resolution",
+            "Частота матрицы, Гц": "refresh_rate_hz",
+            "Изогнутый экран": "curved_screen",
+            "Поддержка 3D": "support_3d",
+            "Smart TV": "smart_tv",
+            "Платформа Smart TV": "smart_tv_platform",
+            "Версия системы": "system_version",
+            "Безрамочный дизайн": "frameless_design",
+            "Цвет корпуса": "body_color",
+            "Цвет рамки": "frame_color",
+            "Цвет подставки": "stand_color",
+            "Подставка": "stand",
+            "Крепление на стену": "wall_mount",
+            "Глубина цвета": "color_depth",
+            "Расширенный динамический диапазон (HDR)": "hdr",
+            "Форматы HDR": "hdr_formats",
+            "Игровые функции": "gaming_features",
+            "Процессор": "processor",
+            "Фоновая подсветка": "backlight",
+            "Голосовое управление": "voice_control",
+            "ТВ-тюнер": "tv_tuner",
+            "Сабвуфер": "subwoofer",
+            "Звуковая панель (саундбар)": "soundbar",
+            "Мощность звуковой системы, Вт": "sound_system_power_w",
+            "Количество динамиков": "num_speakers",
+            "Поддержка аудиокодеков объемного звука": "surround_sound_codec_support",
+            "Поддержка HDMI eARC": "hdmi_earc_support",
+            "Беспроводные интерфейсы": "wireless_interfaces",
+            "Версия Bluetooth": "bluetooth_version",
+            "Стандарт Wi-Fi": "wifi_standard",
+            "Разъемы": "ports",
+            "Кол-во разъемов HDMI": "num_hdmi_ports",
+            "Версия HDMI": "hdmi_version",
+            "Кол-во разъемов USB": "num_usb_ports",
+            "Smart-пульт": "smart_remote",
+            "Настенное крепление": "wall_mounting",
+            "Крепление VESA": "vesa_mount",
+            "Ширина, см": "width_cm",
+            "Высота (с подставкой), см": "height_with_stand_cm",
+            "Глубина (с подставкой), см": "depth_with_stand_cm",
+            "Высота (без подставки), см": "height_without_stand_cm",
+            "Толщина панели, см": "panel_thickness_cm",
+            "Вес (с подставкой), кг": "weight_with_stand_kg",
+            "Вес (без подставки), кг": "weight_without_stand_kg"
+        }
+
+        shop_tv_inverse_mapping = {v: k for k, v in shop_tv_mapping.items()}
+        cols = shop_tv_mapping.keys()
+
+        df = df[cols]
+        df.rename(columns=shop_tv_mapping, inplace=True)
+
+        for col in ['offer_count','min_price', 'release_date', 'screen_diagonal_inch', 'refresh_rate_hz', 'sound_system_power_w',
+                    'num_speakers', 'bluetooth_version', 'num_hdmi_ports', 'num_usb_ports', 'width_cm', 'height_with_stand_cm',
+                    'depth_with_stand_cm', 'height_without_stand_cm', 'panel_thickness_cm', 'weight_with_stand_kg', 'weight_without_stand_kg'
+                    ]:
+            df[col] = df[col].map(ItemDetailsDo.remove_from_bracket)
+            df[col] = df[col].astype(float)
+        for col in ['curved_screen', 'support_3d', 'smart_tv', 'frameless_design', 'wall_mount', 'hdr', 'gaming_features',
+                    'backlight', 'voice_control', 'subwoofer', 'soundbar', 'hdmi_earc_support', 'smart_remote', 'wall_mounting']:
+            df[col] = df[col].map(ItemDetailsDo.remove_from_bracket)
+            df[col] = df[col].replace({'Есть': 'Да'})
+        return df
 
     def fridge_handler(self, df: pd.DataFrame):
         shop_fridge_mapping = {

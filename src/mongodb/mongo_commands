@@ -30,3 +30,18 @@ db.createCollection('product_details')
 
 db.createCollection('product_reviews')
 
+db.updateUser('reader', { roles: [
+        { role: 'read', db: 'scraped_data' },
+        { role: 'read', db: 'fridge' },
+        { role: 'read', db: 'tv' },
+      ]}
+)
+
+db.updateUser('writer', { roles: [
+  { role: 'readWrite', db: 'scraped_data' },
+  { role: 'readWrite', db: 'fridge' },
+  { role: 'readWrite', db: 'tv' },
+]}
+)
+
+

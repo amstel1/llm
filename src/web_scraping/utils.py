@@ -102,7 +102,10 @@ class MicrodataExtractor:
                         item_features['product_position'] = item_properties.get('position')
                         item_features['product_type_url'] = product_type_url
                         item_features['product_type_name'] = product_type_name
-                        item_features['product_image_url'] = base_url + item_properties.get('image').get('properties').get('image')
+                        try:
+                            item_features['product_image_url'] = base_url + item_properties.get('image').get('properties').get('image')
+                        except:
+                            item_features['product_image_url'] = None
                         results.append(item_features)
         return results
 
