@@ -9,10 +9,9 @@ from typing import Optional, Dict, Any, List, Set, Tuple, Iterable
 from base import Job, Read, Do, Write, ReadChain, WriteChain, DoChain, StepNum, DoChainGlobal
 import yaml
 from loguru import logger
+from jobs import Step1
 
-## config part
-SCHEMA_NAME = 'kettle'
-PRODUCT_TYPE_NAME = 'Чайник'  # Стиральная машина, Холодильник
+
 
 
 # step 1
@@ -252,190 +251,7 @@ class ReviewsProductDetailsDo(Do):
         return {"step_0": df}
 
 
-class Step1:
-    def __init__(self):
-        kettle = {
-            'product_type_name': 'Чайник',
-            'schema_name': 'kettle',
-            'shop_slug': 'chayniki',
-            'shop_max_page': 106,
-            'vek21_slug': 'teapots',
-            'vek21_max_page': 31,
-            'onliner_slug': 'kettle',
-            'onliner_max_page': 120,
-        }
 
-        vacuumcleaner = {
-            'product_type_name': 'Пылесос',
-            'schema_name': 'vacuumcleaner',
-            'shop_slug': 'pylesosy',
-            'shop_max_page': 106,
-            'vek21_slug': 'vacuum',
-            'vek21_max_page': 24,
-            'onliner_slug': 'vacuumcleaner',
-            'onliner_max_page': 136,
-        }
-
-        headphones = {
-            'product_type_name': 'Наушники',
-            'schema_name': 'headphones',
-            'shop_slug': 'naushniki',
-            'shop_max_page': 106,
-            'vek21_slug': 'headphones',
-            'vek21_max_page': 42,
-            'onliner_slug': 'headphones',
-            'onliner_max_page': 226,
-        }
-
-        smartwatch = {
-            'product_type_name': 'Умные часы',
-            'schema_name': 'smartwatch',
-            'shop_slug': 'umnie_chasi',
-            'shop_max_page': 106,
-            'vek21_slug': 'smart_watches',
-            'vek21_max_page': 9,
-            'onliner_slug': 'smartwatch',
-            'onliner_max_page': 32,
-        }
-
-        dishwasher = {
-            'product_type_name': 'Посудомойка',
-            'schema_name': 'dishwasher',
-            'shop_slug': 'posudomoechnye_mashiny',
-            'shop_max_page': 61,
-            'vek21_slug': 'dishwashers',
-            'vek21_max_page': 10,
-            'onliner_slug': 'dishwasher',
-            'onliner_max_page': 77,
-        }
-
-        hob_cooker = {
-            'product_type_name': 'Варочная панель',
-            'schema_name': 'hob_cooker',
-            'shop_slug': 'varochnie_paneli',
-            'shop_max_page': 106,
-            'vek21_slug': 'hobs',
-            'vek21_max_page': 25,
-            'onliner_slug': 'hob_cooker',
-            'onliner_max_page': 167,
-        }
-
-        oven_cooker = {
-            'product_type_name': 'Духовой шкаф',
-            'schema_name': 'oven_cooker',
-            'shop_slug': 'duhovye_shkafy',
-            'shop_max_page': 106,
-            'vek21_slug': 'ovens',
-            'vek21_max_page': 18,
-            'onliner_slug': 'oven_cooker',
-            'onliner_max_page': 127,
-        }
-
-        iron = {
-            'product_type_name': 'Утюг',
-            'schema_name': 'iron',
-            'shop_slug': 'utyugi',
-            'shop_max_page': 56,
-            'vek21_slug': 'irons',
-            'vek21_max_page': 13,
-            'onliner_slug': 'iron',
-            'onliner_max_page': 57,
-        }
-
-        conditioner = {
-            'product_type_name': 'Кондиционер',
-            'schema_name': 'conditioner',
-            'shop_slug': 'konditsionery',
-            'shop_max_page': 102,
-            'vek21_slug': 'conditioners',
-            'vek21_max_page': 25,
-            'onliner_slug': 'conditioners',
-            'onliner_max_page': 37,
-        }
-
-        waterheater = {
-            'product_type_name': 'Водонагреватель',
-            'schema_name': 'waterheater',
-            'shop_slug': 'vodonagrevateli',
-            'shop_max_page': 84,
-            'vek21_slug': 'waterheaters',
-            'vek21_max_page': 27,
-            'onliner_slug': 'waterheater',
-            'onliner_max_page': 46,
-        }
-
-        microvawe = {
-            'product_type_name': 'Микроволновка',
-            'schema_name': 'microvawe',
-            'shop_slug': 'mikrovolnovye_pechi',
-            'shop_max_page': 68,
-            'vek21_slug': 'microwaves',
-            'vek21_max_page': 12,
-            'onliner_slug': 'microvawe',
-            'onliner_max_page': 73,
-        }
-
-        self.products = [
-            vacuumcleaner,
-            headphones,
-            smartwatch,
-            dishwasher,
-            hob_cooker,
-            oven_cooker,
-            iron,
-            conditioner,
-            waterheater,
-            microvawe,
-        ]
-
-    def run(self):
-        # step 1. ItemList from sites to Postgres. Not: all three for each new product
-        for product in self.products:
-            product_type_url = [f'https://shop.by/{product["shop_slug"]}/?page_id={i}' for i in range(1, {product["shop_max_page"]})]  # 1,30
-            this_job = Job(
-                reader=EcomItemListRead(extractor_name='ShopByExtractor',
-                                        product_type_url=product_type_url,
-                                        product_type_name={product["product_type_name"]}),
-                processor=ItemListDo(),
-                writer=PostgresDataFrameWrite(
-                    schema_name={product["schema_name"]},
-                    table_name='product_item_list',  # product_item_list_to_fill, product_item_list
-                    insert_unique=True,
-                    index_column="product_url",
-                    if_exists='append')
-            )
-            this_job.run()
-
-            product_type_url=[f'https://www.21vek.by/{product["vek21_slug"]}/page:{i}/' for i in range(1, {product["vek21_max_page"]})]  # 2,11
-            this_job = Job(
-                reader=EcomItemListRead(extractor_name='Vek21Extractor',
-                                        product_type_url=product_type_url,
-                                        product_type_name={product["product_type_name"]}),
-                processor=ItemListDo(),
-                writer=PostgresDataFrameWrite(
-                    schema_name={product["schema_name"]},
-                    table_name='product_item_list',  # product_item_list_to_fill, product_item_list
-                    insert_unique=True,
-                    index_column="product_url",
-                    if_exists='append'
-                ),
-            )
-            this_job.run()
-
-            product_type_url=[f'https://catalog.onliner.by/{product["onliner_slug"]}?page={i}' for i in range(1, {product["onliner_max_page"]})]  # 2,50
-            this_job = Job(
-                reader=EcomItemListRead(extractor_name='OnlinerExtractor',
-                                        product_type_url=product_type_url,
-                                        product_type_name={product["product_type_name"]}),
-                processor=ItemListDo(),
-                writer=PostgresDataFrameWrite(
-                    schema_name={product["schema_name"]},
-                    table_name='product_item_list',  # product_item_list_to_fill, product_item_list
-                    insert_unique=True,
-                    index_column="product_url",
-                    if_exists='append')
-            )
-            this_job.run()
 
 
 
@@ -462,57 +278,82 @@ if __name__ == '__main__':
     #     ),
     # )
     # ItemlList_2_Postgres.run()
+    #
+    # step = Step1(product_name='waterheater', shop_name='shop')
+    # step.run()
 
+    # step = Step1(product_name='waterheater', shop_name='vek21')
+    # step.run()
+
+    # step = Step1(product_name='waterheater', shop_name='onliner')
+    # step.run()
+
+    ## config part
+    SCHEMA_NAME = 'vacuumcleaner'
+    PRODUCT_TYPE_NAME = 'Пылесос'  # Стиральная машина, Холодильник
 
     # step 2. Read: ItemList from Postgres, Do: Scrapy ProductDetails, Write: to Postgres
-    # logger.warning('Start - Job 2')
-    # ItemDetails_2_Postgres = Job(
-    #     reader=ItemDetailsRead(
-    #         step1__table=f'{SCHEMA_NAME}.product_item_list',
-    #         step1__where="product_url ilike '%%shop.by%%'",
-    #         step1_urls_attribute='product_url'
-    #     ),
-    #     processor=ItemDetailsDo(product_type_name=PRODUCT_TYPE_NAME),
-    #     writer=PostgresDataFrameWrite(
-    #         schema_name=SCHEMA_NAME,
-    #         table_name=f'item_details_{SCHEMA_NAME}',
-    #         insert_unique=True,
-    #         if_exists='append'),
-    # )
-    # ItemDetails_2_Postgres.run()
-    # logger.warning('End - Job 2')
-
-    # # step 2.5 - записать в очередь
-    mongo_read_product_reviews = MongoRead(operation='read', db_name=SCHEMA_NAME, collection_name='product_reviews')
-    mongo_read_product_details = MongoRead(operation='read', db_name=SCHEMA_NAME, collection_name='product_details')
-    postgres_read_item_list = PostgresDataFrameRead(
-        table=f'{SCHEMA_NAME}.item_details_{SCHEMA_NAME}',
-        # where=" (offer_count is not null or offer_count is null) and offer_count > 10 and height_cm >= 195 order by min_price asc limit 2000"
-    )
-    create_queue_table = Job(
-        reader=ReadChainSearchParsePart1(readers=[
-            mongo_read_product_reviews,
-            mongo_read_product_details,
-            postgres_read_item_list,
-        ]),
-        processor=PopulateQueueDo(),
+    logger.warning('Start - Job 2')
+    ItemDetails_2_Postgres = Job(
+        reader=ItemDetailsRead(
+            step1__table=f'{SCHEMA_NAME}.product_item_list',
+            step1__where="product_url ilike '%%shop.by%%'",
+            step1_urls_attribute='product_url'
+        ),
+        processor=ItemDetailsDo(product_type_name=PRODUCT_TYPE_NAME),
         writer=PostgresDataFrameWrite(
             schema_name=SCHEMA_NAME,
-            table_name='search_queue',
+            table_name=f'item_details_{SCHEMA_NAME}',
             insert_unique=True,
-            index_column='search_query',
-            if_exists='fail',
-            dtypes={
-                    'search_query': sqlalchemy.types.TEXT,
-                    'product_yandex_name': sqlalchemy.types.TEXT,
-                    'searched': sqlalchemy.types.BIGINT,
-                    'product_details_yandex_link': sqlalchemy.types.TEXT,
-                    'product_reviews_yandex_link': sqlalchemy.types.TEXT,
-                    'scraped': sqlalchemy.types.BIGINT,
-                    }
-        ),
+            if_exists='append'),
     )
-    create_queue_table.run()
+    ItemDetails_2_Postgres.run()
+    logger.warning('End - Job 2')
+
+    # # todo: 2905 after lunch
+    # # Job 4 -> Fill in the details from the sites that have no product_details microdata
+    # # DetailsFillIn = Job(
+    # #     reader=ReadChain(readers=[
+    # #         PostgresDataFrameRead(table='scraped_data.item_details_washing_machine', where=''),
+    # #         PostgresDataFrameRead(table='scraped_data.product_item_list_to_fill', where=''),
+    # #         PostgresDataFrameRead(table='scraped_data.product_item_list', where=''),
+    # #     ]),
+    # #     processor=FillInDo(),
+    # #     writer=PostgresDataFrameWrite(schema_name='scraped_data', table_name='item_details_washing_machine', insert_unique=False)
+    # # )
+    # # DetailsFillIn.run()
+
+    # # step 2.5 - записать в очередь
+    # mongo_read_product_reviews = MongoRead(operation='read', db_name=SCHEMA_NAME, collection_name='product_reviews')
+    # mongo_read_product_details = MongoRead(operation='read', db_name=SCHEMA_NAME, collection_name='product_details')
+    # postgres_read_item_list = PostgresDataFrameRead(
+    #     table=f'{SCHEMA_NAME}.item_details_{SCHEMA_NAME}',
+    #     # where=" (offer_count is not null or offer_count is null) and offer_count > 10 and height_cm >= 195 order by min_price asc limit 2000"
+    # )
+    # create_queue_table = Job(
+    #     reader=ReadChainSearchParsePart1(readers=[
+    #         mongo_read_product_reviews,
+    #         mongo_read_product_details,
+    #         postgres_read_item_list,
+    #     ]),
+    #     processor=PopulateQueueDo(),
+    #     writer=PostgresDataFrameWrite(
+    #         schema_name=SCHEMA_NAME,
+    #         table_name='search_queue',
+    #         insert_unique=True,
+    #         index_column='search_query',
+    #         if_exists='fail',
+    #         dtypes={
+    #                 'search_query': sqlalchemy.types.TEXT,
+    #                 'product_yandex_name': sqlalchemy.types.TEXT,
+    #                 'searched': sqlalchemy.types.BIGINT,
+    #                 'product_details_yandex_link': sqlalchemy.types.TEXT,
+    #                 'product_reviews_yandex_link': sqlalchemy.types.TEXT,
+    #                 'scraped': sqlalchemy.types.BIGINT,
+    #                 }
+    #     ),
+    # )
+    # create_queue_table.run()
 
 
     # step 2.6 - populate with google search
@@ -612,18 +453,7 @@ if __name__ == '__main__':
     # ----------------------------------------------------------------------------------------------------------------
 
 
-    # # todo: 2905 after lunch
-    # # Job 4 -> Fill in the details from the sites that have no product_details microdata
-    # # DetailsFillIn = Job(
-    # #     reader=ReadChain(readers=[
-    # #         PostgresDataFrameRead(table='scraped_data.item_details_washing_machine', where=''),
-    # #         PostgresDataFrameRead(table='scraped_data.product_item_list_to_fill', where=''),
-    # #         PostgresDataFrameRead(table='scraped_data.product_item_list', where=''),
-    # #     ]),
-    # #     processor=FillInDo(),
-    # #     writer=PostgresDataFrameWrite(schema_name='scraped_data', table_name='item_details_washing_machine', insert_unique=False)
-    # # )
-    # # DetailsFillIn.run()
+
     #
     # # Job 5 - Mongo Details -> PostgresDetails
     # ReviewsProductDetails = Job(

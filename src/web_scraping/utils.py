@@ -91,7 +91,10 @@ class MicrodataExtractor:
         results = []
         for el in mdata['microdata']:
             if el.get('type') == 'https://schema.org/ItemList':
-                _items = el['properties'].get('itemListElement')
+                try:
+                    _items = el['properties'].get('itemListElement')
+                except Exception as e:
+                    logger.critical(e)
                 for item in _items:
                     if item.get('type') == 'https://schema.org/ListItem':
                         item_features = {}

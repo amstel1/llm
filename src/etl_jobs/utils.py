@@ -42,7 +42,7 @@ class ItemDetailsDo(Do):
             'Варочная панель': attribute_mappings.hob_cooker_mapping,
             'Духовой шкаф': attribute_mappings.oven_cooker_mapping,
             'Утюг': attribute_mappings.iron_mapping,
-            'Кондиционер': attribute_mappings.conditioner_mapping,
+            'Кондиционер': attribute_mappings.conditioner_mapping, # +
             'Водонагреватель': attribute_mappings.waterheater_mapping,
             'Микроволновка': attribute_mappings.microwave_mapping,
 
