@@ -481,6 +481,8 @@ class ParseRead(Read):
         logger.debug(type(data))
         df = data.get('step_0')
         assert isinstance(df, pd.DataFrame)
+        df = df[df['product_details_yandex_link'].notnull()]
+        df.drop_duplicates(subset='product_details_yandex_link', inplace=True)
         # data structure is: df with columns = (user_query, product_yandex_name, processed[int], product_url, reviews_url)
         for i, row in df.iterrows():
             user_query, product_yandex_name, searched, product_url, reviews_url, scraped = row

@@ -334,7 +334,7 @@ if __name__ == '__main__':
     populate_queue_table = Job(
         reader=ReadChain(
             readers=[
-                PostgresDataFrameRead(table='fridge.search_queue', where="(searched is null or searched = 0) "),
+                PostgresDataFrameRead(table='fridge.search_queue', where="(searched is null or searched = 0) and lower(search_query) similar to '%%(lg|bosch|electrolux|samsung)%%'"),
                 SearchRead()  # output: Dict[user_query, tuple(fridge.search_queue attributes)]
             ]),
         processor=SearchDo(),
@@ -353,7 +353,7 @@ if __name__ == '__main__':
     #     reader=ReadChainSearchParsePart2(readers=[
     #         PostgresDataFrameRead(
     #             table='fridge.search_queue',
-    #             where='searched = 1 and scraped = 0 and LENGTH(product_details_yandex_link) >= 10 limit 3'
+    #             where='searched = 1 and scraped = 0 and LENGTH(product_details_yandex_link) >= 10'
     #         ),
     #         ParseRead(),
     #     ]),
