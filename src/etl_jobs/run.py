@@ -289,8 +289,8 @@ if __name__ == '__main__':
     # step.run()
 
     ## config part
-    SCHEMA_NAME = 'vacuumcleaner'
-    PRODUCT_TYPE_NAME = 'Пылесос'  # Стиральная машина, Холодильник
+    SCHEMA_NAME = 'headphones'
+    PRODUCT_TYPE_NAME = 'Наушники'  # Стиральная машина, Холодильник
 
     # step 2. Read: ItemList from Postgres, Do: Scrapy ProductDetails, Write: to Postgres
     logger.warning('Start - Job 2')

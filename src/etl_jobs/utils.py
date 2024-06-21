@@ -35,14 +35,14 @@ class ItemDetailsDo(Do):
             'Мобильный телефон': attribute_mappings.mobile_mapping,
             'Чайник': attribute_mappings.kettle_mapping,
 
-            'Пылесос': attribute_mappings.vacuumcleaner_mapping,
+            'Пылесос': attribute_mappings.vacuumcleaner_mapping,  # +
             'Наушники': attribute_mappings.headphones_mapping,
             'Умные часы': attribute_mappings.smartwatch_mapping,
             'Посудомойка': attribute_mappings.dishwasher_mapping,
             'Варочная панель': attribute_mappings.hob_cooker_mapping,
             'Духовой шкаф': attribute_mappings.oven_cooker_mapping,
             'Утюг': attribute_mappings.iron_mapping,
-            'Кондиционер': attribute_mappings.conditioner_mapping, # +
+            'Кондиционер': attribute_mappings.conditioner_mapping,  # +
             'Водонагреватель': attribute_mappings.waterheater_mapping,
             'Микроволновка': attribute_mappings.microwave_mapping,
 
