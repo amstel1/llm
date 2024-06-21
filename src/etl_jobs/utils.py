@@ -21,6 +21,7 @@ class ItemListDo(Do):
         if isinstance(data, list) and isinstance(data[0], list):
             data = [item for sublist in data for item in sublist]
         df = pd.DataFrame(data)
+        if 'product_price' in df.columns: df['product_price'] = df['product_price'].astype(str).replace(' ', '').replace(',', '.').astype(float)
         df['scraped_datetime'] = datetime.now()
         return {"step_0": df}
 
@@ -36,16 +37,15 @@ class ItemDetailsDo(Do):
             'Чайник': attribute_mappings.kettle_mapping,
 
             'Пылесос': attribute_mappings.vacuumcleaner_mapping,  # +
-            'Наушники': attribute_mappings.headphones_mapping,
-            'Умные часы': attribute_mappings.smartwatch_mapping,
-            'Посудомойка': attribute_mappings.dishwasher_mapping,
-            'Варочная панель': attribute_mappings.hob_cooker_mapping,
-            'Духовой шкаф': attribute_mappings.oven_cooker_mapping,
-            'Утюг': attribute_mappings.iron_mapping,
+            'Наушники': attribute_mappings.headphones_mapping,  # +
+            'Умные часы': attribute_mappings.smartwatch_mapping,  # +
+            'Посудомойка': attribute_mappings.dishwasher_mapping, # +
+            'Варочная панель': attribute_mappings.hob_cooker_mapping, # +
+            'Духовой шкаф': attribute_mappings.oven_cooker_mapping, # +
+            'Утюг': attribute_mappings.iron_mapping, # +
             'Кондиционер': attribute_mappings.conditioner_mapping,  # +
-            'Водонагреватель': attribute_mappings.waterheater_mapping,
-            'Микроволновка': attribute_mappings.microwave_mapping,
-
+            'Водонагреватель': attribute_mappings.waterheater_mapping, # +
+            'Микроволновка': attribute_mappings.microwave_mapping, # +
         }
         assert self.product_type_name in self.handler_mapping
 

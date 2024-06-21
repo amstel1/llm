@@ -10,6 +10,38 @@ class Step1:
         # product_name - one of the products below
         # product_name - alias of one of the three shops
         self.name = shop_name
+        fridge = {
+            'product_type_name': 'Холодильник',
+            'schema_name': 'fridge',
+            'shop_slug': 'holodilniki',
+            'shop_max_page': 106,
+            'vek21_slug': 'refrigerators',
+            'vek21_max_page': 15,
+            'onliner_slug': 'refrigerator',
+            'onliner_max_page': 155,
+        }
+        tv = {
+            'product_type_name': 'Телевизор',
+            'schema_name': 'tv',
+            'shop_slug': 'tv',
+            'shop_max_page': 106,
+            'vek21_slug': 'tv',
+            'vek21_max_page': 13,
+            'onliner_slug': 'tv',
+            'onliner_max_page': 68,
+        }
+
+        mobile = {
+            'product_type_name': 'Мобильный телефон',
+            'schema_name': 'mobile',
+            'shop_slug': 'telefony_mobilnye',
+            'shop_max_page': 106,
+            'vek21_slug': 'mobile',
+            'vek21_max_page': 28,
+            'onliner_slug': 'mobile',
+            'onliner_max_page': 86,
+        }
+
         kettle = {
             'product_type_name': 'Чайник',
             'schema_name': 'kettle',
@@ -132,6 +164,10 @@ class Step1:
         }
 
         product_mapping = {
+            'fridge': fridge,
+            'tv': tv,
+            'mobile': mobile,
+            'kettle': kettle,
             'vacuumcleaner': vacuumcleaner,
             'headphones': headphones,
             'smartwatch': smartwatch,
@@ -159,7 +195,7 @@ class Step1:
                 processor=ItemListDo(),
                 writer=PostgresDataFrameWrite(
                     schema_name=product["schema_name"],
-                    table_name='product_item_list',  # product_item_list_to_fill, product_item_list
+                    table_name='product_item_list',  # product_item_list
                     insert_unique=True,
                     index_column="product_url",
                     if_exists='append')
@@ -174,7 +210,7 @@ class Step1:
                 processor=ItemListDo(),
                 writer=PostgresDataFrameWrite(
                     schema_name=product["schema_name"],
-                    table_name='product_item_list',  # product_item_list_to_fill, product_item_list
+                    table_name='product_item_list_to_fill',  # ! IMPORTANT, 21VEK GOES TO product_item_list_to_fill, NOT product_item_list
                     insert_unique=True,
                     index_column="product_url",
                     if_exists='append'
@@ -190,7 +226,7 @@ class Step1:
                 processor=ItemListDo(),
                 writer=PostgresDataFrameWrite(
                     schema_name=product["schema_name"],
-                    table_name='product_item_list',  # product_item_list_to_fill, product_item_list
+                    table_name='product_item_list_to_fill',  # ! IMPORTANT, ONLINER GOES TO product_item_list_to_fill, NOT product_item_list
                     insert_unique=True,
                     index_column="product_url",
                     if_exists='append')

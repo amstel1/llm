@@ -182,7 +182,13 @@ class OnlinerExtractor(HtmlExtractor):
             item_features['product_url'] = selector.css('a.catalog-form__link_base-additional::attr(href)').get()
             item_features['product_image_url'] = selector.css('img.catalog-form__image::attr(src)').get()
             item_features['product_name'] = selector.css('a.catalog-form__link_base-additional::text').get().strip()
-            # item_features['product_price'] = selector.css('a.catalog-form__link span:not([class^="catalog-form__description"])::text').get().replace('\xa0р.','').replace(',','.')
+            # product_price must be present
+            product_price_selector = selector.css('a.catalog-form__link span:not([class^="catalog-form__description"])::text').get()
+            if product_price_selector:
+                item_features['product_price'] = float(product_price_selector.replace('\xa0','').replace(' ','').replace('р.', '').replace(',','.').strip())
+            else:
+                item_features['product_price'] = None
+            item_features['product_type_url'] = product_type_url
             item_features['product_type_url'] = product_type_url
             item_features['product_type_name'] = self.product_type_name
             item_features['product_position'] = i
@@ -209,7 +215,12 @@ class Vek21Extractor(HtmlExtractor):
             item_features['product_url'] = self.base_url + selector.css('p[class^="CardInfo"] a::attr(href)').get()
             item_features['product_image_url'] = selector.css('div[class^="CardMedia_mediaContainer"] img::attr(src)').get()
             item_features['product_name'] = selector.css('p[class^="CardInfo"] a::text').get()
-            # item_features['product_price'] = selector.css('p[class^="CardPrice_currentPrice"]::text').get().replace('р.', '').replace(',','.').strip()
+            # product_price must be present
+            product_price_selector = selector.css('p[class^="CardPrice_currentPrice"]::text').get()
+            if product_price_selector:
+                item_features['product_price'] = float(product_price_selector.replace('\xa0','').replace(' ','').replace('р.', '').replace(',','.').strip())
+            else:
+                item_features['product_price'] = None
             item_features['product_type_url'] = product_type_url
             item_features['product_type_name'] = product_type_name
             item_features['product_position'] = i
