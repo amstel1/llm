@@ -27,11 +27,10 @@ db.createUser(
 use scraped_data
 
 db.createCollection('product_details')
-
 db.createCollection('product_reviews')
 
 db.updateUser('reader', { roles: [
-        { role: 'read', db: 'scraped_data' },
+        { role: 'read', db: 'washing_machine' },
         { role: 'read', db: 'fridge' },
         { role: 'read', db: 'tv' },
         { role: 'read', db: 'mobile' },
@@ -50,7 +49,7 @@ db.updateUser('reader', { roles: [
 )
 
 db.updateUser('writer', { roles: [
-  { role: 'readWrite', db: 'scraped_data' },
+  { role: 'readWrite', db: 'washing_machine' },
   { role: 'readWrite', db: 'fridge' },
   { role: 'readWrite', db: 'tv' },
   { role: 'readWrite', db: 'mobile' },

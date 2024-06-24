@@ -10,12 +10,12 @@ from loguru import logger
 
 class DataServer():
     max_items = 4
-    def __init__(self, product_type_name: str = 'washing_mashine'):
+    def __init__(self, product_type_name: str = 'washing_machine'):
         self.product_type_name = product_type_name
-        if product_type_name == 'washing_mashine':
-            self.sql_details_db = 'scraped_data.washing_machine'
-            self.sql_render_db = 'scraped_data.render_washing_machine'  # render_washing_machine
-            self.nosql_summarizations_db = 'scraped_data.product_review_summarizations'
+        logger.critical(product_type_name)
+        self.sql_details_db = f'{product_type_name}.{product_type_name}'
+        self.sql_render_db = f'{product_type_name}.render_{product_type_name}'  # render_washing_machine
+        self.nosql_summarizations_db = f'{product_type_name}.product_review_summarizations'
         assert self.sql_details_db is not None
         assert self.sql_render_db is not None
         assert self.nosql_summarizations_db is not None

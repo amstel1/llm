@@ -154,25 +154,25 @@ Indesit | 4.5 | 921 | 290 | Стиральная машина Indesit IWSB 51051
 Here are the examples of correct pairs of input_query (Q) and required output (SQL):
 
 Q: Фирма Электролюкс без сушки глубина до 50 см;
-SQL: SELECT name, price, rating_value, drying, depth FROM scraped_data.washing_machine WHERE (brand ILIKE '%Electrolux%') AND (drying = 'Нет' or drying is null) AND depth <= 50;
+SQL: SELECT name, price, rating_value, drying, depth FROM washing_machine.washing_machine WHERE (brand ILIKE '%Electrolux%') AND (drying = 'Нет' or drying is null) AND depth <= 50;
 
 Q: популярная, хорошая, недорогая
-SQL: SELECT name, price, rating_value FROM scraped_data.washing_machine WHERE price <= 1000;
+SQL: SELECT name, price, rating_value FROM washing_machine.washing_machine WHERE price <= 1000;
 
 Q: Cтиральная машина с сушкой
-SQL: SELECT name, price, rating_value, drying FROM scraped_data.washing_machine WHERE drying = 'Да';
+SQL: SELECT name, price, rating_value, drying FROM washing_machine.washing_machine WHERE drying = 'Да';
 
 Q: отличная стиралка;
-SQL: SELECT name, price, rating_value FROM scraped_data.washing_machine WHERE rating_value >= 4.8;
+SQL: SELECT name, price, rating_value FROM washing_machine.washing_machine WHERE rating_value >= 4.8;
 
 Q: от 5 кг, хорошая лучшая
-SQL: SELECT name, price, rating_value, max_load FROM scraped_data.washing_machine WHERE (max_load >= 5) and (rating_value >= 4.8);
+SQL: SELECT name, price, rating_value, max_load FROM washing_machine.washing_machine WHERE (max_load >= 5) and (rating_value >= 4.8);
 
 Q: хорошая стиральная машина
-SQL: SELECT name, price, rating_value FROM scraped_data.washing_machine WHERE rating_value >= 4.5;
+SQL: SELECT name, price, rating_value FROM washing_machine.washing_machine WHERE rating_value >= 4.5;
 
 Q: дешевая
-SQL: SELECT name, price, rating_value FROM scraped_data.washing_machine WHERE price <= 1000;
+SQL: SELECT name, price, rating_value FROM washing_machine.washing_machine WHERE price <= 1000;
 
 
 input_query: {user_query}

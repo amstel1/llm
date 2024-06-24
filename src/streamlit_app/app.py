@@ -121,7 +121,8 @@ if __name__ == '__main__':
                     st.markdown(response_text)
             elif isinstance(data, pd.DataFrame):
                 # sql results - show table
-                data_server = DataServer()
+                # todo: get product_type_name fron context variables
+                data_server = DataServer(product_type_name = 'washing_machine')  # must pass this from scenario
                 assert 'name' in data.columns
                 assert data.shape[0] > 0
                 logger.debug(data.shape)

@@ -17,7 +17,7 @@ from etl_jobs import attribute_mappings
 
 class DescriptionMaker:
     def __init__(self, schema_name: str):
-        assert schema_name in ('fridge', 'mobile', 'tv', )
+        assert schema_name in ('washing_machine', 'fridge', 'mobile', 'tv', )
         name_2_attribute = {
             'washing_machine': attribute_mappings.washing_machine_mapping,
             'fridge': attribute_mappings.fridge_mapping,
@@ -50,7 +50,7 @@ if __name__ == '__main__':
 
     # Specify the device to use, e.g., 'cpu' or 'cuda:0'
     # Specify whether to use fp16. Set to `False` if `device` is `cpu`.
-    dense_embedding_model = HuggingFaceEmbeddings(model_name='BAAI/bge-m3', model_kwargs={'device': 'cuda',})
+    dense_embedding_model = HuggingFaceEmbeddings(model_name='BAAI/bge-m3', model_kwargs={'device': 'cpu',})
 
     fields = [
         FieldSchema(name="attribute_name_eng", dtype=DataType.VARCHAR, max_length=1024),
@@ -58,7 +58,7 @@ if __name__ == '__main__':
         FieldSchema(name="attribute_name_rus_vector", dtype=DataType.FLOAT_VECTOR, dim=1024),
         FieldSchema(name="attribute_type", dtype=DataType.VARCHAR, max_length=4),  # may only be real / text1
     ]
-    for db_name in ( 'fridge', 'tv', 'mobile', ):
+    for db_name in ( 'fridge', 'tv', 'mobile', 'washing_machine', ):
 
         # milvus insert
         CONNECTION_URI = "http://localhost:19530"
