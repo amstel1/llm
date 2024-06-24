@@ -30,21 +30,21 @@ class ItemDetailsDo(Do):
     def __init__(self, product_type_name='Холодильник'):
         self.product_type_name = product_type_name
         self.handler_mapping = {
-            'Стиральная машина': attribute_mappings.washing_machine_mapping,
-            'Холодильник': attribute_mappings.fridge_mapping,
-            'Телевизор': attribute_mappings.tv_mapping,
-            'Мобильный телефон': attribute_mappings.mobile_mapping,
-            'Чайник': attribute_mappings.kettle_mapping,
+            'Стиральная машина': attribute_mappings.washing_machine_mapping, # ++
+            'Холодильник': attribute_mappings.fridge_mapping,  # ++
+            'Телевизор': attribute_mappings.tv_mapping,  # ++
+            'Мобильный телефон': attribute_mappings.mobile_mapping,  # ++
+            'Чайник': attribute_mappings.kettle_mapping,  # ++
 
             'Пылесос': attribute_mappings.vacuumcleaner_mapping,  # +
             'Наушники': attribute_mappings.headphones_mapping,  # +
             'Умные часы': attribute_mappings.smartwatch_mapping,  # +
             'Посудомойка': attribute_mappings.dishwasher_mapping, # +
             'Варочная панель': attribute_mappings.hob_cooker_mapping, # +
-            'Духовой шкаф': attribute_mappings.oven_cooker_mapping, # +
+            'Духовой шкаф': attribute_mappings.oven_cooker_mapping, # ++
             'Утюг': attribute_mappings.iron_mapping, # +
             'Кондиционер': attribute_mappings.conditioner_mapping,  # +
-            'Водонагреватель': attribute_mappings.waterheater_mapping, # +
+            'Водонагреватель': attribute_mappings.waterheater_mapping, # ++
             'Микроволновка': attribute_mappings.microwave_mapping, # +
         }
         assert self.product_type_name in self.handler_mapping
