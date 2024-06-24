@@ -14,7 +14,7 @@ class DataServer():
         self.product_type_name = product_type_name
         if product_type_name == 'washing_mashine':
             self.sql_details_db = 'scraped_data.washing_machine'
-            self.sql_render_db = 'scraped_data.render_wm'  # render_washing_machine
+            self.sql_render_db = 'scraped_data.render_washing_machine'  # render_washing_machine
             self.nosql_summarizations_db = 'scraped_data.product_review_summarizations'
         assert self.sql_details_db is not None
         assert self.sql_render_db is not None

@@ -34,8 +34,8 @@ class ItemDetailsDo(Do):
             'Холодильник': attribute_mappings.fridge_mapping,  # ++
             'Телевизор': attribute_mappings.tv_mapping,  # ++
             'Мобильный телефон': attribute_mappings.mobile_mapping,  # ++
-            'Чайник': attribute_mappings.kettle_mapping,  # ++
 
+            'Чайник': attribute_mappings.kettle_mapping,  # ++
             'Пылесос': attribute_mappings.vacuumcleaner_mapping,  # +
             'Наушники': attribute_mappings.headphones_mapping,  # +
             'Умные часы': attribute_mappings.smartwatch_mapping,  # +

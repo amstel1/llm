@@ -1,3 +1,5 @@
+import numpy as np
+
 mobile_mapping = {
             'name': 'name',
             'product_url': 'product_url',
@@ -591,3 +593,6 @@ microwave_mapping = {'name': 'name',
     "Высота, см": "height_cm",
     "Вес, кг": "weight_kg"
 }
+
+if __name__ == '__main__':
+    pass
