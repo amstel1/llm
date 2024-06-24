@@ -35,24 +35,11 @@ class SqlToText:
         # langfuse = Langfuse()
         # langfuse_callback_handler = CallbackHandler(trace_name=trace_name)
 
-        # llm = Ollama(model=self.ollama_model, stop=self.ollama_stop, num_gpu=-1, num_thread=-1, temperature=0,
-        #              mirostat=0)
-        # llm = LlamaCpp(
-        #     model_path='/home/amstel/llm/models/Publisher/Repository/Meta-Llama-3-8B-Instruct-Q6_K.gguf',
-        #     n_gpu_layers=33,
-        #     max_tokens=-1,
-        #     n_batch=512,
-        #     n_ctx=2048,
-        #     f16_kv=False,
-        #     verbose=True,
-        #     temperature=0.0,
-        #     stop=self.ollama_stop,
-        # )
         top_k = 1
         dialect = 'postgresql'
         uri = f"postgresql://{host}:{port}/{database}?user={user}&password={password}"
         db = SQLDatabase.from_uri(uri)
-        table_info = '''create table scraped_data.washing_machine (
+        table_info = '''create table washing_machine.washing_machine (
               "brand" text, -- название производителя
               "rating_value" real, -- рейтинг товара
               "rating_count" real, -- количество оценок

@@ -21,6 +21,9 @@ from loguru import logger
 class Route_(str, Enum):
     just_chatting = "just_chatting"
     shopping_assistant_washing_machine = "shopping_assistant_washing_machine"
+    shopping_assistant_fridge = "shopping_assistant_fridge"
+    shopping_assistant_tv = "shopping_assistant_tv"
+    shopping_assistant_mobile = "shopping_assistant_mobile"
     sberbank_consultant = "sberbank_consultant"
 
 class Route(BaseModel):
@@ -36,6 +39,9 @@ You are a state-of-the-art intent classifer.<|eot_id|><|start_header_id|>user<|e
 route mapping: 
 just_chatting: разговор на любые темы
 shopping_assistant_washing_machine: поиск, выбор, покупка стиральной или стирально-сушильной машины
+shopping_assistant_fridge: поиск, выбор, покупка холодильника
+shopping_assistant_tv: поиск, выбор, покупка телевизора
+shopping_assistant_mobile: поиск, выбор, покупка мобильного телефона
 sberbank_consultant: консультация по всем вопросам, связанным с накоплением и сбережением, банковскими продуктами (карта, депозит, кредит), услугами (покупай валюту, страховка) (Сбер Банк Беларусь)
 
 user input:
@@ -49,7 +55,7 @@ Use step-by-step reasoning:
 
 Based on your reasoning, decide on the route as JSON.<|eot_id|><|start_header_id|>assistant<|end_header_id|>\nJSON:"""
 
-
+##########################################################################################
         self.prompt_with_chat_history = """<|start_header_id|>system<|end_header_id|>
 You are a state-of-the-art intent classifer.<|eot_id|><|start_header_id|>user<|end_header_id|>
 
@@ -62,6 +68,9 @@ user_input:
 route mapping: 
 just_chatting: разговор на любые темы
 shopping_assistant_washing_machine: поиск, выбор, покупка стиральной или стирально-сушильной машины
+shopping_assistant_fridge: поиск, выбор, покупка холодильника
+shopping_assistant_tv: поиск, выбор, покупка телевизора
+shopping_assistant_mobile: поиск, выбор, покупка мобильного телефона
 sberbank_consultant: консультация по всем вопросам, связанным с накоплением и сбережением, банковскими продуктами (карта, депозит, кредит), услугами (покупай валюту, страховка) (Сбер Банк Беларусь)
 
 Based on the user input and the chat history, identify which route the user's input most closely relates to. Your decision should take into account the context provided by the chat history. Respond with the most relevant route name from the given mapping.
@@ -108,8 +117,8 @@ Please respond with the most relevant route name as JSON.<|eot_id|><|start_heade
 if __name__ == '__main__':
     # pass
     router = ScenarioRouter()
-    route = router.route(user_query="какие кредиты есть в сбере?",
+    route = router.route(user_query="подбери мобилку",
                          stop=['<|eot_id|>'],
-                         # grammar_path='/home/amstel/llm/src/grammars/scenario_router.gbnf'
+                         grammar_path='/home/amstel/llm/src/grammars/scenario_router.gbnf'
                          )
     print(route)

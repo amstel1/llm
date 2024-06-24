@@ -111,7 +111,7 @@ class ShoppingAssistantScenario(BaseScenario):
 
 
     def get_possible_filters(self) -> Iterable:
-        possible_filters = ['цена', 'рейтинг', 'брэнд', 'максимальная загрукзка', 'наличие сушки']
+        possible_filters = ['цена', 'рейтинг', 'брэнд', 'максимальная загрузка', 'наличие сушки']
         return possible_filters
 
     def ask(self, user_query: str, chat_history: Iterable, context: Any) -> str:
