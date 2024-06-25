@@ -29,7 +29,7 @@ import sys
 sys.path.append('/home/amstel/llm/src')
 import pandas as pd
 from scenarios.base import BaseScenario, parse_markup_chat_history, get_llama3_template_from_history, get_llama3_template_from_user_query
-from text2sql.prod_llama_fewshot import SqlToText
+from text2sql.prod_sql_to_text import SqlToText
 from typing import Iterable, Dict, List, Union, Optional, Any
 import requests
 from loguru import logger
@@ -52,13 +52,16 @@ def chat_history_list_to_str(chat_history: list):
 class ShoppingAssistantScenario(BaseScenario):
     possible_filters = ""  # -> max_oad, min_price, max_load, is_drying
 
-    def __init__(self, ):
+    def __init__(self, scenario_name: str):
         """
         Initialize the Shopping Assistant with a database.
 
         :param database: A pandas DataFrame or database connection containing product data.
         """
-        pass
+        assert scenario_name in ('shopping_assistant_washing_machine', 'shopping_assistant_fridge',
+                                 'shopping_assistant_tv', 'shopping_assistant_mobile', )
+        self.scenario_name = scenario_name
+        self.schema_name = scenario_name.replace('shopping_assistant_', '')
 
     def verify(self, user_query: str, chat_history: list, context: Any) -> bool:
         """
@@ -177,7 +180,7 @@ class ShoppingAssistantScenario(BaseScenario):
 
     def handle(self, user_query, chat_history, context) -> [Any, Dict]:
         current_step = context.get('current_step')
-        logger.debug(f'current_step - {current_step}')
+        # logger.debug(f'current_step - {current_step}')
         assert current_step in ('verify', 'ask', 'sql', 'reformulate',)
         previous_steps = context.get('previous_steps')
         assert isinstance(previous_steps, list)
@@ -197,7 +200,7 @@ class ShoppingAssistantScenario(BaseScenario):
                 current_step = 'sql'
                 logger.debug(f'current step - {current_step}')
                 context['current_step'] = current_step
-                df = SqlToText.sql_query(user_query=response)  # pass reformulated response here, no need to pass history - already done at reformulate step
+                df = SqlToText.sql_query(schema_name=self.schema_name, user_query=response)  # pass reformulated response here, no need to pass history - already done at reformulate step
                 previous_steps.append(current_step)
                 context['previous_steps'] = previous_steps
                 current_step = 'exit'
@@ -238,7 +241,7 @@ class ShoppingAssistantScenario(BaseScenario):
                 current_step = 'sql'
                 logger.debug(f'current step - {current_step}')
                 context['current_step'] = current_step
-                df = SqlToText.sql_query(user_query=response)  # pass reformulated response here
+                df = SqlToText.sql_query(schema_name=self.schema_name, user_query=response)  # pass reformulated response here
                 previous_steps.append(current_step)
                 context['previous_steps'] = previous_steps
                 current_step = 'exit'
@@ -258,7 +261,7 @@ class ShoppingAssistantScenario(BaseScenario):
                 return response, context
         elif current_step == 'sql':
             logger.debug(f'current step - {current_step}')
-            df = SqlToText.sql_query(user_query=user_query)
+            df = SqlToText.sql_query(schema_name=self.schema_name, user_query=user_query)
             previous_steps.append(current_step)
             context['previous_steps'] = previous_steps
             current_step = 'exit'

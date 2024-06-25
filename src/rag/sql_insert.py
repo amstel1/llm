@@ -20,7 +20,7 @@ if __name__ == '__main__':
         FieldSchema(name="q_vector", dtype=DataType.FLOAT_VECTOR, dim=1024),
         FieldSchema(name="a", dtype=DataType.VARCHAR, max_length=1024),
     ]
-    for sheet_name in ('washing_machine',  'fridge', 'tv', 'mobile', ):
+    for sheet_name in ('washing_machine',  'tv', 'mobile', ):
 
         # milvus insert
         CONNECTION_URI = "http://localhost:19530"

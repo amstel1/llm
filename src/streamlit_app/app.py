@@ -98,9 +98,9 @@ if __name__ == '__main__':
                 )
                 st.session_state.context['scenario_name'] = selected_route_str
                 logger.critical(f'context after scenario_router.route(): {st.session_state.context}')
-            if st.session_state.context['scenario_name'] == 'shopping_assistant_washing_machine':
+            if st.session_state.context['scenario_name'].startswith('shopping_assistant_'):
                 # initial
-                st.session_state.scenario_object = ShoppingAssistantScenario()
+                st.session_state.scenario_object = ShoppingAssistantScenario(scenario_name = st.session_state.context['scenario_name'])
                 st.session_state.context['current_step'] = 'verify'
             elif st.session_state.context['scenario_name'] == 'sberbank_consultant':
                 st.session_state.scenario_object = SberbankConsultant()
@@ -121,8 +121,8 @@ if __name__ == '__main__':
                     st.markdown(response_text)
             elif isinstance(data, pd.DataFrame):
                 # sql results - show table
-                # todo: get product_type_name fron context variables
-                data_server = DataServer(product_type_name = 'washing_machine')  # must pass this from scenario
+                # todo: get product_type_name from context variables
+                data_server = DataServer(product_type_name='washing_machine')  # must pass this from scenario
                 assert 'name' in data.columns
                 assert data.shape[0] > 0
                 logger.debug(data.shape)

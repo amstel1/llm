@@ -10,7 +10,8 @@ from base import Job, Read, Do, Write, ReadChain, WriteChain, DoChain, StepNum, 
 import yaml
 from loguru import logger
 from jobs import Step1
-
+from general_llm.reload_router import main as main_reload_router
+import time
 
 
 
@@ -295,8 +296,8 @@ class ReviewsProductDetailsDo(Do):
 
 if __name__ == '__main__':
     # config part
-    SCHEMA_NAME = 'mobile'
-    PRODUCT_TYPE_NAME = 'Мобильный телефон'  # Стиральная машина, Холодильник
+    SCHEMA_NAME = 'kettle'
+    PRODUCT_TYPE_NAME = 'Чайник'  # Стиральная машина, Холодильник
 
     # step 1. ItemList from sites to Postgres. Not: all three for each new product
     #
@@ -399,49 +400,53 @@ if __name__ == '__main__':
     # create_queue_table.run()
     #
     #
-    # step 2.6 - populate with google search
-    # populate_queue_table = Job(
-    #     reader=ReadChain(
-    #         readers=[
-    #             PostgresDataFrameRead(table=f'{SCHEMA_NAME}.search_queue', where="""(searched is null or searched = 0)"""),
-    #             SearchRead()  # output: Dict[user_query, tuple(fridge.search_queue attributes)]
-    #         ]),
-    #     processor=SearchDo(),
-    #     writer=PostgresDataFrameUpdate(
-    #         schema_name=SCHEMA_NAME,
-    #         table_name='search_queue',
-    #         where_postgres_attribute='search_query',
-    #         where_dataframe_column_name='search_query',
-    #     )
-    # )
-    # populate_queue_table.run()
+    # # step 2.6 - populate with google search
 
+    # for i in range(50):
+    #     populate_queue_table = Job(
+    #         reader=ReadChain(
+    #             readers=[
+    #                 PostgresDataFrameRead(table=f'{SCHEMA_NAME}.search_queue', where="""(searched is null or searched = 0)"""),
+    #                 SearchRead()  # output: Dict[user_query, tuple(fridge.search_queue attributes)]
+    #             ]),
+    #         processor=SearchDo(),
+    #         writer=PostgresDataFrameUpdate(
+    #             schema_name=SCHEMA_NAME,
+    #             table_name='search_queue',
+    #             where_postgres_attribute='search_query',
+    #             where_dataframe_column_name='search_query',
+    #         )
+    #     )
+    #     populate_queue_table.run()
+    #     main_reload_router()
+    #     print('Sleeping')
+    #     print(i)
+    #     time.sleep(240)
 
     # step 2.7
-    # parse_yandex = Job(
-    #     reader=ReadChainSearchParsePart2(readers=[
-    #         PostgresDataFrameRead(
-    #             table=f'{SCHEMA_NAME}.search_queue',
-    #             where='searched = 1 and scraped = 0 and LENGTH(product_details_yandex_link) >= 10'
-    #         ),
-    #         ParseRead(),
-    #     ]),
-    #     processor=DoChainGlobal(processors=[
-    #         SetSearchQueueProcessedDo(),
-    #         YandexMarketDo()
-    #     ]),
-    #     writer=WriteChain(writers=[
-    #         PostgresDataFrameUpdate(schema_name=SCHEMA_NAME, table_name='search_queue',
-    #                                 where_dataframe_column_name='product_details_yandex_link', where_postgres_attribute='product_details_yandex_link'),
-    #         WriteChain(writers=[
-    #             MongoWrite(operation='write', db_name=SCHEMA_NAME, collection_name='product_details'),
-    #             MongoWrite(operation='write', db_name=SCHEMA_NAME, collection_name='product_reviews')
-    #         ]),  # details & reviews
-    #     ],
-    #     )
-    # )
-    # parse_yandex.run()
-
+    parse_yandex = Job(
+        reader=ReadChainSearchParsePart2(readers=[
+            PostgresDataFrameRead(
+                table=f'{SCHEMA_NAME}.search_queue',
+                where='searched = 1 and scraped = 0 and LENGTH(product_details_yandex_link) >= 10'
+            ),
+            ParseRead(),
+        ]),
+        processor=DoChainGlobal(processors=[
+            SetSearchQueueProcessedDo(),
+            YandexMarketDo()
+        ]),
+        writer=WriteChain(writers=[
+            PostgresDataFrameUpdate(schema_name=SCHEMA_NAME, table_name='search_queue',
+                                    where_dataframe_column_name='product_details_yandex_link', where_postgres_attribute='product_details_yandex_link'),
+            WriteChain(writers=[
+                MongoWrite(operation='write', db_name=SCHEMA_NAME, collection_name='product_details'),
+                MongoWrite(operation='write', db_name=SCHEMA_NAME, collection_name='product_reviews')
+            ]),  # details & reviews
+        ],
+        )
+    )
+    parse_yandex.run()
 
 
     #
