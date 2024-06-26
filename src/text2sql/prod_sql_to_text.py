@@ -24,7 +24,7 @@ from general_llm.llm_endpoint import call_generate_from_query_api, call_generati
 from sqlalchemy.sql import text
 from rag.rag_config import N_EMBEDDING_RESULTS, EMBEDDING_MODEL_NAME, ELBOW_EMBEDDING, MOST_RELEVANT_AT_THE_TOP
 from langchain_community.embeddings import HuggingFaceEmbeddings
-
+import re
 import pandas as pd
 from pymilvus import (
     Collection,
@@ -55,14 +55,14 @@ class SqlToText:
 
     def create_table_description(self, schema_name: str, table_name: str, body: str):
         begin = f"Here is the relevant table info:\ncreate table {schema_name}.{table_name} (\n"
-        end = ")\n"
+        end = ")\n\n"
         return f"{begin}{body}{end}"
 
     def create_few_shot_examples(self, qa_pairs: list):
-        result = "Here are the examples of correct pairs of input_query (Q) and required output (SQL):\n"
+        result = "Here are the examples of correct pairs of Q and SQL :\n"
         for pair in qa_pairs:
             q, a = pair
-            result += f"Q: {q.strip()}]\nSQL: {a.strip()}\n"
+            result += f"Q: {q.strip()}\nSQL: {a.strip()}\n"
         return result
 
     def create_prompt(self, prefix, table_description, body, postfix):
@@ -75,7 +75,7 @@ class SqlToText:
 
         dense_embedding_model = HuggingFaceEmbeddings(
             model_name=EMBEDDING_MODEL_NAME,  # Specify the model name
-            model_kwargs={'device': 'cpu', }
+            model_kwargs={'device': 'cpu',}
         )
         # fields = [
         #     FieldSchema(name="attribute_name_eng", dtype=DataType.VARCHAR, max_length=1024),
@@ -133,13 +133,14 @@ class SqlToText:
         few_shots = self.create_few_shot_examples(qa_pairs=examples)
         str_prompt = self.create_prompt(
             prefix='<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n'\
-'You are a top class business analyst that specializes in translating natural language queries into SQL. Perform the task you are assigned to to the best of your ability. <|eot_id|><|start_header_id|>user<|end_header_id|>\nGiven an input_query, create a valid SQL query to run.',
+'You are a top class business analyst that specializes in translating natural language queries into SQL. Perform the task you are assigned to to the best of your ability. <|eot_id|><|start_header_id|>user<|end_header_id|>\nGiven a Q, create a valid SQL to run. Access only the attributes present in the table definition.\n\n',
             table_description=table_description,
             body=few_shots,
-            postfix=f"""input_query: {user_query}
+            postfix=f"""\n\nUser query:\nQ: {user_query.strip()} 
 SQL:<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n```sql""",
         )
 
+        # .replace('Суть требования пользователя: ', '').replace('Суть требований пользователя: ', '')
         # construct
 
         # trace_name = f'sql_llama3_{datetime.now()}'
@@ -283,7 +284,10 @@ SQL:<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n```sql""",
         logger.warning(str_prompt)
         #api call from string
         response = call_generation_api(prompt=str_prompt, grammar=None, stop=['<|eot_id|>', '```', '```\n',])
-        response_query = text(response.strip().replace('\n', ' '))
+        response_query = re.sub(r'(?i)\blike\b', 'ilike', response.strip().replace('\n', ' '))
+        response_query = text(response_query)
+        # replace like with ilike, but not ilike
+
 
         logger.warning(response_query)
 
@@ -291,15 +295,15 @@ SQL:<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n```sql""",
             sql=response_query,
             con=uri,
         )
+        logger.info(f'sql df - before filters on price and rating -- {df.shape}')
         if 'price' in df.columns: df = df[df.price.notnull()]
         if 'rating_value' in df.columns: df = df[df.rating_value.notnull()]
+        logger.info(f'sql df - after filters on price and rating -- {df.shape}')
         if 'name' in df.columns:
             if df['name'].nunique() != df.shape[0]:
-                if 'price' in df.columns:
-                    df.sort_values(['price', 'name'], ascending=[True, True], inplace=True)
-                if 'rating_value' in df.columns:
-                    df.sort_values(['price', "rating_value", 'name'], ascending=[True, False, True], inplace=True)
-                    df.drop_duplicates(subset=['name'], keep='first', inplace=True)
+                if 'rating_count' in df.columns:
+                    df.sort_values(['rating_count',], ascending=[False,], inplace=True)
+                df.drop_duplicates(subset=['name'], keep='first', inplace=True)
         logger.warning(f'{df.shape}')
         logger.warning(f'{df.head()}')
         return df

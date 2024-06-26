@@ -51,6 +51,7 @@ def get_llama3_template_from_history(system_prompt_clean:str, chat_history: List
     # assert chat_history
     template = f'<|start_header_id|>system<|end_header_id|>\n{ system_prompt_clean }<|eot_id|>'  # llama.cpp adds <|begin_of_text|> by defult
     final_assistant = "<|start_header_id|>assistant<|end_header_id|>"
+    # final_assistant = "<|start_header_id|>assistant<|end_header_id|>\n"
     if chat_history:
         for message in chat_history:
             role = message.get('role')
@@ -63,6 +64,7 @@ def get_llama3_template_from_history(system_prompt_clean:str, chat_history: List
 def get_llama3_template_from_user_query(system_prompt_clean:str, user_query: str):
     template = f'<|start_header_id|>system<|end_header_id|>\n{ system_prompt_clean }<|eot_id|>'  # llama.cpp adds <|begin_of_text|> by defult
     final_assistant = "<|start_header_id|>assistant<|end_header_id|>"
+    # final_assistant = "<|start_header_id|>assistant<|end_header_id|>\n"
     current_template_part = create_llama3_statement(role='user', content=user_query)
     template += current_template_part
     template += final_assistant

@@ -1,4 +1,4 @@
-root ::= "{" ws key ws ":" ws array ws "}"
+root ::= "{" ws key ws ":" ws value ws "}"
 
 key ::= "\"" "route" "\""
 

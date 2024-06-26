@@ -54,15 +54,21 @@ def call_generate_from_query_api(
     """
     input_text: str
     """
+    logger.info(f'reformulate :: call_generate_from_query_api - user propmpt: {user_prompt}')
+    logger.info(f'reformulate :: call_generate_from_query_api - system propmpt: {system_prompt}')
+    logger.info(f'reformulate :: call_generate_from_query_api - grammar_path: {grammar_path}')
+
     response = requests.post(
         'http://localhost:8000/generate-from-query',
         json={"user_prompt": user_prompt, "system_prompt": system_prompt, "grammar_path": grammar_path, "stop": stop}
     )
     r = response.json().get('choices')[0].get('text')
+    logger.info(f'reformulate :: call_generate_from_query_api - response: {r}')
+
     return r
 
 def call_generation_api(prompt: str, grammar: str = None, stop: list = None) -> str:
-    logger.debug(f'1706 debug: {prompt}')
+    logger.critical(f'2606 - endpoint - debug: {prompt}')
     logger.critical(f'{len(prompt)}')
     response = requests.post(
         'http://localhost:8000/generate',
@@ -112,7 +118,7 @@ async def generate_from_history(input_data: LLMEndpointInput) -> Dict[str, Any]:
     # template_str = get_chatml_template(chat_history)
 
     # llama 3
-    template_str = get_llama3_template_from_history(system_prompt_clean=system_prompt, chat_history=chat_history)  # todo: 1206, incorrect - correct
+    template_str = get_llama3_template_from_history(system_prompt_clean=system_prompt, chat_history=chat_history)
     logger.debug(f"1106 debug chatting: {template_str.replace('<|begin_of_text|>', '')}")
     result = llm(
         prompt=template_str.replace('<|begin_of_text|>', ''),

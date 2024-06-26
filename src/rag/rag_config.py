@@ -1,6 +1,6 @@
 # EMBEDDING
 EMBEDDING_MODEL_NAME = 'BAAI/bge-m3'
-N_EMBEDDING_RESULTS = 20  # 20
+N_EMBEDDING_RESULTS = 5  # 20 for sberbank consultant, 5 for sql rag
 ELBOW_EMBEDDING = True
 # RERANKING
 RERANKING_MODEL = 'BAAI/bge-reranker-v2-m3' # 'ms-marco-MultiBERT-L-12'  # ms-marco-MultiBERT-L-12 / rank-T5-flan

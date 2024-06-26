@@ -106,12 +106,11 @@ class ShoppingAssistantScenario(BaseScenario):
             # an alternative approach is: combine the that history into str, pass it in the user turn:
             # prompt = get_llama3_template_from_history(system_prompt_clean='Ты объективный семантический оценщик.', chat_history=chat_history)
 
-            str_chat_history = chat_history_list_to_str(chat_history[:-1])  # edit last user message is eliminated
+            str_chat_history = chat_history_list_to_str(chat_history)
             user_query_input = user_content_with_history.format(user_query=user_query, str_chat_history=str_chat_history)
             prompt = get_llama3_template_from_user_query(system_prompt_clean='Ты объективный семантический оценщик.', user_query=user_query_input)
 
         return call_generation_api(prompt=prompt, grammar='root ::= "True"|"False"')
-
 
     def get_possible_filters(self) -> Iterable:
         possible_filters = ['цена', 'рейтинг', 'брэнд', 'максимальная загрузка', 'наличие сушки']
@@ -167,10 +166,12 @@ class ShoppingAssistantScenario(BaseScenario):
         # 3. Handle both textual and structured input for specifications.
 
         str_chat_history = chat_history_list_to_str(chat_history)
-        user_prompt = f"""История чата:/n{str_chat_history}./n
-        Последний запрос пользователя: {user_query}
-        
-        На основе информации выше сформулируй суть требований пользователя кратко, но сохраняя все важные детали."""
+        # неясно как сделать чтобы соблюсти баланс между (реплика = новое требование независимо от старого) и (реплика = уточнение старого требования)
+        user_prompt = f"""На основе информации ниже сформулируй суть требований пользователя кратко, но сохраняя все важные детали. Требования могут касаться только одного типа товаров.
+
+История чата:\n{str_chat_history}
+
+Последний запрос пользователя: {user_query}"""
 
         return call_generate_from_query_api(
             user_prompt=user_prompt,
@@ -200,12 +201,13 @@ class ShoppingAssistantScenario(BaseScenario):
                 current_step = 'sql'
                 logger.debug(f'current step - {current_step}')
                 context['current_step'] = current_step
-                df = SqlToText.sql_query(schema_name=self.schema_name, user_query=response)  # pass reformulated response here, no need to pass history - already done at reformulate step
+                df = SqlToText().sql_query(schema_name=self.schema_name, user_query=response)  # pass reformulated response here, no need to pass history - already done at reformulate step
                 previous_steps.append(current_step)
                 context['previous_steps'] = previous_steps
                 current_step = 'exit'
                 context['current_step'] = current_step
-                context['scenario_name'] = "just_chatting"
+                context['scenario_name'] = "reroute"  #
+                context['sql_schema'] = self.schema_name
                 return df, context
             else:
                 current_step = 'ask'
@@ -241,12 +243,13 @@ class ShoppingAssistantScenario(BaseScenario):
                 current_step = 'sql'
                 logger.debug(f'current step - {current_step}')
                 context['current_step'] = current_step
-                df = SqlToText.sql_query(schema_name=self.schema_name, user_query=response)  # pass reformulated response here
+                df = SqlToText().sql_query(schema_name=self.schema_name, user_query=response)  # pass reformulated response here
                 previous_steps.append(current_step)
                 context['previous_steps'] = previous_steps
                 current_step = 'exit'
                 context['current_step'] = current_step
-                context['scenario_name'] = "just_chatting"
+                context['scenario_name'] = "reroute"  #
+                context['sql_schema'] = self.schema_name
                 return df, context
             else:
                 current_step = 'ask'
@@ -261,12 +264,13 @@ class ShoppingAssistantScenario(BaseScenario):
                 return response, context
         elif current_step == 'sql':
             logger.debug(f'current step - {current_step}')
-            df = SqlToText.sql_query(schema_name=self.schema_name, user_query=user_query)
+            df = SqlToText().sql_query(schema_name=self.schema_name, user_query=user_query)
             previous_steps.append(current_step)
             context['previous_steps'] = previous_steps
             current_step = 'exit'
             context['current_step'] = current_step
-            # context['scenario_name'] = "just_chatting"
+            context['scenario_name'] = "reroute"
+            context['sql_schema'] = self.schema_name
             return df, context
 
 
@@ -348,5 +352,5 @@ if __name__ == '__main__':
     # print(reformulate_result)
 
     # user_query = 'подбери стиральную машину фирмы bosch'
-    # response = SqlToText.sql_query(user_query=user_query)
+    # response = SqlToText().sql_query(user_query=user_query)
     # print(response)

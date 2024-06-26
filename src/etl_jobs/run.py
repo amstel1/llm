@@ -296,8 +296,8 @@ class ReviewsProductDetailsDo(Do):
 
 if __name__ == '__main__':
     # config part
-    SCHEMA_NAME = 'kettle'
-    PRODUCT_TYPE_NAME = 'Чайник'  # Стиральная машина, Холодильник
+    SCHEMA_NAME = 'fridge'
+    PRODUCT_TYPE_NAME = 'Холодильник'  # Стиральная машина, Холодильник
 
     # step 1. ItemList from sites to Postgres. Not: all three for each new product
     #
@@ -424,44 +424,44 @@ if __name__ == '__main__':
     #     time.sleep(240)
 
     # step 2.7
-    parse_yandex = Job(
-        reader=ReadChainSearchParsePart2(readers=[
-            PostgresDataFrameRead(
-                table=f'{SCHEMA_NAME}.search_queue',
-                where='searched = 1 and scraped = 0 and LENGTH(product_details_yandex_link) >= 10'
-            ),
-            ParseRead(),
-        ]),
-        processor=DoChainGlobal(processors=[
-            SetSearchQueueProcessedDo(),
-            YandexMarketDo()
-        ]),
-        writer=WriteChain(writers=[
-            PostgresDataFrameUpdate(schema_name=SCHEMA_NAME, table_name='search_queue',
-                                    where_dataframe_column_name='product_details_yandex_link', where_postgres_attribute='product_details_yandex_link'),
-            WriteChain(writers=[
-                MongoWrite(operation='write', db_name=SCHEMA_NAME, collection_name='product_details'),
-                MongoWrite(operation='write', db_name=SCHEMA_NAME, collection_name='product_reviews')
-            ]),  # details & reviews
-        ],
-        )
-    )
-    parse_yandex.run()
+    # parse_yandex = Job(
+    #     reader=ReadChainSearchParsePart2(readers=[
+    #         PostgresDataFrameRead(
+    #             table=f'{SCHEMA_NAME}.search_queue',
+    #             where='searched = 1 and scraped = 0 and LENGTH(product_details_yandex_link) >= 10'
+    #         ),
+    #         ParseRead(),
+    #     ]),
+    #     processor=DoChainGlobal(processors=[
+    #         SetSearchQueueProcessedDo(),
+    #         YandexMarketDo()
+    #     ]),
+    #     writer=WriteChain(writers=[
+    #         PostgresDataFrameUpdate(schema_name=SCHEMA_NAME, table_name='search_queue',
+    #                                 where_dataframe_column_name='product_details_yandex_link', where_postgres_attribute='product_details_yandex_link'),
+    #         WriteChain(writers=[
+    #             MongoWrite(operation='write', db_name=SCHEMA_NAME, collection_name='product_details'),
+    #             MongoWrite(operation='write', db_name=SCHEMA_NAME, collection_name='product_reviews')
+    #         ]),  # details & reviews
+    #     ],
+    #     )
+    # )
+    # parse_yandex.run()
 
 
     #
     # Job 5 - Mongo Details -> PostgresDetails
-    # ReviewsProductDetails = Job(
-    #     reader=MongoRead(operation='read', db_name=SCHEMA_NAME, collection_name='product_details'),
-    #     processor=ReviewsProductDetailsDo(),
-    #     writer=PostgresDataFrameWrite(
-    #         schema_name=SCHEMA_NAME,
-    #         table_name='reviews_product_details',
-    #         insert_unique=True,
-    #         index_column='product_url'
-    #     )
-    # )
-    # ReviewsProductDetails.run()
+    ReviewsProductDetails = Job(
+        reader=MongoRead(operation='read', db_name=SCHEMA_NAME, collection_name='product_details'),
+        processor=ReviewsProductDetailsDo(),
+        writer=PostgresDataFrameWrite(
+            schema_name=SCHEMA_NAME,
+            table_name='reviews_product_details',
+            insert_unique=True,
+            index_column='product_url', if_exists='append'
+        )
+    )
+    ReviewsProductDetails.run()
     #
     # # todo: correct empty rating from postgres view - decide in Job 3 what to scrape based on that
     #
