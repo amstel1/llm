@@ -17,7 +17,6 @@ radiobutton_options = {
                 }
 
 
-
 class ItemDisplay:
 
     def __init__(self, items: list[dict], duration_2_terms: dict[int, str], sql_result_ix: int):

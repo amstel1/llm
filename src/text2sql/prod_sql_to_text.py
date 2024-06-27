@@ -36,6 +36,30 @@ from pymilvus import (
     MilvusClient
 )
 import json
+from sqlparse.sql import Where
+import sqlparse
+from sqlparse import tokens as T
+
+
+def update_sql_statement(sql_statement: str, new_where_clause: str):
+    sql_statement = sql_statement.replace('  ', ' ').replace('\n', ' ').replace('\t', ' ')
+    assert 'where' in new_where_clause.lower().split(' ')
+    parsed = list(sqlparse.parse(sql_statement))[0]
+    if 'where' in sql_statement.lower():
+        # replace
+        new_sql_statement = ' '.join((parsed_token.value.strip() if not isinstance(parsed_token, Where) else new_where_clause for parsed_token in parsed.tokens ))
+    else:
+        # add in the right place
+        insert_index = len(parsed.tokens)  # Default: insert at the end
+        for i, item in enumerate(parsed.tokens):
+            if item.ttype is T.Keyword and item.value.upper() == 'FROM':
+                insert_index = i
+                break
+
+        # Insert the new WHERE clause
+        parsed.tokens.insert(insert_index+3, sqlparse.parse(new_where_clause)[0])
+        new_sql_statement = ' '.join((parsed_token.value.strip() for parsed_token in parsed.tokens))
+    return new_sql_statement
 
 
 class SqlToText:
@@ -68,11 +92,34 @@ class SqlToText:
     def create_prompt(self, prefix, table_description, body, postfix):
         return prefix + table_description + body + postfix
 
-    def sql_query(self, schema_name: str, user_query: str) -> pd.DataFrame:
+    def postprocess_df(self, df):
+        logger.info(f'sql df - before filters on price and rating -- {df.shape}')
+        if 'price' in df.columns: df = df[df.price.notnull()]
+        if 'rating_value' in df.columns: df = df[df.rating_value.notnull()]
+        logger.info(f'sql df - after filters on price and rating -- {df.shape}')
+        if 'name' in df.columns:
+            if df['name'].nunique() != df.shape[0]:
+                if 'rating_count' in df.columns:
+                    df.sort_values(['rating_count',], ascending=[False,], inplace=True)
+                df.drop_duplicates(subset=['name'], keep='first', inplace=True)
+        logger.warning(f'{df.shape}')
+        logger.warning(f'{df.head()}')
+        return df
+
+    def sql_query(self, schema_name: str, user_query: str, predefined_sql: str = None) -> pd.DataFrame | str:
+        '''returns df with results and sql query'''
         assert schema_name in ('washing_machine', 'fridge', 'tv', 'mobile')
+        uri = f"postgresql://{host}:{port}/{database}?user={user}&password={password}"
+        if predefined_sql:
+            # disregard user_query, just execute sql statement
+            df = pd.read_sql(
+                sql=predefined_sql,
+                con=uri,
+            )
+            df = self.postprocess_df(df)
+            return df, predefined_sql
 
         # index user_query
-
         dense_embedding_model = HuggingFaceEmbeddings(
             model_name=EMBEDDING_MODEL_NAME,  # Specify the model name
             model_kwargs={'device': 'cpu',}
@@ -150,10 +197,8 @@ SQL:<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n```sql""",
         # langfuse = Langfuse()
         # langfuse_callback_handler = CallbackHandler(trace_name=trace_name)
 
-        top_k = 1
-        dialect = 'postgresql'
-        uri = f"postgresql://{host}:{port}/{database}?user={user}&password={password}"
-        db = SQLDatabase.from_uri(uri)
+
+
         # table_info = '''create table washing_machine.washing_machine (
         #       "brand" text, -- название производителя
         #       "rating_value" real, -- рейтинг товара
@@ -288,25 +333,16 @@ SQL:<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n```sql""",
         response_query = text(response_query)
         # replace like with ilike, but not ilike
 
-
         logger.warning(response_query)
+
 
         df = pd.read_sql(
             sql=response_query,
             con=uri,
         )
-        logger.info(f'sql df - before filters on price and rating -- {df.shape}')
-        if 'price' in df.columns: df = df[df.price.notnull()]
-        if 'rating_value' in df.columns: df = df[df.rating_value.notnull()]
-        logger.info(f'sql df - after filters on price and rating -- {df.shape}')
-        if 'name' in df.columns:
-            if df['name'].nunique() != df.shape[0]:
-                if 'rating_count' in df.columns:
-                    df.sort_values(['rating_count',], ascending=[False,], inplace=True)
-                df.drop_duplicates(subset=['name'], keep='first', inplace=True)
-        logger.warning(f'{df.shape}')
-        logger.warning(f'{df.head()}')
-        return df
+        df = self.postprocess_df(df)
+        sql_query = response_query.text
+        return df, sql_query
 
 
 if __name__ == '__main__':

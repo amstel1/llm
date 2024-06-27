@@ -180,7 +180,7 @@ class ShoppingAssistantScenario(BaseScenario):
         )
 
 
-    def handle(self, user_query, chat_history, context) -> [Any, Dict]:
+    def handle(self, user_query: str, chat_history: list, context: dict) -> [Any, Dict]:
         current_step = context.get('current_step')
         # logger.debug(f'current_step - {current_step}')
         assert current_step in ('verify', 'ask', 'sql', 'reformulate',)
@@ -203,13 +203,14 @@ class ShoppingAssistantScenario(BaseScenario):
                 current_step = 'sql'
                 logger.debug(f'current step - {current_step}')
                 context['current_step'] = current_step
-                df = SqlToText().sql_query(schema_name=self.schema_name, user_query=response)  # pass reformulated response here, no need to pass history - already done at reformulate step
+                df, sql_query = SqlToText().sql_query(schema_name=self.schema_name, user_query=response, predefined_sql=context.get('sql_query'))  # pass reformulated response here, no need to pass history - already done at reformulate step
                 previous_steps.append(current_step)
                 context['previous_steps'] = previous_steps
                 current_step = 'exit'
                 context['current_step'] = current_step
                 context['scenario_name'] = "reroute"  #
                 context['sql_schema'] = self.schema_name
+                context['sql_query'] = sql_query
                 return df, context
             else:
                 current_step = 'ask'
@@ -246,13 +247,14 @@ class ShoppingAssistantScenario(BaseScenario):
                 current_step = 'sql'
                 logger.debug(f'current step - {current_step}')
                 context['current_step'] = current_step
-                df = SqlToText().sql_query(schema_name=self.schema_name, user_query=response)  # pass reformulated response here
+                df, sql_query = SqlToText().sql_query(schema_name=self.schema_name, user_query=response, predefined_sql=context.get('sql_query'))  # pass reformulated response here
                 previous_steps.append(current_step)
                 context['previous_steps'] = previous_steps
                 current_step = 'exit'
                 context['current_step'] = current_step
                 context['scenario_name'] = "reroute"  #
                 context['sql_schema'] = self.schema_name
+                context['sql_query'] = sql_query
                 return df, context
             else:
                 current_step = 'ask'
@@ -267,13 +269,19 @@ class ShoppingAssistantScenario(BaseScenario):
                 return response, context
         elif current_step == 'sql':
             logger.debug(f'current step - {current_step}')
-            df = SqlToText().sql_query(schema_name=self.schema_name, user_query=user_query)
+            assert self.schema_name
+            logger.debug(f'self.schema_name - {self.schema_name}')
+            df, sql_query = SqlToText().sql_query(schema_name=self.schema_name, user_query=user_query, predefined_sql=context.get('sql_query'))
             previous_steps.append(current_step)
             context['previous_steps'] = previous_steps
             current_step = 'exit'
             context['current_step'] = current_step
             context['scenario_name'] = "reroute"
             context['sql_schema'] = self.schema_name
+            context['sql_query'] = sql_query
+            logger.info(f'df end of sql: {df.head()}')
+            logger.info(f'df shape: {df.shape}')
+            logger.info(f'context end of sql: {context}')
             return df, context
 
 
@@ -355,5 +363,5 @@ if __name__ == '__main__':
     # print(reformulate_result)
 
     # user_query = 'подбери стиральную машину фирмы bosch'
-    # response = SqlToText().sql_query(user_query=user_query)
+    # df, sql_query = SqlToText().sql_query(user_query=user_query)
     # print(response)

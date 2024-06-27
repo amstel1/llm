@@ -15,6 +15,7 @@ from scenarios.sberbank_consultant import SberbankConsultant
 from api.credit_interset_calculator import InterestCalculator
 from general_llm.utils import ChatHistory
 CHAT_HISTORY_SIZE = 6
+from text2sql.prod_sql_to_text import update_sql_statement
 
 # link to the selected product / products
 # todo: routing between scenarios
@@ -29,6 +30,39 @@ CHAT_HISTORY_SIZE = 6
 
 # create_preview_card()
 
+def render_df(df: pd.DataFrame):
+    # sql results - show table
+    # todo: get product_type_name from context variables
+    # logger.warning(f'! important: {st.session_state.context}')
+    assert st.session_state.context['sql_schema']  # must always exist
+    data_server = DataServer(schema_name=st.session_state.context['sql_schema'])  # must pass this from scenario
+    assert 'name' in data.columns
+    assert data.shape[0] > 0
+    logger.debug(data.shape)
+    logger.debug(data.head(4))
+    if 'sql_items' not in st.session_state:
+        # sql_items must be updated every time sql is executed!
+        items = data_server.collect_data(data['name'])
+        logger.info(f'collect_data: {items}')
+        items = items[:4]
+        st.session_state['sql_items'] = items
+        st.session_state.chat_history.append({"role": "html", "items": items})
+    items = st.session_state['sql_items']
+    # show loan terms for the top option
+    top_item = items[0]
+    top_item_price = top_item.get('price')
+    calculator = InterestCalculator()
+    duration_2_terms = {}
+    for month_duration in radiobutton_options.values():
+        loan_terms = calculator.gpt4o(top_item_price, month_duration)
+        duration_2_terms[month_duration] = loan_terms
+
+    logger.debug(len(items))
+    logger.error(items)
+    item_display = ItemDisplay(items, duration_2_terms=duration_2_terms, sql_result_ix=sql_result_ix)
+    lgc = max(0, len(items) - 1)
+    item_display.display_grid(lower_grid_cols=lgc)
+
 if __name__ == '__main__':
 
 
@@ -42,8 +76,16 @@ if __name__ == '__main__':
         st.session_state.context = {
             # 'scenario': "",
             # 'current_step': "",
-            'previous_steps': [],
+            'previous_steps': [None, None,],
         }
+
+    # initialize preemptive filters
+    if 'filter_0_active' not in st.session_state:
+        st.session_state.filter_0_active = False
+    if 'filter_1_active' not in st.session_state:
+        st.session_state.filter_1_active = False
+    if 'filter_2_active' not in st.session_state:
+        st.session_state.filter_2_active = False
 
     # Initialize chat history if it doesn't exist
     if 'chat_history' not in st.session_state:
@@ -51,7 +93,7 @@ if __name__ == '__main__':
         st.session_state['context'] = {
             # 'scenario': "",
             # 'current_step': "",
-            'previous_steps': [],
+            'previous_steps': ["", ""],
         }
 
 
@@ -125,49 +167,105 @@ if __name__ == '__main__':
             if st.session_state.context.get('current_step') in ('sql','exit') and 'sql_items' in st.session_state:
                 st.session_state.pop('sql_items')
             logger.critical(f'context after scenario_object.handle(): {st.session_state.context }')
+
+            # Render LLM output
             if isinstance(data, str):
                 response_text = data
                 st.session_state.chat_history.append({"role": "assistant", "content": response_text})
                 with st.chat_message("assistant"):
                     st.markdown(response_text)
             elif isinstance(data, pd.DataFrame):
-                # sql results - show table
-                # todo: get product_type_name from context variables
-                # logger.warning(f'! important: {st.session_state.context}')
-                assert st.session_state.context['sql_schema']  # must always exist
-                data_server = DataServer(schema_name=st.session_state.context['sql_schema'])  # must pass this from scenario
-                assert 'name' in data.columns
-                assert data.shape[0] > 0
-                # logger.debug(data.shape)
-                if 'sql_items' not in st.session_state:
-                    items = data_server.collect_data(data['name'])
-                    # logger.warning(f'collect_data: {items}')
-                    items = items[:4]
-                    st.session_state['sql_items'] = items
-                    st.session_state.chat_history.append({"role": "html", "items": items})
-                items = st.session_state['sql_items']
-                # show loan terms for the top option
-                top_item = items[0]
-                top_item_price = top_item.get('price')
-                calculator = InterestCalculator()
-                duration_2_terms = {}
-                for month_duration in radiobutton_options.values():
-                    loan_terms = calculator.gpt4o(top_item_price, month_duration)
-                    duration_2_terms[month_duration] = loan_terms
+                render_df(data)
 
-                logger.debug(len(items))
-                item_display = ItemDisplay(items, duration_2_terms=duration_2_terms, sql_result_ix=sql_result_ix)
-                lgc = max(0, len(items)-1)
-                item_display.display_grid(lower_grid_cols=lgc)
+    # we finished sql-df rendering just now
+    # show theses only if ( .get('previous_steps')[-1] == 'sql' and .get('scenario_name') == 'reroute' and .get('current_step') == 'exit' and .get('sql_schema')
+    logger.debug(st.session_state.context)
+    if (
+        ('scenario_object' in st.session_state and isinstance(st.session_state.scenario_object, ShoppingAssistantScenario)) and
+        st.session_state.context.get('previous_steps', ["", ""])[-1] == 'sql' and
+        st.session_state.context.get('scenario_name') == 'reroute' and
+        st.session_state.context.get('current_step') == 'exit' and
+        st.session_state.context.get('sql_schema')
+    ):
+        # inline_filter = InlineFilter()
+        st.markdown('##')
+        st.markdown('##')
+        st.markdown(
+            """
+            <style>
+            div[data-testid="stButton"] button {
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 30px;
+                font-weight: bold;
+                width: 105%;
+                transition: background-color 0.3s, opacity 0.3s;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+        text_2_where = {
+            'Цена от 3000 руб.': 'WHERE price >= 3000',
+            'Загрузка от 8 до 10 кг.': 'WHERE max_load BETWEEN 8 AND 10',
+            'Рейтинг от 4,9': 'WHERE rating_value >= 4.9',
+        }
+        _, col1, col2, col3, _ = st.columns([0.01, 0.3, 0.3, 0.3, 0.09])
+        button_clicked = False
+        with col1:
+            rus_text, sql_where_clause = list(text_2_where.items())[0]
+            if st.button(rus_text, type='primary', key=rus_text):
+                logger.error(sql_where_clause)
+                st.session_state.chat_history.append({"role": "user", "content": rus_text})
+                assert st.session_state.context['sql_query'] is not None
+                logger.debug(st.session_state.context['sql_query'])
+                new_sql_value = update_sql_statement(
+                    sql_statement=st.session_state.context['sql_query'],
+                    new_where_clause=sql_where_clause)
+                st.session_state.context['sql_query'] = new_sql_value
+                st.session_state.context['current_step'] = 'sql'
+                button_clicked = True
+
+
+        with col2:
+            rus_text, sql_where_clause = list(text_2_where.items())[1]
+            if st.button(rus_text, type='primary', key=rus_text):
+                logger.error(sql_where_clause)
+                st.session_state.chat_history.append({"role": "user", "content": rus_text})
+                assert st.session_state.context['sql_query']
+                new_sql_value = update_sql_statement(
+                    sql_statement=st.session_state.context['sql_query'],
+                    new_where_clause=sql_where_clause)
+                st.session_state.context['sql_query'] = new_sql_value
+                st.session_state.context['current_step'] = 'sql'
+                button_clicked = True
+
+
+        with col3:
+            rus_text, sql_where_clause = list(text_2_where.items())[2]
+            if st.button(rus_text, type='primary', key=rus_text):
+                logger.error(sql_where_clause)
+                st.session_state.chat_history.append({"role": "user", "content": rus_text})
+                assert st.session_state.context['sql_query']
+                new_sql_value = update_sql_statement(
+                    sql_statement=st.session_state.context['sql_query'],
+                    new_where_clause=sql_where_clause)
+                st.session_state.context['sql_query'] = new_sql_value
+                st.session_state.context['current_step'] = 'sql'
+                button_clicked = True
+
+        if button_clicked:
+            data, context = st.session_state.scenario_object.handle(user_query=None, chat_history=None, context=st.session_state.context)
+            assert isinstance(data, pd.DataFrame)
+            if 'sql_items' in st.session_state:
+                # sql_items must be popped every time sql is executed!
+                st.session_state.pop('sql_items')
+            render_df(data)
 
 
 
-            # 10 06 temporarily disable
-            # if 'current_step' in st.session_state.context and st.session_state.context['current_step'] == 'exit':
-            #     logger.debug(f'current_step -- {st.session_state.context["current_step"]}')
-            #     st.session_state.context.pop('scenario_name')  # when exited scenario, nullify
-            #     st.session_state.context.pop('current_step')  # when exited scenario, nullify
-            #     st.session_state.scenario_object = None
+
 
 
 

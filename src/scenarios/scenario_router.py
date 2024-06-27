@@ -58,8 +58,7 @@ Based on your reasoning, decide on the route as JSON.<|eot_id|><|start_header_id
 ##########################################################################################
         self.prompt_with_chat_history = """<|start_header_id|>system<|end_header_id|>
 You are a state-of-the-art intent classifer.<|eot_id|><|start_header_id|>user<|end_header_id|>
-Based on the user input and the chat history, identify which route the user's input most closely relates to. Your decision should take into account the context provided by the chat history. Respond with the most relevant route name from the given mapping.
-Please respond with the most relevant route name as JSON.
+You are a state-of-the-art intent classifier. When analyzing user input, prioritize the user's most recent message over any previous messages in the chat history. For instance, the input 'What is the weather like?' should not be classified as 'sberbank_consultant'
 
 chat history:
 {chat_history}
@@ -68,12 +67,12 @@ user_input:
 {user_input}
 
 route mapping: 
-just_chatting: разговор на любые темы,  которые напрямую не относятся к подбору потребительских товаров или Сбер Банку (банковским услугам, картам, кредитам, депозитам)
+sberbank_consultant: консультация по всем вопросам о банке, в том числе, связанным с накоплением и сбережением, банковскими продуктами (карта, депозит, кредит), услугами (покупай валюту, страховка) (Сбер Банк Беларусь) - related to banking services and products
 shopping_assistant_washing_machine: поиск, выбор, покупка стиральной или стирально-сушильной машины
 shopping_assistant_fridge: поиск, выбор, покупка холодильника
 shopping_assistant_tv: поиск, выбор, покупка телевизора
 shopping_assistant_mobile: поиск, выбор, покупка мобильного телефона
-sberbank_consultant: консультация по всем вопросам, связанным с накоплением и сбережением, банковскими продуктами (карта, депозит, кредит), услугами (покупай валюту, страховка) (Сбер Банк Беларусь)<|eot_id|><|start_header_id|>assistant<|end_header_id|>\nJSON:"""
+just_chatting: разговор на любые темы,  которые НЕ относятся к подбору потребительских товаров или Сбер Банку (банковским услугам, картам, кредитам, депозитам).<|eot_id|><|start_header_id|>assistant<|end_header_id|>\nJSON:"""
 
     def route(self,
               user_query: str,
