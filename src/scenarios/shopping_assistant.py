@@ -167,7 +167,8 @@ class ShoppingAssistantScenario(BaseScenario):
 
         str_chat_history = chat_history_list_to_str(chat_history)
         # неясно как сделать чтобы соблюсти баланс между (реплика = новое требование независимо от старого) и (реплика = уточнение старого требования)
-        user_prompt = f"""На основе информации ниже сформулируй суть требований пользователя кратко, но сохраняя все важные детали. Требования могут касаться только одного типа товаров.
+        # maybe switch to eng?
+        user_prompt = f"""На основе информации ниже сформулируй суть требований пользователя кратко, но сохраняя все важные детали. Если история и последний запрос содержат информацию о разных товарах, используй только последний запрос. Требования могут касаться только одного типа товаров.
 
 История чата:\n{str_chat_history}
 
@@ -188,6 +189,7 @@ class ShoppingAssistantScenario(BaseScenario):
         if current_step == 'verify':
             ready_for_sql_str = self.verify(user_query=user_query, chat_history=chat_history, context=context)
             ready_for_sql = eval(ready_for_sql_str.capitalize())
+            ready_for_sql = True
             logger.debug(f'ready_for_sql - {ready_for_sql}')
             previous_steps.append(current_step)
             if ready_for_sql:
@@ -237,6 +239,7 @@ class ShoppingAssistantScenario(BaseScenario):
             context['current_step'] = current_step
             ready_for_sql_str = self.verify(user_query=user_query, chat_history=chat_history, context=context)
             ready_for_sql = eval(ready_for_sql_str.capitalize())
+            ready_for_sql = True
             logger.debug(f'ready_for_sql - {ready_for_sql}')
             previous_steps.append(current_step)
             if ready_for_sql:
