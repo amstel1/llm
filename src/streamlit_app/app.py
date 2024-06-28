@@ -29,6 +29,27 @@ from text2sql.prod_sql_to_text import update_sql_statement
 # todo: inline elements - prefilters - how to create
 
 # create_preview_card()
+def stylish_citation_link(url, text):
+    st.markdown(
+            f"""
+                <a href="{url}" target="_blank" style="
+                display: inline-block;
+                padding: 0.5rem 1rem;
+                background-color: rgb(175, 175, 175);
+                color: white;
+                text-align: center;
+                text-decoration: none;
+                font-size: 14px;
+                border-radius: 20px;
+                transition: background-color 0.3s ease;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            ">{text}</a>
+            """,
+            unsafe_allow_html=True
+        )
+
+# Example usage
+
 
 def render_df(df: pd.DataFrame):
     # sql results - show table
@@ -64,20 +85,40 @@ def render_df(df: pd.DataFrame):
     item_display.display_grid(lower_grid_cols=lgc)
 
 if __name__ == '__main__':
-
+    # Initialize chat history if it doesn't exist
+    if 'chat_history' not in st.session_state:
+        st.session_state['chat_history'] = []
+    if 'context' not in st.session_state:
+        st.session_state['context'] = {
+            # 'scenario': "",
+            # 'current_step': "",
+            'previous_steps': ["", ""],
+        }
 
     scenario_router = ScenarioRouter()
-    st.sidebar.title("Настройки")
+
     st.title("Прототип")
 
     # Clear the conversation using a sidebar button for better accessibility
-    if st.sidebar.button("Очистить разговор"):
-        st.session_state.chat_history = []
-        st.session_state.context = {
-            # 'scenario': "",
-            # 'current_step': "",
-            'previous_steps': [None, None,],
-        }
+    with st.sidebar:
+        st.title("Настройки")
+        if st.button("Очистить разговор"):
+            st.session_state.chat_history = []
+            st.session_state.context = {
+                # 'scenario': "",
+                # 'current_step': "",
+                'previous_steps': [None, None,],
+            }
+        if 'cited_sources' in st.session_state.context and 'citations_lookup' in st.session_state.context:
+            logger.error('!!! WE ARE IN CITATIONS LOGIC')
+            st.markdown('# Источники')
+            sidebar_citation_columns = st.columns([1 for x in st.session_state.context['cited_sources']])
+            for i, sitebar_citation_column in enumerate(sidebar_citation_columns):
+                with sitebar_citation_column:
+                    link = st.session_state.context['citations_lookup'].get(i).get('source')
+                    stylish_citation_link(link, f"{i+1}")
+
+
 
     # initialize preemptive filters
     if 'filter_0_active' not in st.session_state:
@@ -87,14 +128,7 @@ if __name__ == '__main__':
     if 'filter_2_active' not in st.session_state:
         st.session_state.filter_2_active = False
 
-    # Initialize chat history if it doesn't exist
-    if 'chat_history' not in st.session_state:
-        st.session_state['chat_history'] = []
-        st.session_state['context'] = {
-            # 'scenario': "",
-            # 'current_step': "",
-            'previous_steps': ["", ""],
-        }
+
 
 
     # Creating a container for chat history to improve alignment and appearance
@@ -130,6 +164,8 @@ if __name__ == '__main__':
         st.session_state.chat_history.append({"role": "user", "content": prompt})
 
         if prompt:
+            if 'cited_sources' in st.session_state.context: st.session_state.context.pop('cited_sources')
+            if 'citations_lookup' in st.session_state.context: st.session_state.context.pop('citations_lookup')
             non_html_chat_history = ChatHistory.truncate_exclude_last(chat_history=st.session_state.chat_history, n=CHAT_HISTORY_SIZE)
             if ((not 'scenario_name' in st.session_state.context) or
                     (st.session_state.context.get('scenario_name') == 'just_chatting') or
@@ -153,6 +189,7 @@ if __name__ == '__main__':
                 # initial
                 st.session_state.scenario_object = ShoppingAssistantScenario(scenario_name=st.session_state.context['scenario_name'])
                 st.session_state.context['current_step'] = 'verify'
+                if 'sql_query' in st.session_state.context: st.session_state.context.pop('sql_query')
             elif st.session_state.context['scenario_name'] == 'sberbank_consultant':
                 st.session_state.scenario_object = SberbankConsultant()
             elif st.session_state.context['scenario_name'] == 'just_chatting':
@@ -187,6 +224,8 @@ if __name__ == '__main__':
         st.session_state.context.get('current_step') == 'exit' and
         st.session_state.context.get('sql_schema')
     ):
+        if 'cited_sources' in st.session_state.context: st.session_state.context.pop('cited_sources')
+        if 'citations_lookup' in st.session_state.context: st.session_state.context.pop('citations_lookup')
         # inline_filter = InlineFilter()
         st.markdown('##')
         st.markdown('##')
@@ -262,10 +301,3 @@ if __name__ == '__main__':
                 # sql_items must be popped every time sql is executed!
                 st.session_state.pop('sql_items')
             render_df(data)
-
-
-
-
-
-
-

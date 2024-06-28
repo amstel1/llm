@@ -59,10 +59,10 @@ def main(slug: str):
                     )
                 )
     print("new_documents", len(new_documents))
-    new_corpus = [x.page_content for x in new_documents]
+    new_corpus = [(x.metadata['source'], x.page_content) for x in new_documents]
 
     sparse_embedding_model = BM25SparseEmbedding(
-        corpus=new_corpus,
+        corpus=[x[1] for x in new_corpus],
         language='ru',
     )  # it is fitted at initialization
 
@@ -78,6 +78,7 @@ def main(slug: str):
     dense_field = "dense_vector"
     sparse_field = "sparse_vector"
     text_field = "text"
+    source_field = "source"
     fields = [
         FieldSchema(
             name=pk_field,
@@ -89,6 +90,7 @@ def main(slug: str):
         FieldSchema(name=dense_field, dtype=DataType.FLOAT_VECTOR, dim=1024),
         FieldSchema(name=sparse_field, dtype=DataType.SPARSE_FLOAT_VECTOR),
         FieldSchema(name=text_field, dtype=DataType.VARCHAR, max_length=65_535),
+        FieldSchema(name=source_field, dtype=DataType.VARCHAR, max_length=2048),
     ]
     schema = CollectionSchema(fields=fields, enable_dynamic_field=False)
     collection = Collection(
@@ -102,11 +104,13 @@ def main(slug: str):
 
     print('start embedding')
     entities = []
-    for text in new_corpus:
+    for doc in new_corpus:
+        source_link, text = doc
         entity = {
             dense_field: dense_embedding_model.embed_documents([text])[0],
             sparse_field: sparse_embedding_model.embed_query(text),
             text_field: text,
+            source_field: source_link
         }
         entities.append(entity)
     collection.insert(entities)
@@ -114,13 +118,13 @@ def main(slug: str):
 
 
 if __name__ == '__main__':
-    # for slug in [
-    #     'other',
-    #     'cards',
-    #     'credits',
-    #     'deposits'
-    # ]:
-        # main(slug)
+    for slug in [
+        'other',
+        'cards',
+        'credits',
+        'deposits'
+    ]:
+        main(slug)
     pass
     # pkl_input_filepaths = [
     #     'rag_w_summary_results_other.pkl',

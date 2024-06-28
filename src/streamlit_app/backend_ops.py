@@ -30,7 +30,7 @@ class DataServer():
         # logger.warning(f'!!!  sql_details 2 - {sql_details}')
         if sql_details:
             results.update(sql_details)
-        logger.warning(f'!!!  results 1 - {results}')
+        # logger.warning(f'!!!  results 1 - {results}')
         ###############
         # logger.debug(name)
         ###############
@@ -44,7 +44,7 @@ class DataServer():
 
         if sql_render:
             results.update(sql_render)
-        logger.warning(f'!!!  results 2 - {results}')
+        # logger.warning(f'!!!  results 2 - {results}')
         mongo_reader = MongoRead(
             operation='read',
             db_name=self.nosql_summarizations_db.split('.')[0],
@@ -53,7 +53,7 @@ class DataServer():
         nosql_summarizations_dict = mongo_reader.read_one({"item_name": name})
         if nosql_summarizations_dict:
             results.update(nosql_summarizations_dict)
-        logger.warning(f'!!!  results 3 - {results}')
+        # logger.warning(f'!!!  results 3 - {results}')
         return results
 
     def collect_data(self, names: Iterable) -> List[Dict]:

@@ -24,6 +24,7 @@ from scenarios.shopping_assistant import chat_history_list_to_str
 # from langchain_milvus import MilvusCollectionHybridSearchRetriever
 from rag.utils import ExtendedMilvusCollectionHybridSearchRetriever as MilvusCollectionHybridSearchRetriever
 from rag.utils import BGEDocumentCompressor
+from langchain_core.output_parsers import JsonOutputParser
 
 from pymilvus import (
     Collection,
@@ -75,10 +76,10 @@ user_input:
 
 Please respond with the most relevant route name as JSON.<|eot_id|><|start_header_id|>assistant<|end_header_id|>\nJSON:"""
 
-def format_docs(docs):
-    if TO_REPLACE_SEPARATOR:
-        return "\n\n".join(doc.page_content.replace(SEPARATOR, REPLACE_SEPARATOR_WITH) for doc in docs)
-    return "\n\n".join(doc.page_content.replace("passage: ", "") for doc in docs)
+# def format_docs(docs):
+#     if TO_REPLACE_SEPARATOR:
+#         return "\n\n".join(doc.page_content.replace(SEPARATOR, REPLACE_SEPARATOR_WITH) for doc in docs)
+#     return "\n\n".join(doc.page_content.replace("passage: ", "") for doc in docs)
 
 def def_debugger(inp):
     logger.info(inp)
@@ -227,8 +228,16 @@ class SberbankConsultant(BaseScenario):
 
         # retriever = RunnableLambda(self.retriever_router)
         retriever = self.retriever_router(input=user_query, chat_history=chat_history)
+        # llama_raw_template_system = """<|start_header_id|>system<|end_header_id|>\nТы - сотрудник Сбер Банка (Беларусь). Ты знаешь только русский язык. Основываясь на контексте ниже, правдиво и полно отвечай на вопросы.<|eot_id|>"""
+
+        # edit 2806 - for citations
         llama_raw_template_system = """<|start_header_id|>system<|end_header_id|>\nТы - сотрудник Сбер Банка (Беларусь). Ты знаешь только русский язык. Основываясь на контексте ниже, правдиво и полно отвечай на вопросы.<|eot_id|>"""
-        llama_raw_template_user = """<|start_header_id|>user<|end_header_id|>история разговора: {chat_history_str}\nконтекст:{context}\nВопрос:{question}<|eot_id|><|start_header_id|>assistant<|end_header_id|>"""
+
+        llama_raw_template_user = """<|start_header_id|>user<|end_header_id|>история разговора: {chat_history_str}\nконтекст:{context}\n\nВопрос:{question}\n\nТы должен последовательно:
+1. подумать о вопросе и сформулировать развернутый ответ ('answer');
+2. составить список номеров всех фрагментов использованных при формированни ответа ('ids').
+
+Отформатировать по примеру {{'ids': <list[int, int, ...]>, 'answer': <str> }}.<|eot_id|><|start_header_id|>assistant<|end_header_id|>\nJSON:"""
 
         # Prompt
         debugger = RunnablePassthrough(def_debugger)
@@ -236,19 +245,43 @@ class SberbankConsultant(BaseScenario):
 
         llm = LlamaCppApiWrapper()
         chat_history_str = chat_history_list_to_str(chat_history)
-        # Chain
+
+        retrieved_docs = retriever.invoke(user_query)
+        id_2_doc_id_source = {}
+        filtered_page_contents = []
+        for i, doc in enumerate(retrieved_docs) :
+            id_2_doc_id_source[i] = {
+                'doc_id': doc.metadata['doc_id'],
+                'source': doc.metadata['source'],
+            }
+            if TO_REPLACE_SEPARATOR:
+                page_content = f'id: {i}\n{doc.page_content.replace(SEPARATOR, REPLACE_SEPARATOR_WITH).strip()}'
+                filtered_page_contents.append(page_content)
+            else:
+                page_content = f'id: {i}\n{doc.page_content.strip()}'
+                filtered_page_contents.append(page_content)
+
+        retrieved_docs_str = "\n\n".join(filtered_page_contents)
         rag_chain = (
-                {"context": retriever | format_docs, "question": RunnablePassthrough(), "chat_history_str": RunnableLambda(lambda x: chat_history_str)}
+                {"context": RunnableLambda(lambda x: retrieved_docs_str), "question": RunnablePassthrough(), "chat_history_str": RunnableLambda(lambda x: chat_history_str)}
                 | prompt
                 | def_debugger
                 | llm
-                | StrOutputParser()
+                | JsonOutputParser()
         )
-        response = rag_chain.invoke(user_query)
+        llm_response = rag_chain.invoke(user_query)
+        logger.info(f'sberbank consultant response - {llm_response}')
+        assert isinstance(llm_response, dict)
+        response_keys = list(llm_response.keys())
+        answer_key = [x for x in response_keys if 'answer' in x.lower()][0]
+        ids_key = [x for x in response_keys if 'id' in x.lower()][0]
         context['current_step'] = 'sberbank_consultant'
         if 'previous_steps' not in context: context['previous_steps'] = []
         context['previous_steps'].append('sberbank_consultant')
         context['scenario_name'] = "just_chatting"
+        context['citations_lookup'] = id_2_doc_id_source
+        context['cited_sources'] = llm_response.get(ids_key)
+        response = llm_response.get(answer_key)
         return response, context
 
 
@@ -268,7 +301,7 @@ if __name__ == '__main__':
     # q = "максимальные ставки по безотзывным депозитам в белорусских рублях таблица"
     # q = "Подбери мне кредит"
     # q = "Подбери мне депозит"
-    q = "Какой депозит самый выгодный?"
+    q = "Какие есть кредиты на авто?"
 
     consultant = SberbankConsultant()
     response, context = consultant.handle(user_query=q)
@@ -276,12 +309,9 @@ if __name__ == '__main__':
     logger.info(f"context: {context}")
 
 
-
     # Question
-
     # logger.warning(q)
     # response = rag_chain.invoke(q)
-
     # logger.warning(q)
     # response = rag_chain.invoke(q)
     # logger.info(f"response: {response}")
