@@ -19,21 +19,15 @@ if __name__ == '__main__':
     #     {"role":"user", "content": "Привет"},
     # ]
     user_query = "стиральная машина"
-    user_content = f"""Here is the user query: {user_query}.
+    user_content = f"""На основе информации ниже сформулируй суть требований пользователя кратко, но сохраняя все важные детали. Требования могут касаться только одного типа товаров.
 
-            Evaluate if the user query contains enough information to be make a valid sql statement from it.
-            Here are the examples when it DOES NOT contain enough information:
-            - подобрать стиральную машину
-            - обзор стиральных машин
-            - какую стиральную машину выбрать
+История чата:
+user: найди телевизор
+user: диагональ 55
+user: фирма LG
 
-            Here are the examples when it DOES contain enough information:
-            - стриальная машина ширина до 43 загрузка от 6 кг
-            - стиралка Атлант с отзывами недорого
-            - надежная машинка с сушилкой
-
-            Return exactly either true or false and nothing else.
-            """
+Последний запрос пользователя: производитель TCL, 65 дюймов
+"""
     # response = llm(prompt="""<|start_header_id|>system<|end_header_id|>\nТы вежливый и интересный AI ассистент.<|eot_id|><|start_header_id|>user<|end_header_id|>\nПривет!<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n""", max_tokens=-1, temperature=0.0, echo=True, stop=['<eot_id>'])
     response = llm(
         prompt= f"<|begin_of_text|><|start_header_id|>system<|end_header_id|>\nYou are a helpful assistant.<|eot_id|><|start_header_id|>user<|end_header_id|>\n{user_content}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n",

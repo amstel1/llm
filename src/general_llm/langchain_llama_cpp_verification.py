@@ -19,23 +19,16 @@ if __name__ == '__main__':
     #     {"role":"system", "content": "Ты вежливый и интересный AI ассистент."},
     #     {"role":"user", "content": "Привет"},
     # ]
-    user_query = "стиральная машина"
-    user_content = f"""Here is the user query: {user_query}.
 
-            Evaluate if the user query contains enough information to be make a valid sql statement from it.
-            Here are the examples when it DOES NOT contain enough information:
-            - подобрать стиральную машину
-            - обзор стиральных машин
-            - какую стиральную машину выбрать
+    user_content = f"""На основе информации ниже сформулируй суть требований пользователя кратко, но сохраняя все важные детали. Требования могут касаться только одного типа товаров.
 
-            Here are the examples when it DOES contain enough information:
-            - стриальная машина ширина до 43 загрузка от 6 кг
-            - стиралка Атлант с отзывами недорого
-            - надежная машинка с сушилкой
+История чата:
+user: найди телевизор
+user: диагональ 55
+user: фирма LG
 
-            Return exactly either true or false and nothing else.
-            """
-    prompt = PromptTemplate.from_template(template="<|begin_of_text|><|start_header_id|>system<|end_header_id|>\nYou are a helpful assistant.<|eot_id|><|start_header_id|>user<|end_header_id|>\n{question}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n")
+Последний запрос пользователя: производитель TCL, 65 дюймов"""
+    prompt = PromptTemplate.from_template(template="<|start_header_id|>system<|end_header_id|>\nТы вежливый, умный и эффективный ИИ-помощник. Ты всегда стараешься выполнять пожелания пользователя наилучшим образом.<|eot_id|><|start_header_id|>user<|end_header_id|>\n{question}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n")
     chain = prompt | llm
     response = chain.invoke({"question": user_content})
     # response = llm._call(prompt=prompt.format(question=user_content))

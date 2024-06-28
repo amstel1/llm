@@ -57,8 +57,8 @@ Based on your reasoning, decide on the route as JSON.<|eot_id|><|start_header_id
 
 ##########################################################################################
         self.prompt_with_chat_history = """<|start_header_id|>system<|end_header_id|>
-You are a state-of-the-art intent classifer.<|eot_id|><|start_header_id|>user<|end_header_id|>
-You are a state-of-the-art intent classifier. When analyzing user input, prioritize the user's most recent message over any previous messages in the chat history. For instance, the input 'What is the weather like?' should not be classified as 'sberbank_consultant'
+You are a state-of-the-art intent classifier. When analyzing user input, prioritize the user's most recent message over any previous messages in the chat history. For instance, the input 'What is the weather like?' should not be classified as 'sberbank_consultant'. <|eot_id|><|start_header_id|>user<|end_header_id|>
+From the provided user input and chat history, identify the route that best matches the user's current intent. If the user input changes the topic, disregard the previous context and focus on the new request. Remember, your response must be the exact route name as a JSON string.
 
 chat history:
 {chat_history}
@@ -72,7 +72,7 @@ shopping_assistant_washing_machine: поиск, выбор, покупка ст�
 shopping_assistant_fridge: поиск, выбор, покупка холодильника
 shopping_assistant_tv: поиск, выбор, покупка телевизора
 shopping_assistant_mobile: поиск, выбор, покупка мобильного телефона
-just_chatting: разговор на любые темы,  которые НЕ относятся к подбору потребительских товаров или Сбер Банку (банковским услугам, картам, кредитам, депозитам).<|eot_id|><|start_header_id|>assistant<|end_header_id|>\nJSON:"""
+just_chatting: разговор на любые темы,  которые НЕ относятся к подбору потребительских товаров или Сбер Банку (банковским услугам, картам, кредитам, депозитам). <|eot_id|><|start_header_id|>assistant<|end_header_id|>\nJSON:"""
 
     def route(self,
               user_query: str,
