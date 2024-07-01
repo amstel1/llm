@@ -1,3 +1,4 @@
+import itertools
 import sys
 from datetime import datetime
 import pandas as pd
@@ -11,6 +12,7 @@ import yaml
 from loguru import logger
 from jobs import Step1
 from general_llm.reload_router import main as main_reload_router
+import general_llm.reload_router
 import time
 
 
@@ -367,101 +369,114 @@ if __name__ == '__main__':
 
 
     # step 2.5 - записать в очередь
+    for i, SCHEMA_NAME in zip(range(400), itertools.cycle([
+        # 'washing_machine',
+        'tv', 'mobile',
+        'microwave', 'conditioner', 'dishwasher',
+        'fridge',
+        'headphones', 'hob_cooker', 'iron',
+         'kettle',
+         'oven_cooker', 'smartwatch',
+          'vacuumcleaner', 'waterheater'
+    ])):
+        try:
+            # # i dont need PRODUCT_TYPE_NAME
+            # mongo_read_product_reviews = MongoRead(operation='read', db_name=SCHEMA_NAME, collection_name='product_reviews')
+            # mongo_read_product_details = MongoRead(operation='read', db_name=SCHEMA_NAME, collection_name='product_details')
+            # postgres_read_item_list = PostgresDataFrameRead(
+            #     table=f'{SCHEMA_NAME}.item_details_{SCHEMA_NAME}',
+            #     # where=" (offer_count is not null or offer_count is null) and offer_count > 10 and height_cm >= 195 order by min_price asc limit 2000"
+            # )
+            # create_queue_table = Job(
+            #     reader=ReadChainSearchParsePart1(readers=[
+            #         mongo_read_product_reviews,
+            #         mongo_read_product_details,
+            #         postgres_read_item_list,
+            #     ]),
+            #     processor=PopulateQueueDo(),
+            #     writer=PostgresDataFrameWrite(
+            #         schema_name=SCHEMA_NAME,
+            #         table_name='search_queue',
+            #         insert_unique=True,
+            #         index_column='search_query',
+            #         if_exists='append',
+            #         dtypes={
+            #                 'search_query': sqlalchemy.types.TEXT,
+            #                 'product_yandex_name': sqlalchemy.types.TEXT,
+            #                 'searched': sqlalchemy.types.BIGINT,
+            #                 'product_details_yandex_link': sqlalchemy.types.TEXT,
+            #                 'product_reviews_yandex_link': sqlalchemy.types.TEXT,
+            #                 main_reload_router()'scraped': sqlalchemy.types.BIGINT,
+            #                 }
+            #     ),
+            # )
+            # create_queue_table.run()
 
-    # mongo_read_product_reviews = MongoRead(operation='read', db_name=SCHEMA_NAME, collection_name='product_reviews')
-    # mongo_read_product_details = MongoRead(operation='read', db_name=SCHEMA_NAME, collection_name='product_details')
-    # postgres_read_item_list = PostgresDataFrameRead(
-    #     table=f'{SCHEMA_NAME}.item_details_{SCHEMA_NAME}',
-    #     # where=" (offer_count is not null or offer_count is null) and offer_count > 10 and height_cm >= 195 order by min_price asc limit 2000"
-    # )
-    # create_queue_table = Job(
-    #     reader=ReadChainSearchParsePart1(readers=[
-    #         mongo_read_product_reviews,
-    #         mongo_read_product_details,
-    #         postgres_read_item_list,
-    #     ]),
-    #     processor=PopulateQueueDo(),
-    #     writer=PostgresDataFrameWrite(
-    #         schema_name=SCHEMA_NAME,
-    #         table_name='search_queue',
-    #         insert_unique=True,
-    #         index_column='search_query',
-    #         if_exists='append',
-    #         dtypes={
-    #                 'search_query': sqlalchemy.types.TEXT,
-    #                 'product_yandex_name': sqlalchemy.types.TEXT,
-    #                 'searched': sqlalchemy.types.BIGINT,
-    #                 'product_details_yandex_link': sqlalchemy.types.TEXT,
-    #                 'product_reviews_yandex_link': sqlalchemy.types.TEXT,
-    #                 'scraped': sqlalchemy.types.BIGINT,
-    #                 }
-    #     ),
-    # )
-    # create_queue_table.run()
-    #
-    #
-    # # step 2.6 - populate with google search
 
-    # for i in range(50):
-    #     populate_queue_table = Job(
-    #         reader=ReadChain(
-    #             readers=[
-    #                 PostgresDataFrameRead(table=f'{SCHEMA_NAME}.search_queue', where="""(searched is null or searched = 0)"""),
-    #                 SearchRead()  # output: Dict[user_query, tuple(fridge.search_queue attributes)]
-    #             ]),
-    #         processor=SearchDo(),
-    #         writer=PostgresDataFrameUpdate(
-    #             schema_name=SCHEMA_NAME,
-    #             table_name='search_queue',
-    #             where_postgres_attribute='search_query',
-    #             where_dataframe_column_name='search_query',
-    #         )
-    #     )
-    #     populate_queue_table.run()
-    #     main_reload_router()
-    #     print('Sleeping')
-    #     print(i)
-    #     time.sleep(240)
+            # step 2.6 - populate with google search
+            #
+            # populate_queue_table = Job(
+            #     reader=ReadChain(
+            #         readers=[
+            #             PostgresDataFrameRead(table=f'{SCHEMA_NAME}.search_queue', where="""(searched is null or searched = 0)"""),
+            #             SearchRead()  # output: Dict[user_query, tuple(fridge.search_queue attributes)]
+            #         ]),
+            #     processor=SearchDo(),
+            #     writer=PostgresDataFrameUpdate(
+            #         schema_name=SCHEMA_NAME,
+            #         table_name='search_queue',
+            #         where_postgres_attribute='search_query',
+            #         where_dataframe_column_name='search_query',
+            #     )
+            # )
+            # populate_queue_table.run()
+            # general_llm.reload_router.reload()
 
-    # step 2.7
-    # parse_yandex = Job(
-    #     reader=ReadChainSearchParsePart2(readers=[
-    #         PostgresDataFrameRead(
-    #             table=f'{SCHEMA_NAME}.search_queue',
-    #             where='searched = 1 and scraped = 0 and LENGTH(product_details_yandex_link) >= 10'
-    #         ),
-    #         ParseRead(),
-    #     ]),
-    #     processor=DoChainGlobal(processors=[
-    #         SetSearchQueueProcessedDo(),
-    #         YandexMarketDo()
-    #     ]),
-    #     writer=WriteChain(writers=[
-    #         PostgresDataFrameUpdate(schema_name=SCHEMA_NAME, table_name='search_queue',
-    #                                 where_dataframe_column_name='product_details_yandex_link', where_postgres_attribute='product_details_yandex_link'),
-    #         WriteChain(writers=[
-    #             MongoWrite(operation='write', db_name=SCHEMA_NAME, collection_name='product_details'),
-    #             MongoWrite(operation='write', db_name=SCHEMA_NAME, collection_name='product_reviews')
-    #         ]),  # details & reviews
-    #     ],
-    #     )
-    # )
-    # parse_yandex.run()
 
+            # step 2.7
+            parse_yandex = Job(
+                reader=ReadChainSearchParsePart2(readers=[
+                    PostgresDataFrameRead(
+                        table=f'{SCHEMA_NAME}.search_queue',
+                        where='searched = 1 and scraped = 0 and LENGTH(product_details_yandex_link) >= 10'
+                    ),
+                    ParseRead(),
+                ]),
+                processor=DoChainGlobal(processors=[
+                    SetSearchQueueProcessedDo(),
+                    YandexMarketDo()
+                ]),
+                writer=WriteChain(writers=[
+                    PostgresDataFrameUpdate(schema_name=SCHEMA_NAME, table_name='search_queue',
+                                            where_dataframe_column_name='product_details_yandex_link', where_postgres_attribute='product_details_yandex_link'),
+                    WriteChain(writers=[
+                        MongoWrite(operation='write', db_name=SCHEMA_NAME, collection_name='product_details'),
+                        MongoWrite(operation='write', db_name=SCHEMA_NAME, collection_name='product_reviews')
+                    ]),  # details & reviews
+                ],
+                )
+            )
+            parse_yandex.run()
+            general_llm.reload_router.reload()
+            print('Sleeping')
+            print(i)
+            time.sleep(1)
+        except:
+            time.sleep(1)
 
     #
     # Job 5 - Mongo Details -> PostgresDetails
-    ReviewsProductDetails = Job(
-        reader=MongoRead(operation='read', db_name=SCHEMA_NAME, collection_name='product_details'),
-        processor=ReviewsProductDetailsDo(),
-        writer=PostgresDataFrameWrite(
-            schema_name=SCHEMA_NAME,
-            table_name='reviews_product_details',
-            insert_unique=True,
-            index_column='product_url', if_exists='append'
-        )
-    )
-    ReviewsProductDetails.run()
+    # ReviewsProductDetails = Job(
+    #     reader=MongoRead(operation='read', db_name=SCHEMA_NAME, collection_name='product_details'),
+    #     processor=ReviewsProductDetailsDo(),
+    #     writer=PostgresDataFrameWrite(
+    #         schema_name=SCHEMA_NAME,
+    #         table_name='reviews_product_details',
+    #         insert_unique=True,
+    #         index_column='product_url', if_exists='append'
+    #     )
+    # )
+    # ReviewsProductDetails.run()
     #
     # # todo: correct empty rating from postgres view - decide in Job 3 what to scrape based on that
     #

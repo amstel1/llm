@@ -17,10 +17,10 @@ if __name__ == '__main__':
 
     fields = [
         FieldSchema(name="q", dtype=DataType.VARCHAR, is_primary=True, max_length=1024,),
-        FieldSchema(name="q_vector", dtype=DataType.FLOAT_VECTOR, dim=1024),
+        FieldSchema(name="q_vector", dtyple=DataType.FLOAT_VECTOR, dim=1024),
         FieldSchema(name="a", dtype=DataType.VARCHAR, max_length=1024),
     ]
-    for sheet_name in ('fridge', ):
+    for sheet_name in ('mobile',):
 
         # milvus insert
         CONNECTION_URI = "http://localhost:19530"

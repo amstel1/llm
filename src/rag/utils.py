@@ -10,6 +10,7 @@ from langchain_core.documents import BaseDocumentCompressor, Document
 from langchain_core.pydantic_v1 import Extra, root_validator
 from langchain_core.utils import get_from_dict_or_env
 from loguru import logger
+from .rag_config import RERANKING_THRESHOLD
 
 class MarkdownTextSplitter(TextSplitter):
     def __init__(self, patterns = [r"\*\*(.*?)\*\*"]):
@@ -68,7 +69,7 @@ class BGEDocumentCompressor(BaseDocumentCompressor):
         df['score'] = df['score'].astype(float)
         df['ix'] = range(df.shape[0])
 
-        if df['score'].max() <= 0.09:
+        if df['score'].max() <= RERANKING_THRESHOLD:
             # it's unreasonable to use reranking when the reranking model considers the docs so irreleavant
             logger.debug(f'emergency exit from reranking, max score is: { df["score"].max() }')
             return documents

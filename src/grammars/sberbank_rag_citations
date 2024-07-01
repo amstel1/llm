@@ -1,0 +1,12 @@
+root ::= "{" ws "ids" ws ":" ws int_array ws "," ws "answer" ws ":" string ws "}"
+
+int_array ::= "[" ws int_values ws "]"
+
+int_values ::= int_value ("," int_value)*
+
+int_value ::= [0-9]+
+
+string ::=
+  "\"" (string-char)* "\""
+
+string-char ::= [^"\\] | "\\" (["\\/bfnrt] | "u" [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F]) # escapes

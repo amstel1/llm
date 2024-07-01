@@ -7,6 +7,7 @@ RERANKING_MODEL = 'BAAI/bge-reranker-v2-m3' # 'ms-marco-MultiBERT-L-12'  # ms-ma
 USE_RERANKER = True
 N_RERANK_RESULTS = 10
 ELBOW_RERANKING = True
+RERANKING_THRESHOLD = 0.23
 
 MOST_RELEVANT_AT_THE_TOP = True  # False means relevant result are close to the output, seems to work better
 

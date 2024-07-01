@@ -29,6 +29,36 @@ from text2sql.prod_sql_to_text import update_sql_statement
 # todo: inline elements - prefilters - how to create
 
 # create_preview_card()
+
+def clear_conversation():
+    st.session_state.chat_history = []
+    st.session_state.context = {
+        # 'scenario': "",
+        # 'current_step': "",
+        'previous_steps': [None, None, ], }
+    st.rerun()
+
+
+@st.experimental_fragment
+def show_sidebar():
+    # if True:
+    #     st.button("Очистить разговор", on_click=clear_conversation)
+    if st.session_state['show_citations'] and (
+            'cited_sources' in st.session_state.context and 'citations_lookup' in st.session_state.context):
+        logger.error('!!! WE ARE IN CITATIONS LOGIC')
+        st.markdown('# Источники')
+        sidebar_citation_columns = st.columns([.25 for x in st.session_state.context['cited_sources']])
+        sources = st.session_state.context['cited_sources']
+        for i, sitebar_citation_column in enumerate(sidebar_citation_columns):
+            with sitebar_citation_column:
+                lookup_ix = sources[i]
+                link = st.session_state.context['citations_lookup'].get(lookup_ix).get('source')
+                logger.warning(f'stylish_citation_link, i+1: {i+1}, {link}')
+                stylish_citation_link(link, f"{i + 1}")
+
+
+
+
 def stylish_citation_link(url, text):
     st.markdown(
             f"""
@@ -48,7 +78,6 @@ def stylish_citation_link(url, text):
             unsafe_allow_html=True
         )
 
-# Example usage
 
 
 def render_df(df: pd.DataFrame):
@@ -59,12 +88,12 @@ def render_df(df: pd.DataFrame):
     data_server = DataServer(schema_name=st.session_state.context['sql_schema'])  # must pass this from scenario
     assert 'name' in data.columns
     assert data.shape[0] > 0
-    logger.debug(data.shape)
-    logger.debug(data.head(4))
+    # logger.debug(data.shape)
+    # logger.debug(data.head(4))
     if 'sql_items' not in st.session_state:
         # sql_items must be updated every time sql is executed!
         items = data_server.collect_data(data['name'])
-        logger.info(f'collect_data: {items}')
+        # logger.info(f'collect_data: {items}')
         items = items[:4]
         st.session_state['sql_items'] = items
         st.session_state.chat_history.append({"role": "html", "items": items})
@@ -77,15 +106,15 @@ def render_df(df: pd.DataFrame):
     for month_duration in radiobutton_options.values():
         loan_terms = calculator.gpt4o(top_item_price, month_duration)
         duration_2_terms[month_duration] = loan_terms
-
-    logger.debug(len(items))
-    logger.error(items)
     item_display = ItemDisplay(items, duration_2_terms=duration_2_terms, sql_result_ix=sql_result_ix)
     lgc = max(0, len(items) - 1)
     item_display.display_grid(lower_grid_cols=lgc)
 
+
 if __name__ == '__main__':
     # Initialize chat history if it doesn't exist
+    if 'show_citations' not in st.session_state:
+        st.session_state['show_citations'] = False
     if 'chat_history' not in st.session_state:
         st.session_state['chat_history'] = []
     if 'context' not in st.session_state:
@@ -100,24 +129,8 @@ if __name__ == '__main__':
     st.title("Прототип")
 
     # Clear the conversation using a sidebar button for better accessibility
-    with st.sidebar:
-        st.title("Настройки")
-        if st.button("Очистить разговор"):
-            st.session_state.chat_history = []
-            st.session_state.context = {
-                # 'scenario': "",
-                # 'current_step': "",
-                'previous_steps': [None, None,],
-            }
-        if 'cited_sources' in st.session_state.context and 'citations_lookup' in st.session_state.context:
-            logger.error('!!! WE ARE IN CITATIONS LOGIC')
-            st.markdown('# Источники')
-            sidebar_citation_columns = st.columns([1 for x in st.session_state.context['cited_sources']])
-            for i, sitebar_citation_column in enumerate(sidebar_citation_columns):
-                with sitebar_citation_column:
-                    link = st.session_state.context['citations_lookup'].get(i).get('source')
-                    stylish_citation_link(link, f"{i+1}")
-
+    # with st.sidebar:
+    #     show_sidebar()
 
 
     # initialize preemptive filters
@@ -211,6 +224,15 @@ if __name__ == '__main__':
                 st.session_state.chat_history.append({"role": "assistant", "content": response_text})
                 with st.chat_message("assistant"):
                     st.markdown(response_text)
+                # if the response comes from the SberbankConsultant scenario, assert
+                if 'current_step' in st.session_state.context and st.session_state.context['current_step'] == 'sberbank_consultant':
+                    st.session_state['show_citations'] = True
+                    logger.warning(f"show citations: {st.session_state['show_citations']}")
+                    assert 'cited_sources' in st.session_state.context and 'citations_lookup' in st.session_state.context
+                else:
+                    st.session_state['show_citations'] = False
+                with st.sidebar:
+                    show_sidebar()  # rerun sidebar
             elif isinstance(data, pd.DataFrame):
                 render_df(data)
 
@@ -226,6 +248,7 @@ if __name__ == '__main__':
     ):
         if 'cited_sources' in st.session_state.context: st.session_state.context.pop('cited_sources')
         if 'citations_lookup' in st.session_state.context: st.session_state.context.pop('citations_lookup')
+        st.session_state['show_citations'] = False
         # inline_filter = InlineFilter()
         st.markdown('##')
         st.markdown('##')

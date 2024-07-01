@@ -237,7 +237,7 @@ class SberbankConsultant(BaseScenario):
 1. подумать о вопросе и сформулировать развернутый ответ ('answer');
 2. составить список номеров всех фрагментов использованных при формированни ответа ('ids').
 
-Отформатировать по примеру {{'ids': <list[int, int, ...]>, 'answer': <str> }}.<|eot_id|><|start_header_id|>assistant<|end_header_id|>\nJSON:"""
+Отформатировать по примеру {{"ids": <list[int, int, ...]>, "answer": <str> }}.<|eot_id|><|start_header_id|>assistant<|end_header_id|>\nJSON:"""
 
         # Prompt
         debugger = RunnablePassthrough(def_debugger)
@@ -267,10 +267,13 @@ class SberbankConsultant(BaseScenario):
                 | prompt
                 | def_debugger
                 | llm
-                | JsonOutputParser()
+                | StrOutputParser()
         )
         llm_response = rag_chain.invoke(user_query)
+        logger.info(f'sberbank consultant response type 1 - {type(llm_response)}')
         logger.info(f'sberbank consultant response - {llm_response}')
+        llm_response = eval(llm_response)
+        logger.info(f'sberbank consultant response type 2 - {type(llm_response)}')
         assert isinstance(llm_response, dict)
         response_keys = list(llm_response.keys())
         answer_key = [x for x in response_keys if 'answer' in x.lower()][0]
@@ -278,7 +281,7 @@ class SberbankConsultant(BaseScenario):
         context['current_step'] = 'sberbank_consultant'
         if 'previous_steps' not in context: context['previous_steps'] = []
         context['previous_steps'].append('sberbank_consultant')
-        context['scenario_name'] = "just_chatting"
+        context['scenario_name'] = "just_chatting"   # ? why
         context['citations_lookup'] = id_2_doc_id_source
         context['cited_sources'] = llm_response.get(ids_key)
         response = llm_response.get(answer_key)
