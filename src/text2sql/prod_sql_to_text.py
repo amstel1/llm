@@ -63,11 +63,13 @@ def update_sql_statement(sql_statement: str, new_where_clause: str):
 
 
 class SqlToText:
-    # name, price, rating
+    # attribute_name_eng, attribute_type, attribute_rus
     mandatory_fields = [
-        ('name', 'text', 'название'),  # attribute_name_eng, attribute_type, attribute_rus
+        ('name', 'text', 'название'),
         ('price', 'real', 'цена'),
         ('rating_value', 'real', 'рейтинг'),
+        ('rating_count', 'real', 'количество рейтингов (оценок)'),
+        ('review_count', 'real', 'количество отзывов'),
     ]
     mandatory_fields_eng = [x[0] for x in mandatory_fields]
 

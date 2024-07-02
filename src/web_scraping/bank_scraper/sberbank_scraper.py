@@ -1,8 +1,10 @@
+import sys
+sys.path.append('/home/amstel/llm/src')
 import pickle
 from loguru import logger
 from langchain_community.document_loaders import AsyncChromiumLoader
 from langchain_community.document_transformers import BeautifulSoupTransformer
-from typing import Any, Iterator, List, Sequence, cast
+from typing import Any, Iterator, List, Sequence, cast, Dict
 from langchain_core.documents import Document
 import multiprocessing
 import asyncio
@@ -10,6 +12,8 @@ from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 import scrapy
 import pandas as pd
+from etl_jobs.base import Read, StepNum
+
 
 def get_navigable_strings(element: Any) -> Iterator[str]:
     """Get all navigable strings from a BeautifulSoup element.
@@ -37,7 +41,7 @@ class CustomSpider(scrapy.Spider):
         logger.debug(kwargs)
         self.output_callback = kwargs.get('args').get('callback')
         self.output_data = []
-        self.urls = urls
+        self.urls = kwargs.get('args').get('urls')
 
     def start_requests(self):
         for url in self.urls:
@@ -65,7 +69,7 @@ class ScrapySberbankScraper:
         self.output = data
 
     def crawl(self, cls):
-        self.process.crawl(cls, args={'callback': self.yield_output})
+        self.process.crawl(cls, args={'callback': self.yield_output, 'urls': self.urls})
         self.process.start()
 
 def crawl_static(cls, urls):
@@ -260,35 +264,40 @@ def preprocess(fpath) -> List[str]:
 
     return final
 
+class SberbankWebsiteRead(Read):
+    def read(self, **kwargs) -> Dict[StepNum, Any]:
+        logger.info('started')
+
+        df = pd.read_excel('/home/amstel/llm/src/web_scraping/bank_scraper/all.xlsx')
+        urls = df['aux'].values.tolist()
+
+        # urls = preprocess(fpath='/home/amstel/llm/src/web_scraping/bank_scraper/tree.pkl')
+
+        urls = sorted(urls)  # [:4]
+
+        # urls = [
+        #     'https://www.sber-bank.by/page/oferta'
+        # ]
+        # urls = ['https://www.sber-bank.by/deposit/adulthood-local/BYN/attributes']
+        project_settings = get_project_settings()
+        logger.info(project_settings)
+        process = CrawlerProcess(project_settings)
+
+        documents = crawl_static(CustomSpider, urls)
+        transformed_docs = parse_sberbank_docs(docs=documents)
+        # logger.info(transformed_docs)
+
+        with open('/home/amstel/llm/src/web_scraping/bank_scraper/docs_all_02072024.pkl', 'wb') as f:
+            pickle.dump(transformed_docs, f)
+
+        # for doc in transformed_docs:
+        #     meta = doc.metadata
+        #     source = meta.get('source')
+        #     logger.critical(doc)
+        #     print()
+        return {'step_0': transformed_docs}
+
 if __name__ == '__main__':
-    logger.info('started')
-
-    df = pd.read_excel('all.xlsx')
-    urls = df['aux'].values.tolist()
-
-    # urls = preprocess(fpath='/home/amstel/llm/src/web_scraping/bank_scraper/tree.pkl')
-
-    urls = sorted(urls)#[:4]
-
-    # urls = [
-    #     'https://www.sber-bank.by/page/oferta'
-    # ]
-    # urls = ['https://www.sber-bank.by/deposit/adulthood-local/BYN/attributes']
-    project_settings = get_project_settings()
-    logger.info(project_settings)
-    process = CrawlerProcess(project_settings)
-
-    documents = crawl_static(CustomSpider, urls)
-    transformed_docs = parse_sberbank_docs(docs=documents)
-    # logger.info(transformed_docs)
-
-    with open('docs_all_04062024.pkl', 'wb') as f:
-        pickle.dump(transformed_docs, f)
-
-    # for doc in transformed_docs:
-    #     meta = doc.metadata
-    #     source = meta.get('source')
-    #     logger.critical(doc)
-    #     print()
-
+    sberbank_website_reader = SberbankWebsiteRead()
+    docs = sberbank_website_reader.read()
 

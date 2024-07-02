@@ -233,11 +233,8 @@ class SberbankConsultant(BaseScenario):
         # edit 2806 - for citations
         llama_raw_template_system = """<|start_header_id|>system<|end_header_id|>\nТы - сотрудник Сбер Банка (Беларусь). Ты знаешь только русский язык. Основываясь на контексте ниже, правдиво и полно отвечай на вопросы.<|eot_id|>"""
 
-        llama_raw_template_user = """<|start_header_id|>user<|end_header_id|>история разговора: {chat_history_str}\nконтекст:{context}\n\nВопрос:{question}\n\nТы должен последовательно:
-1. подумать о вопросе и сформулировать развернутый ответ ('answer');
-2. составить список номеров всех фрагментов использованных при формированни ответа ('ids').
-
-Отформатировать по примеру {{"ids": <list[int, int, ...]>, "answer": <str> }}.<|eot_id|><|start_header_id|>assistant<|end_header_id|>\nJSON:"""
+        llama_raw_template_user = """<|start_header_id|>user<|end_header_id|>история разговора: {chat_history_str}\nконтекст:{context}\n\nВопрос:{question}\n
+Ответь ("answer") полно, правдиво и развернуто, используя номера фрагментов ("ids"). Не используй "id:" в "answer". Верни свою реплику в формате {{"ids": list[<int>], "answer": <str>}}. <|eot_id|><|start_header_id|>assistant<|end_header_id|>\nJSON:"""
 
         # Prompt
         debugger = RunnablePassthrough(def_debugger)
@@ -305,7 +302,7 @@ if __name__ == '__main__':
     # q = "Подбери мне кредит"
     # q = "Подбери мне депозит"
     q = "Какие есть кредиты на авто?"
-
+    # q = "какие есть кредиты для мобильного телефона"
     consultant = SberbankConsultant()
     response, context = consultant.handle(user_query=q)
     logger.info(f"response: {response}")
