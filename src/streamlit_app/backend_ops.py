@@ -59,6 +59,8 @@ class DataServer():
         return results
 
 
+
+
 if __name__ == '__main__':
     name = 'Мобильный телефон BQ BQ-2446 Dream Duo'
     schema_name = 'mobile'

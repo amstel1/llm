@@ -30,6 +30,31 @@ from text2sql.prod_sql_to_text import update_sql_statement, update_sql_statement
 
 # create_preview_card()
 
+def update_sql_query(column, rus_text, sql_where_clause):
+    with column:
+        if column.button(rus_text, type='primary', key=rus_text):
+            logger.error(sql_where_clause)
+            st.session_state.chat_history.append({"role": "user", "content": rus_text})
+
+            # replace where condition
+            # new_sql_value = update_sql_statement(
+            #     sql_statement=st.session_state.context['sql_query'],
+            #     new_where_clause=sql_where_clause
+            # )
+
+            # append new where
+            new_sql_value = update_sql_statement_append_where_condition(
+                    sql_statement=st.session_state.context['sql_query'],
+                    new_where_clause=sql_where_clause
+                )
+
+            st.session_state.context['sql_query'] = new_sql_value
+            st.session_state.context['current_step'] = 'sql'
+            button_clicked = True
+        else:
+            button_clicked = False
+        return button_clicked
+
 def clear_conversation():
     st.session_state.chat_history = []
     st.session_state.context = {
@@ -109,6 +134,7 @@ def render_df(df: pd.DataFrame):
     item_display = ItemDisplay(items, duration_2_terms=duration_2_terms, sql_result_ix=sql_result_ix)
     lgc = max(0, len(items) - 1)
     item_display.display_grid(lower_grid_cols=lgc)
+    st.rerun()
 
 
 if __name__ == '__main__':
@@ -236,9 +262,18 @@ if __name__ == '__main__':
             elif isinstance(data, pd.DataFrame):
                 render_df(data)
 
+
     # we finished sql-df rendering just now
     # show theses only if ( .get('previous_steps')[-1] == 'sql' and .get('scenario_name') == 'reroute' and .get('current_step') == 'exit' and .get('sql_schema')
     logger.debug(st.session_state.context)
+    if 'scenario_object' in st.session_state:
+        print('scenario_object' in st.session_state)
+        print(isinstance(st.session_state.scenario_object, ShoppingAssistantScenario))
+        print(1234)
+    print(st.session_state.context.get('previous_steps', ["", ""])[-1] == 'sql')
+    print(st.session_state.context.get('scenario_name') == 'reroute')
+    print(st.session_state.context.get('current_step') == 'exit')
+    print(st.session_state.context.get('sql_schema'))
     if (
         ('scenario_object' in st.session_state and isinstance(st.session_state.scenario_object, ShoppingAssistantScenario)) and
         st.session_state.context.get('previous_steps', ["", ""])[-1] == 'sql' and
@@ -276,82 +311,12 @@ if __name__ == '__main__':
         _, col0, col1, col2, _ = st.columns([0.01, 0.3, 0.3, 0.3, 0.09])
         button_clicked = False
 
-
-        def update_sql_query(column, rus_text, sql_where_clause):
-            with column:
-                if column.button(rus_text, type='primary', key=rus_text):
-                    logger.error(sql_where_clause)
-                    st.session_state.chat_history.append({"role": "user", "content": rus_text})
-
-                    # replace where condition
-                    # new_sql_value = update_sql_statement(
-                    #     sql_statement=st.session_state.context['sql_query'],
-                    #     new_where_clause=sql_where_clause
-                    # )
-
-                    # append new where
-                    new_sql_value = update_sql_statement_append_where_condition(
-                            sql_statement=st.session_state.context['sql_query'],
-                            new_where_clause=sql_where_clause
-                        )
-
-                    st.session_state.context['sql_query'] = new_sql_value
-                    st.session_state.context['current_step'] = 'sql'
-                    button_clicked = True
-                else:
-                    button_clicked = False
-                return button_clicked
-
-
-        # with col1:
-        #     rus_text, sql_where_clause = list(text_2_where.items())[0]
-        #     if st.button(rus_text, type='primary', key=rus_text):
-        #         logger.error(sql_where_clause)
-        #         st.session_state.chat_history.append({"role": "user", "content": rus_text})
-        #         assert st.session_state.context['sql_query'] is not None
-        #         logger.debug(st.session_state.context['sql_query'])
-        #         new_sql_value = update_sql_statement(
-        #             sql_statement=st.session_state.context['sql_query'],
-        #             new_where_clause=sql_where_clause)
-        #         st.session_state.context['sql_query'] = new_sql_value
-        #         st.session_state.context['current_step'] = 'sql'
-        #         button_clicked = True
-        #
-        #
-        # with col2:
-        #     rus_text, sql_where_clause = list(text_2_where.items())[1]
-        #     if st.button(rus_text, type='primary', key=rus_text):
-        #         logger.error(sql_where_clause)
-        #         st.session_state.chat_history.append({"role": "user", "content": rus_text})
-        #         assert st.session_state.context['sql_query']
-        #         new_sql_value = update_sql_statement(
-        #             sql_statement=st.session_state.context['sql_query'],
-        #             new_where_clause=sql_where_clause)
-        #         st.session_state.context['sql_query'] = new_sql_value
-        #         st.session_state.context['current_step'] = 'sql'
-        #         button_clicked = True
-        #
-        #
-        # with col3:
-        #     rus_text, sql_where_clause = list(text_2_where.items())[2]
-        #     if st.button(rus_text, type='primary', key=rus_text):
-        #         logger.error(sql_where_clause)
-        #         st.session_state.chat_history.append({"role": "user", "content": rus_text})
-        #         assert st.session_state.context['sql_query']
-        #         new_sql_value = update_sql_statement(
-        #             sql_statement=st.session_state.context['sql_query'],
-        #             new_where_clause=sql_where_clause)
-        #         st.session_state.context['sql_query'] = new_sql_value
-        #         st.session_state.context['current_step'] = 'sql'
-        #         button_clicked = True
-
-        # with col0:
         button_clicked0 = update_sql_query(col0, *list(text_2_where.items())[0])
         logger.error(f'col0 - {button_clicked}')
-        # with col1:
+
         button_clicked1 = update_sql_query(col1, *list(text_2_where.items())[1])
         logger.error(f'col1 - {button_clicked}')
-        # with col2:
+
         button_clicked2 = update_sql_query(col2, *list(text_2_where.items())[2])
         logger.error(f'col2 - {button_clicked}')
 

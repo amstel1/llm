@@ -39,21 +39,21 @@ class ItemDisplay:
                 description=description,
             )
         else:
-            st.markdown(f"""<img src="{item['product_image_url']}" alt="{item.get('name')}" style="border-radius: 4px; width: 100%; max-width: 110px; height: auto; object-fit: cover;">""", unsafe_allow_html=True)
+            st.markdown(f"""<img src="{item.get('product_image_url')}" alt="{item.get('name')}" style="border-radius: 4px; width: 100%; max-width: 110px; height: auto; object-fit: cover;">""", unsafe_allow_html=True)
             st.markdown(
-                f"<div style='text-align: left;'><a href='{item['product_url']}' style='text-decoration: none; color: black; font-size: 14px;'><strong>{item['name']}</strong></a></div>",
+                f"<div style='text-align: left;'><a href='{item.get('product_url')}' style='text-decoration: none; color: black; font-size: 14px;'><strong>{item.get('name')}</strong></a></div>",
                 unsafe_allow_html=True)
-            if item.get('price'): st.write(f"<div style='text-align: left; font-size: 14px;'>price: {item['price']}</div>",
+            if item.get('price'): st.write(f"<div style='text-align: left; font-size: 14px;'>price: {item.get('price')}</div>",
                                            unsafe_allow_html=True)
             if item.get('rating_value'): st.write(
-                f"<div style='text-align: left; font-size: 14px;'>rating_value: {item['rating_value']}</div>", unsafe_allow_html=True)
+                f"<div style='text-align: left; font-size: 14px;'>rating_value: {item.get('rating_value')}</div>", unsafe_allow_html=True)
             if item.get('rating_count'): st.write(
-                f"<div style='text-align: left; font-size: 14px;'>rating_count: {item['rating_count']}</div>", unsafe_allow_html=True)
-            if item.get('depth'): st.write(f"<div style='text-align: left; font-size: 14px;'>depth: {item['depth']}</div>",
+                f"<div style='text-align: left; font-size: 14px;'>rating_count: {item.get('rating_count')}</div>", unsafe_allow_html=True)
+            if item.get('depth'): st.write(f"<div style='text-align: left; font-size: 14px;'>depth: {item.get('depth')}</div>",
                                            unsafe_allow_html=True)
-            if item.get('max_load'): st.write(f"<div style='text-align: left; font-size: 14px;'>max_load: {item['max_load']}</div>",
+            if item.get('max_load'): st.write(f"<div style='text-align: left; font-size: 14px;'>max_load: {item.get('max_load')}</div>",
                                               unsafe_allow_html=True)
-            if item.get('drying'): st.write(f"<div style='text-align: left; font-size: 14px;'>drying: {item['drying']}</div>",
+            if item.get('drying'): st.write(f"<div style='text-align: left; font-size: 14px;'>drying: {item.get('drying')}</div>",
                                             unsafe_allow_html=True)
 
 
