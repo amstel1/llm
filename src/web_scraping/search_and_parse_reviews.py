@@ -389,6 +389,7 @@ def search_google_parse_results(user_query: str) -> str:
             logger.info('branch reviews')
             logger.info(user_query, )
             product_url = some_url[:some_url.find('/reviews')]
+            product_url = product_url[:product_url.find('?sku=')]
             reviews_url = some_url[:some_url.find('/reviews')] + '/reviews'
             logger.info(f'input_url: {some_url}')
             logger.info(f'reviews_url: {reviews_url}')

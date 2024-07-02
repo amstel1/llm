@@ -61,6 +61,32 @@ def update_sql_statement(sql_statement: str, new_where_clause: str):
         new_sql_statement = ' '.join((parsed_token.value.strip() for parsed_token in parsed.tokens))
     return new_sql_statement
 
+def update_sql_statement_append_where_condition(sql_statement: str, new_where_clause: str):
+    sql_statement = sql_statement.replace('  ', ' ').replace('\n', ' ').replace('\t', ' ')
+    assert 'where' in new_where_clause.lower().split(' ')
+    parsed = list(sqlparse.parse(sql_statement))[0]
+    if 'where' in sql_statement.lower():
+        # replace
+        new_sql_statement = ' '.join((parsed_token.value.strip()
+                                      if not isinstance(parsed_token, Where)
+                                      else parsed_token.value.replace(';','') + ' ' + new_where_clause.lower().replace('where', 'and')
+                                      for parsed_token in parsed.tokens))
+    else:
+        # add in the right place
+        insert_index = len(parsed.tokens)  # Default: insert at the end
+        for i, item in enumerate(parsed.tokens):
+            if item.ttype is T.Keyword and item.value.upper() == 'FROM':
+                insert_index = i
+                break
+
+        # Insert the new WHERE clause
+        parsed.tokens.insert(insert_index+3, sqlparse.parse(new_where_clause)[0])
+        new_sql_statement = ' '.join((parsed_token.value.strip() for parsed_token in parsed.tokens))
+    if not new_sql_statement.strip().endswith(';'):
+        new_sql_statement = new_sql_statement.strip()+';'
+    assert 'insert' not in new_sql_statement
+    assert 'update' not in new_sql_statement
+    return new_sql_statement
 
 class SqlToText:
     # attribute_name_eng, attribute_type, attribute_rus
