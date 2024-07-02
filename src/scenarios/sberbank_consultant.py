@@ -25,6 +25,7 @@ from scenarios.shopping_assistant import chat_history_list_to_str
 from rag.utils import ExtendedMilvusCollectionHybridSearchRetriever as MilvusCollectionHybridSearchRetriever
 from rag.utils import BGEDocumentCompressor
 from langchain_core.output_parsers import JsonOutputParser
+from general_llm.llm_endpoint import call_generation_api
 
 from pymilvus import (
     Collection,
@@ -259,14 +260,20 @@ class SberbankConsultant(BaseScenario):
                 filtered_page_contents.append(page_content)
 
         retrieved_docs_str = "\n\n".join(filtered_page_contents)
-        rag_chain = (
-                {"context": RunnableLambda(lambda x: retrieved_docs_str), "question": RunnablePassthrough(), "chat_history_str": RunnableLambda(lambda x: chat_history_str)}
-                | prompt
-                | def_debugger
-                | llm
-                | StrOutputParser()
+        prompt = prompt.format(
+            context=retrieved_docs_str,
+            question=user_query,
+            chat_history_str=chat_history_str,
         )
-        llm_response = rag_chain.invoke(user_query)
+        # rag_chain = (
+        #         {"context": RunnableLambda(lambda x: retrieved_docs_str), "question": RunnablePassthrough(), "chat_history_str": RunnableLambda(lambda x: chat_history_str)}
+        #         | prompt
+        #         | def_debugger
+        #         | llm
+        #         | StrOutputParser()
+        # )
+        # llm_response = rag_chain.invoke(user_query)
+        llm_response = call_generation_api(prompt=prompt, grammar_path='/home/amstel/llm/src/grammars/sberbank_rag_citations.gbnf')
         logger.info(f'sberbank consultant response type 1 - {type(llm_response)}')
         logger.info(f'sberbank consultant response - {llm_response}')
         llm_response = eval(llm_response)

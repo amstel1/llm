@@ -67,7 +67,8 @@ def call_generate_from_query_api(
 
     return r
 
-def call_generation_api(prompt: str, grammar: str = None, stop: list = None) -> str:
+def call_generation_api(prompt: str, grammar: str = None, grammar_path: str = None, stop: list = None) -> str:
+    '''completion API'''
     logger.critical(f'2606 - endpoint - debug: {prompt}')
     logger.critical(f'{len(prompt)}')
     response = requests.post(
@@ -180,11 +181,14 @@ async def generate(input: dict) -> Dict[str, Any]:
     """input keys: prompt (required), grammar (optional), stop (optional) """
     prompt = input.get('prompt')
     grammar = input.get('grammar')
+    grammar_path = input.get('grammar_path')
     stop = input.get('stop')
     if not stop:
         stop = ['<|eot_id|>']
-    if grammar:
+    if grammar and not grammar_path:
         grammar = LlamaGrammar.from_string(grammar=grammar)
+    if not grammar and grammar_path and grammar_path.endswith('.gbnf'):
+        grammar = LlamaGrammar.from_file(file=grammar_path)
     result = llm(
         prompt=prompt,
         grammar=grammar,
