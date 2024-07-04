@@ -116,18 +116,18 @@ class PostgresDataFrameUpdate(Write):
             connection_str = f'postgresql://{user}:{password}@{host}:{port}/{database}'
             engine = create_engine(connection_str)
             with engine.connect() as connection:
-                try:
-                    assert self.where_dataframe_column_name in data.columns
-                    for _, row in data.iterrows():
+                assert self.where_dataframe_column_name in data.columns
+                for _, row in data.iterrows():
+                    try:
                         delete_query = text(f"""
                             DELETE from {self.schema_name}.{self.table_name}
-                            WHERE {self.where_postgres_attribute} = '{row[self.where_dataframe_column_name]}';
+                            WHERE {self.where_postgres_attribute} = '{text(row[self.where_dataframe_column_name].replace("'", "||CHR(39)||"))}';
                         """)
                         connection.execute(delete_query)
                         connection.commit()
                         logger.warning(f"Executing query: {delete_query}")
-                except Exception as e:
-                    logger.error(f"error -- UPDATE: {e}")
+                    except Exception as e:
+                        logger.error(f"error -- UPDATE: {e}")
 
         except Exception as e:
             logger.error(f"error2 -- UPDATE2: {e}")
@@ -152,6 +152,14 @@ class PostgresDataFrameRead(Read):
             sql_str = f'select * from {self.table} where {self.where};'
         else:
             sql_str = f'select * from {self.table};'
+
+        assert 'drop' not in self.table.lower()
+        assert 'insert' not in self.table.lower()
+        assert 'update' not in self.table.lower()
+
+        assert 'drop' not in self.where.lower()
+        assert 'insert' not in self.where.lower()
+        assert 'update' not in self.where.lower()
         try:
             with engine.connect() as connection_str:
                 df = pd.read_sql(

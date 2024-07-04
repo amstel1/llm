@@ -236,6 +236,9 @@ if __name__ == '__main__':
                 # if just_chatting, conversation template follows user-assistant temalate in turns, separated by technical tags
                 non_html_chat_history = ChatHistory.truncate_include_last(chat_history=st.session_state.chat_history,
                                                                           n=CHAT_HISTORY_SIZE)
+            logger.debug(f'user_query -- {prompt}')
+            logger.debug(f'chat_history-- {non_html_chat_history}')
+            logger.debug(f'context-- {st.session_state.context}')
             # universal scenario logic
             data, context = st.session_state.scenario_object.handle(user_query=prompt, chat_history=non_html_chat_history, context=st.session_state.context)
             st.session_state.context = context

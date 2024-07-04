@@ -9,68 +9,6 @@ from abc import abstractmethod, ABC
 from typing import List, Dict, Iterable, Any
 from loguru import logger
 
-def parse_markup_chat_history(chat_history: List[str]):
-    """get rid of the tags, only (role, text) messages must remain -> List[("role", "content")]"""
-    logger.info(chat_history)
-    raise NotImplementedError
-
-# instead of the functios below we can extend:
-# https://api.python.langchain.com/en/latest/_modules/langchain_experimental/chat_models/llm_wrapper.html#Llama2Chat
-def create_chatml_statement(role: str, content: str):
-    assert role in ('user', 'assistant')
-    assert content
-    return f"<|{role}|>\n{content}<|end|>\n"
-
-def create_llama3_statement(role: str, content: str):
-    assert role in ('user', 'assistant')
-    assert content
-    return f"<|start_header_id|>{ role }<|end_header_id|>\n{ content }<|eot_id|>"
-
-def get_chatml_template(chat_history: List[Dict[str, str]]):
-    '''chat history ~ few shot'''
-    template = ""
-    final_assistant = "<|assistant|>\n"
-    if chat_history:
-        logger.warning(chat_history)
-        for message in chat_history:
-            role = message.get('role')
-            content = message.get('content')
-            current_template_part = create_chatml_statement(role, content)
-            template += current_template_part
-        template += final_assistant
-        logger.warning(template)
-    else:
-        raise AttributeError  # should never be executed
-        # final_user = create_statement('user', question)
-        # template = final_user + final_assistant
-        # logger.warning(template)
-    return template
-
-def get_llama3_template_from_history(system_prompt_clean:str, chat_history: List[Dict[str, str]]):
-    """"""
-    # assert chat_history
-    template = f'<|start_header_id|>system<|end_header_id|>\n{ system_prompt_clean }<|eot_id|>'  # llama.cpp adds <|begin_of_text|> by defult
-    final_assistant = "<|start_header_id|>assistant<|end_header_id|>"
-    # final_assistant = "<|start_header_id|>assistant<|end_header_id|>\n"
-    if chat_history:
-        for message in chat_history:
-            role = message.get('role')
-            content = message.get('content')
-            current_template_part = create_llama3_statement(role, content)
-            template += current_template_part
-    template += final_assistant
-    return template
-
-def get_llama3_template_from_user_query(system_prompt_clean:str, user_query: str):
-    template = f'<|start_header_id|>system<|end_header_id|>\n{ system_prompt_clean }<|eot_id|>'  # llama.cpp adds <|begin_of_text|> by defult
-    final_assistant = "<|start_header_id|>assistant<|end_header_id|>"
-    # final_assistant = "<|start_header_id|>assistant<|end_header_id|>\n"
-    current_template_part = create_llama3_statement(role='user', content=user_query)
-    template += current_template_part
-    template += final_assistant
-    return template
-
-
 class BaseScenario(ABC):
     def handle(self, user_query: Any, chat_history: Any, context: Any):
         raise NotImplementedError

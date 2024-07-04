@@ -3,29 +3,15 @@ import sys
 from typing import Dict, Any
 
 sys.path.append('/home/amstel/llm/src')
-import pickle
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import Milvus
-from langchain_community.embeddings import HuggingFaceEmbeddings
-
-from langchain_experimental.text_splitter import SemanticChunker
-from langchain_text_splitters import MarkdownHeaderTextSplitter
-from langchain.retrievers import ParentDocumentRetriever
 import numpy as np
-from langchain.retrievers.multi_vector import MultiVectorRetriever
-
-from langchain_core.runnables import RunnablePassthrough
 from loguru import logger
-from langchain_core.prompts import PromptTemplate
-from langchain_core.output_parsers import StrOutputParser
-from pprint import pprint
-from langchain_core.runnables import RunnableParallel, RunnablePassthrough, RunnableSequence
 import pandas as pd
 import pickle
 from langchain_core.documents import Document
 from general_llm.langchain_llama_cpp_api_warpper import LlamaCppApiWrapper
+from general_llm.llm_endpoint import call_generation_api, call_generate_from_history_api, call_generate_from_query_api, MODEL_NAME
 from etl_jobs.base import Do, StepNum
-
+from general_llm.prompt_construction import Llama3PromptTemplate, Gemma2PromptTemplate
 
 # def text_cosine_similarity(text_a: str, text_b: str):
 #     a = embedding_model.embed_query(text_a)
@@ -115,72 +101,50 @@ class SberbankWebsiteSummaryDo(Do):
             # Initialize the LLM
             llm = LlamaCppApiWrapper()
 
-            # Define the templates
-            llama_raw_template_system = "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\nТы наилучшим образом делаешь то что тебе говорят.<|eot_id|>"
-            llama_raw_template_user = "<|start_header_id|>user<|end_header_id|>\nКонтекст:\n\n{context}\n\nВопрос:\n{question}<|eot_id|><|start_header_id|>assistant<|end_header_id|>"
+            # todo: llama3 or gemma2
+            if 'llama' in MODEL_NAME: prompt_template = Llama3PromptTemplate
+            if 'gemma' in MODEL_NAME: prompt_template = Gemma2PromptTemplate
 
             if product == 'cards':
-                formatting_template = ("<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n"
-                                       "Ты эксперт в структурировании и суммаризации информации. Ты отлично распознаешь паттерны, очень внимателен к деталям, великолепен в выделении главного. В суждениях ты опираешься только на предоставленное Описание. <|eot_id|>"
-                                       "<|start_header_id|>user<|end_header_id|>\n"
-                                       "Описание:\n{input}\n\n"
-                                       "Выше - описание банковской карты (или похожего банковского продукта). Извлеки из него ключевые условия / характеристики, например: точное название, валюта, срок действия, где и как открыть, условия money-back, стоимость оформления и использования. Результат должен быть кратким. Используй только русский язык. "
-                                       "<|eot_id|><|start_header_id|>assistant<|end_header_id|>")
+                system_prompt = "Ты эксперт в структурировании и суммаризации информации. Ты отлично распознаешь паттерны, очень внимателен к деталям, великолепен в выделении главного. В суждениях ты опираешься только на предоставленное Описание. "
+                user_prompt_placeholder = "\nОписание:\n{input}\n\nВыше - описание банковской карты (или похожего банковского продукта). Извлеки из него ключевые условия / характеристики, например: точное название, валюта, срок действия, где и как открыть, условия money-back, стоимость оформления и использования. Результат должен быть кратким. Используй только русский язык. "
+
             elif product == 'credits':
-                formatting_template = ("<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n"
-                                       "Ты эксперт в структурировании и суммаризации информации. Ты отлично распознаешь паттерны, очень внимателен к деталям, великолепен в выделении главного. В суждениях ты всегда опираешься только на предоставленное Описание. <|eot_id|>"
-                                       "<|start_header_id|>user<|end_header_id|>\n"
-                                       "Описание:\n{input}\n\n"
-                                       "Выше - описание банковского кредитного продукта. Извлеки из него ключевые условия / характеристики, например: точное название, процентная ставка, сумма, срок, где и как открыть, прочие условия. Отдельно выдели информацию, если товар в кредит можно купить только у партнера. Результат должен быть кратким. Используй только русский язык. "
-                                       "<|eot_id|><|start_header_id|>assistant<|end_header_id|>")
+                system_prompt = "Ты эксперт в структурировании и суммаризации информации. Ты отлично распознаешь паттерны, очень внимателен к деталям, великолепен в выделении главного. В суждениях ты опираешься только на предоставленное Описание. "
+                user_prompt_placeholder = "\nОписание:\n{input}\n\nВыше - описание банковского кредитного продукта. Извлеки из него ключевые условия / характеристики, например: точное название, процентная ставка, сумма, срок, где и как открыть, прочие условия. Отдельно выдели информацию, если товар в кредит можно купить только у партнера. Результат должен быть кратким. Используй только русский язык. "
+
             elif product == 'other':
-                formatting_template = ("<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n"
-                                       "Ты эксперт в структурировании и суммаризации информации. Ты отлично распознаешь паттерны, очень внимателен к деталям, великолепен в выделении главного. В суждениях ты всегда опираешься только на предоставленное Описание. <|eot_id|>"
-                                       "<|start_header_id|>user<|end_header_id|>\n"
-                                       "Описание:\n{input}\n\n"
-                                       "Выше - описание банковского продукта или услуги. Извлеки из него все возомжные условия / характеристики. Результат должен быть кратким. Используй только русский язык. "
-                                       "<|eot_id|><|start_header_id|>assistant<|end_header_id|>")
+                system_prompt = "Ты эксперт в структурировании и суммаризации информации. Ты отлично распознаешь паттерны, очень внимателен к деталям, великолепен в выделении главного. В суждениях ты опираешься только на предоставленное Описание. "
+                user_prompt_placeholder = "\nОписание:\n{input}\n\nВыше - описание банковского продукта или услуги. Извлеки из него все возомжные условия / характеристики. Результат должен быть кратким. Используй только русский язык."
+
             elif product == 'deposits':
-                formatting_template = ("<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n"
-                                       "Ты эксперт в структурировании и суммаризации информации. Ты отлично распознаешь паттерны, очень внимателен к деталям, великолепен в выделении главного. В суждениях ты всегда опираешься только на предоставленное Описание. <|eot_id|>"
-                                       "<|start_header_id|>user<|end_header_id|>\n"
-                                       "Описание:\n{input}\n\n"
-                                       "Выше - описание банковского депозита (вклада) или другого банковского продукта для накопления сбережений. Извлеки из него ключевые условия / характеристики, например: точное название, валюта, процентная ставка, срок, где и как открыть, отзывный / безотзывный. Если возможно, результат должен содержать все возможные комбинации валюты, срока, ставки. Результат должен быть кратким. Используй только русский язык. "
-                                       "<|eot_id|><|start_header_id|>assistant<|end_header_id|>")
-            # Create the formatting prompt
-            # formatting_prompt = PromptTemplate.from_template(template=llama_raw_template_system + llama_raw_template_user)  # formatting_template
-            formatting_prompt = PromptTemplate.from_template(template=formatting_template)  # formatting_template
+                system_prompt = "Ты эксперт в структурировании и суммаризации информации. Ты отлично распознаешь паттерны, очень внимателен к деталям, великолепен в выделении главного. В суждениях ты опираешься только на предоставленное Описание. "
+                user_prompt_placeholder = "\nОписание:\n{input}\n\nВыше - описание банковского депозита (вклада) или другого банковского продукта для накопления сбережений. Извлеки из него ключевые условия / характеристики, например: точное название, валюта, процентная ставка, срок, где и как открыть, отзывный / безотзывный. Если возможно, результат должен содержать все возможные комбинации валюты, срока, ставки. Результат должен быть кратким. Используй только русский язык. "
 
-            # Define the formatting chain
-            formatting_chain = formatting_prompt | llm | StrOutputParser()
 
-            # Define the summarization template and prompt
-            summarize_template = (
-                "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\nТы наилучшим образом делаешь то что тебе говорят.<|eot_id|><|start_header_id|>user<|end_header_id|>\nОписание:\n{input}\n\nИз описания выше извлеки название банковского продукта, о котором идет речь. Используй русский язык. Верни только само название продукта и ничего кроме. <|eot_id|><|start_header_id|>assistant<|end_header_id|>")
-            summarization_prompt = PromptTemplate.from_template(template=summarize_template)
-
-            # Define summarization chain, ensuring input is formatted as expected
-            summarization_chain = {"input": lambda x: {"input": x}} | summarization_prompt | llm | StrOutputParser()
-
-            combined_chain = RunnableParallel({
-                "formatted": formatting_chain,
-                "summarized": summarization_chain
-            })
 
             results = {}
             for i, body in enumerate(docs):
                 source_link = body.metadata.get('source')
                 content = body.page_content
-                # filtered = [doc for doc in docs if doc.metadata.get('source') == source_link]
-                # content = filtered[0].page_content
                 assert len(content) > 10
                 logger.debug(content)
-                r = combined_chain.invoke({
-                    # "question": "Сделай данные выше более структурированными, соедини релевантные параграфы вместе. "
-                    #             "Результат должен быть кратким, содержать название и ключевые параметры / условия продукта, например: валюта, ставка, срок, сумма, процент. "
-                    #             "Ты можешь только менять форматирование документа. Используй русский язык.",
-                    "input": content,
-                })
+
+                user_prompt = user_prompt_placeholder.format(input=content)
+                formatting_prompt = prompt_template().create_prompt_from_user_query(system_prompt_clean=system_prompt,
+                                                                               user_query=user_prompt)
+                r = {}
+                formatting_output = call_generation_api(prompt=formatting_prompt, stop=['<|eot_id|>'])
+                r['formatted'] = formatting_output
+                # summarization_prompt = summarize_template.format(input=formatting_output)
+                user_prompt_placeholder = '\nОписание:\n{input}\n\nИз описания выше извлеки название банковского продукта, о котором идет речь. Используй русский язык. Верни только само название продукта и ничего кроме. '
+                user_prompt = user_prompt_placeholder.format(input=formatting_output)
+                summarization_prompt = Llama3PromptTemplate().create_prompt_from_user_query(
+                    system_prompt_clean='Ты наилучшим образом делаешь то что тебе говорят.',
+                    user_query=user_prompt
+                )
+                summarization_output = call_generation_api(prompt=summarization_prompt, stop=['<|eot_id|>'])
+                r['summarized'] = summarization_output
                 results[source_link] = r
                 logger.info(f"{i}, {source_link}")
                 logger.warning(r)
@@ -188,6 +152,7 @@ class SberbankWebsiteSummaryDo(Do):
                 print()
                 print(r.get('summarized'))
                 print('=========')
+                break
 
             with open(f'rag_w_summary_results_{product}.pkl', 'wb') as f:
                 pickle.dump(results, f)

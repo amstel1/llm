@@ -1,4 +1,3 @@
-from typing import Any
 import sys
 sys.path.append('/home/amstel/llm/src')
 from scenarios.scenario_router import ScenarioRouter
@@ -16,10 +15,8 @@ class JustChattingScenario(BaseScenario):
         assert 'previous_steps' in context
         assert isinstance(context.get('previous_steps'), list)
         response = call_generate_from_history_api(
-            # system_prompt='Ты вежливый, умный и эффективный ИИ-помощник. Ты всегда стараешься выполнять пожелания пользователя наилучшим образом.',
             system_prompt='Отвечай точно.',
             chat_history=chat_history,
-            stop=['<|eot_id|>'],
         )
         # context['current_step'] = 'chatting'
         context['previous_steps'].append('chatting')

@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional, List, Dict
 import sys
 sys.path.append('/home/amstel/llm')
 sys.path.append('/home/amstel/llm/src')
@@ -19,13 +19,15 @@ from langchain.retrievers import ContextualCompressionRetriever
 from langchain.retrievers.document_compressors import FlashrankRerank
 from general_llm.langchain_llama_cpp_api_warpper import LlamaCppApiWrapper
 from scenarios.base import BaseScenario
-from scenarios.scenario_router import ScenarioRouter
+from scenarios.scenario_router import ScenarioRouter, Route
 from scenarios.shopping_assistant import chat_history_list_to_str
 # from langchain_milvus import MilvusCollectionHybridSearchRetriever
 from rag.utils import ExtendedMilvusCollectionHybridSearchRetriever as MilvusCollectionHybridSearchRetriever
 from rag.utils import BGEDocumentCompressor
 from langchain_core.output_parsers import JsonOutputParser
-from general_llm.llm_endpoint import call_generation_api
+from general_llm.llm_endpoint import call_generation_api, MODEL_NAME, call_generate_from_query_api
+from general_llm.prompt_construction import Llama3PromptTemplate, Gemma2PromptTemplate
+import json
 
 from pymilvus import (
     Collection,
@@ -44,26 +46,10 @@ class RetrieverRouter(ScenarioRouter):
     # define only init
     # call with proper grammar
     def __init__(self):
-        self.prompt_without_chat_history = """<|start_header_id|>system<|end_header_id|>
-You are a state-of-the-art intent classifer.<|eot_id|><|start_header_id|>user<|end_header_id|>
-Based on the user input identify which route the user's input most closely relates to. Respond with the most relevant route name from the given mapping.
+        self.system_prompt = 'You are a state-of-the-art intent classifer.'
+        self.user_prompt_with_chat_history_placeholder = """Based on the user input and the chat history, identify which route the user's input most closely relates to. Your decision should take into account the context provided by the chat history. Respond with the most relevant route name from the given mapping.
 
-route mapping: 
-full_bge_credits: кредит овердрафт рефинансирование долг
-full_bge_deposits: депозит вклад сбережения накопления pay
-full_bge_cards: карта платежная дебетовая манибэк money-back кэшбэк cash-back сберкарта
-full_bge_other: страховки подписка прайм prime сбол банковские продукты услуги
-
-user input:
-{user_input}
-<|eot_id|><|start_header_id|>assistant<|end_header_id|>\nJSON:"""
-
-
-        self.prompt_with_chat_history = """<|start_header_id|>system<|end_header_id|>
-You are a state-of-the-art intent classifer.<|eot_id|><|start_header_id|>user<|end_header_id|>
-Based on the user input and the chat history, identify which route the user's input most closely relates to. Your decision should take into account the context provided by the chat history. Respond with the most relevant route name from the given mapping.
-
-route mapping: 
+route mapping:
 full_bge_credits: кредит овердрафт рефинансирование долг
 full_bge_deposits: депозит вклад сбережения накопления pay
 full_bge_cards: карта платежная дебетовая манибэк money-back кэшбэк cash-back сберкарта
@@ -75,17 +61,54 @@ chat history:
 user_input:
 {user_input}
 
-Please respond with the most relevant route name as JSON.<|eot_id|><|start_header_id|>assistant<|end_header_id|>\nJSON:"""
+Please respond with the most relevant route name as JSON."""
+        self.user_prompt_without_chat_history_placeholder = """Based on the user input identify which route the user's input most closely relates to. Respond with the most relevant route name from the given mapping.
 
-# def format_docs(docs):
-#     if TO_REPLACE_SEPARATOR:
-#         return "\n\n".join(doc.page_content.replace(SEPARATOR, REPLACE_SEPARATOR_WITH) for doc in docs)
-#     return "\n\n".join(doc.page_content.replace("passage: ", "") for doc in docs)
+route mapping:
+full_bge_credits: кредит овердрафт рефинансирование долг
+full_bge_deposits: депозит вклад сбережения накопления pay
+full_bge_cards: карта платежная дебетовая манибэк money-back кэшбэк cash-back сберкарта
+full_bge_other: страховки подписка прайм prime сбол банковские продукты услуги
 
-def def_debugger(inp):
-    logger.info(inp)
-    return inp
+user input:
+{user_input}"""
+        self.assistant_starts_with = "\nJSON:"
 
+    def route(self,
+              user_query: str,
+              chat_history: Optional[List[Dict[str, str]]] = None,
+              grammar_path: str = None,  # force json output
+              stop: list[str] = [],
+              ) -> Route:
+        if (chat_history is None) or (not chat_history) or (len(chat_history)==0):
+            generation_result = call_generate_from_query_api(
+                system_prompt=self.system_prompt,
+                user_prompt=self.user_prompt_without_chat_history_placeholder.format(**{"user_input": user_query,}),
+                assistant_must_start_with=self.assistant_starts_with,
+                grammar_path=grammar_path,
+                stop=stop,
+            )
+        else:
+            # done: chat_history must be parsed, already implemented at .shopping_assistant, reuse
+            str_chat_history = chat_history_list_to_str(chat_history)
+            generation_result = call_generate_from_query_api(
+                system_prompt=self.system_prompt,
+                user_prompt=self.user_prompt_with_chat_history_placeholder.format(
+                    **{"user_input": user_query, "chat_history": str_chat_history,}),
+                assistant_must_start_with=self.assistant_starts_with,
+                grammar_path=grammar_path,
+                stop=stop,
+            )
+        logger.debug(f'0407 - router - {generation_result}')
+        selected_route_dict = JsonOutputParser().parse(generation_result)
+        selected_route = selected_route_dict.get('route')
+        logger.warning(selected_route)
+        if isinstance(selected_route, list):
+            assert len(selected_route) == 1
+            selected_route_str = selected_route[0]
+        elif isinstance(selected_route, str):
+            selected_route_str = selected_route
+        return selected_route_str
 
 def min_max_scaling(values, min_=None, max_=None):
     if min_ is None:
@@ -118,44 +141,13 @@ class SberbankConsultant(BaseScenario):
 
 
     def retriever_router(self, input: str, chat_history: list):
-        # todo: big problem is - it does not take chat_history into account
-        # input: str
         logger.debug(input)
-        # options = [
-        #     "кредит овердрафт рефинансирование долг",  # assert credit
-        #     "депозит вклад сбережения накопления pay", # assert deposit
-        #     "карта платежная дебетовая манибэк money-back кэшбэк cash-back сберкарта",  # # assert card
-        #     "страховки подписка прайм prime сбол банковские продукты услуги",   # assert other
-        # ]
-        # prompt_embeddings = self.dense_embedding_model.embed_documents(options)
-        # dense_query_embedding = self.dense_embedding_model.embed_query(input.lower())
-        # sparse_similarity = {}
-        # for sparse_embedding_model_name, sparse_embedding_model in self.sparse_model_2_rag_collections.items():
-        #     # assert order: credit, deposit, card, other
-        #     sparse_similarity[sparse_embedding_model_name] = sum(sparse_embedding_model.embed_query(input.lower()).values())
-        # dense_similarity = cosine_similarity([dense_query_embedding], prompt_embeddings)[0]
-        #
-        # dense_similarity = min_max_scaling(dense_similarity, min_=0, max_=1)
-        # sparse_similarity = min_max_scaling(list(sparse_similarity.values()), min_=0.01, max_=10)
-        #
-        # combined_similarity_sum = (dense_similarity * 0.95) + (sparse_similarity * 0.05)
-        # combined_similarity_product = dense_similarity * sparse_similarity
-        #
-        # logger.info(f'dense similarities: {dense_similarity}')
-        # logger.info(f'sparse similarities: {sparse_similarity}')
-        #
-        # logger.info(f'combined_similarity_sum: {combined_similarity_sum}')
-        # logger.info(f'combined_similarity_product: {combined_similarity_product}')
-        #
-        # chosen_rag_collection = self.rag_collections[combined_similarity_sum.argmax()]
 
         retriever_router = RetrieverRouter()
         chosen_rag_collection = retriever_router.route(
             user_query=input,
             chat_history=chat_history,
-            grammar=None,
             grammar_path='/home/amstel/llm/src/grammars/sberbank_consultant_router.gbnf',  # force json output
-            stop=['<|eot_id|>'],
         )
         self.sparse_embedding_model = self.sparse_model_2_rag_collections[chosen_rag_collection]
 
@@ -224,24 +216,14 @@ class SberbankConsultant(BaseScenario):
         return retriever
 
     def handle(self, user_query: Any, chat_history: Any = [], context: Any = {}):
-        #todo: chat_history
-        # is not used
-
-        # retriever = RunnableLambda(self.retriever_router)
         retriever = self.retriever_router(input=user_query, chat_history=chat_history)
-        # llama_raw_template_system = """<|start_header_id|>system<|end_header_id|>\nТы - сотрудник Сбер Банка (Беларусь). Ты знаешь только русский язык. Основываясь на контексте ниже, правдиво и полно отвечай на вопросы.<|eot_id|>"""
 
         # edit 2806 - for citations
-        llama_raw_template_system = """<|start_header_id|>system<|end_header_id|>\nТы - сотрудник Сбер Банка (Беларусь). Ты знаешь только русский язык. Основываясь на контексте ниже, правдиво и полно отвечай на вопросы.<|eot_id|>"""
+        system_promt = "Ты - сотрудник Сбер Банка (Беларусь). Ты знаешь только русский язык. Основываясь на контексте ниже, правдиво и полно отвечай на вопросы. "
 
-        llama_raw_template_user = """<|start_header_id|>user<|end_header_id|>история разговора: {chat_history_str}\nконтекст:{context}\n\nВопрос:{question}\n
-Ответь ("answer") полно, правдиво и развернуто, используя номера фрагментов ("ids"). Не используй "id:" в "answer". Верни свою реплику в формате {{"ids": list[<int>], "answer": <str>}}. <|eot_id|><|start_header_id|>assistant<|end_header_id|>\nJSON:"""
+        user_prompt_placeholder = """история разговора: {chat_history_str}\nконтекст:{context}\n\nВопрос:{question}\n
+Ответь ("answer") полно, правдиво и развернуто, используя номера фрагментов ("ids"). Не используй "id:" в "answer". Верни свою реплику в формате {{'ids': list[<int>], 'answer': <str>}}. """
 
-        # Prompt
-        debugger = RunnablePassthrough(def_debugger)
-        prompt = PromptTemplate.from_template(template=llama_raw_template_system + llama_raw_template_user)
-
-        llm = LlamaCppApiWrapper()
         chat_history_str = chat_history_list_to_str(chat_history)
 
         retrieved_docs = retriever.invoke(user_query)
@@ -260,23 +242,25 @@ class SberbankConsultant(BaseScenario):
                 filtered_page_contents.append(page_content)
 
         retrieved_docs_str = "\n\n".join(filtered_page_contents)
-        prompt = prompt.format(
+        user_prompt = user_prompt_placeholder.format(
             context=retrieved_docs_str,
             question=user_query,
             chat_history_str=chat_history_str,
         )
-        # rag_chain = (
-        #         {"context": RunnableLambda(lambda x: retrieved_docs_str), "question": RunnablePassthrough(), "chat_history_str": RunnableLambda(lambda x: chat_history_str)}
-        #         | prompt
-        #         | def_debugger
-        #         | llm
-        #         | StrOutputParser()
-        # )
-        # llm_response = rag_chain.invoke(user_query)
+
+        assistant_starts_with = '\nJSON:'
+        if 'llama' in MODEL_NAME: prompt_template = Llama3PromptTemplate
+        if 'gemma' in MODEL_NAME: prompt_template = Gemma2PromptTemplate
+        prompt = prompt_template().create_prompt_from_user_query(
+            system_prompt_clean=system_promt,
+            user_query=user_prompt,
+            assistant_must_start_with=assistant_starts_with,
+        )
+
         llm_response = call_generation_api(prompt=prompt, grammar_path='/home/amstel/llm/src/grammars/sberbank_rag_citations.gbnf')
         logger.info(f'sberbank consultant response type 1 - {type(llm_response)}')
         logger.info(f'sberbank consultant response - {llm_response}')
-        llm_response = eval(llm_response)
+        llm_response = JsonOutputParser().parse(llm_response)
         logger.info(f'sberbank consultant response type 2 - {type(llm_response)}')
         assert isinstance(llm_response, dict)
         response_keys = list(llm_response.keys())
@@ -316,52 +300,4 @@ if __name__ == '__main__':
     logger.info(f"context: {context}")
 
 
-    # Question
-    # logger.warning(q)
-    # response = rag_chain.invoke(q)
-    # logger.warning(q)
-    # response = rag_chain.invoke(q)
-    # logger.info(f"response: {response}")
-    #
-    # logger.warning(q)
-    # response = rag_chain.invoke(q)
-    # logger.info(f"response: {response}")
-    #
-    # logger.warning(q)
-    # response = rag_chain.invoke(q)
-    # logger.info(f"response: {response}")
-    #
-    # logger.warning(q)
-    # response = rag_chain.invoke(q)
-    # logger.info(f"response: {response}")
-    #
-    # logger.warning(q)
-    # response = rag_chain.invoke(q)
-    # logger.info(f"response: {response}")
-    # #
-    # logger.warning(q)
-    # response = rag_chain.invoke(q)
-    # logger.info(f"response: {response}")
-    #
-    # response = rag_chain.invoke()
-    # logger.info(f"response: {response}")
-    # logger.warning(q)
-    # response = rag_chain.invoke(q)
-    # logger.info(f"response: {response}")
-
-    #
-    # response = rag_chain.invoke()
-    # logger.info(f"response: {response}")
-    #
-    # response = rag_chain.invoke()
-    # logger.info(f"response: {response}")
-    #
-    # response = rag_chain.invoke()
-    # logger.info(f"response: {response}")
-    #
-    # response = rag_chain.invoke()
-    # logger.info(f"response: {response}")
-    #
-    # response = rag_chain.invoke()
-    # logger.info(f"response: {response}")
 

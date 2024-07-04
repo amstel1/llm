@@ -1,41 +1,14 @@
-# ask - generate - verify - sql
-
-# I'm writing a chatbot scenario called "ShoppingAssistantScenario". My task is: given the user query return the best product from a database.
-# Here are the coarse steps and their respective method definitions:
-#
-# 1. Evaluate if text2sql from the user_query possible
-# method: evaluate_ready(text) -> bool
-# comment: this step is neccessary because the user can provide us either with a well defined query in natural language or a vague statement that requires to be enriched with details.
-#
-# 2. Perform text2sql
-# method: sql_query(text) -> pd.DataFrame
-# comment: translate the query into an sql statement. This method is called if the previous step returned true.
-#
-# 3. Ask more question, steer the user (via prompt?) to write the desirable conditions
-# method: gather_specs(text) -> text
-# comment: if the input is not appropriate to create an sql from, we need to find out more details about the desired properties of the product
-#
-# 4. Generate possible inline filters
-# method: generate_specs(text) -> text
-# comment: instead of asking the user to write their requirements, at this step we generate pre-defined filters
-#
-# 5. Translate them into language
-# method: translate_specs_into_text(set | text) -> text
-# comment: after we've gathered the specs either as text or as a set of predefined filters, we need to compress all the chat history in a single natural language statement.
-#
-# Create a blueprint for the steps above in python. Write well defined code in python. Create classes and method definitions. For each method in the comment docstring write the most important implementation aspects need to be resolved for the best quality possible.
-
 import sys
 sys.path.append('/home/amstel/llm/src')
 import pandas as pd
-from scenarios.base import BaseScenario, parse_markup_chat_history, get_llama3_template_from_history, get_llama3_template_from_user_query
+from scenarios.base import BaseScenario
 from text2sql.prod_sql_to_text import SqlToText
 from typing import Iterable, Dict, List, Union, Optional, Any
 import requests
 from loguru import logger
-from general_llm.llm_endpoint import call_generation_api, call_generate_from_history_api, call_generate_from_query_api
+from general_llm.llm_endpoint import call_generation_api, call_generate_from_history_api, call_generate_from_query_api, MODEL_NAME
+from general_llm.prompt_construction import Llama3PromptTemplate, Gemma2PromptTemplate
 
-# todo: move to general_llm
 def chat_history_list_to_str(chat_history: list):
     str_chat_history = ''
     clean_chat_history = [x for x in chat_history if x.get('role') in ('user', 'assistant')]  # there can also be role==html
@@ -70,20 +43,6 @@ class ShoppingAssistantScenario(BaseScenario):
         :param text: User query in natural language.
         :return: Boolean indicating if text2sql is possible.
         """
-        # Implementation aspects:
-        # 1. Use natural language processing (NLP) to determine if the query is well-defined.
-        # 2. Check for keywords and structure that indicate a specific query.
-        # 3. Handle edge cases where user input is ambiguous.
-        # parsed_chat_history = parse_markup_chat_history(chat_history)
-
-#         user_content = f"""You are tasked to decide whether the user query contains at least one attribute / characteristic / feature of any kind.
-# Return exactly either true or false.
-# Return false if the user did not mention any desired properties.
-# Return true if the user mentioned at least one of the desired properties or attributes, e.g.: size, width, quality, brand, price, name, rating, product's specific features.
-# Return true if you are specifically asked to perform a query or if you are not allowed to ask any more questions.
-#
-# Here is the user query you need to evaluate: {user_query}
-# """
 
         user_content_without_history = f"""Ты должен решить, содержит ли запрос пользователя хотя бы один описательный атрибут / характеристику / определение любого рода.
 Верни "True" или "False".
@@ -100,15 +59,20 @@ class ShoppingAssistantScenario(BaseScenario):
 История разговора:\n{str_chat_history}\n   
 Запрос пользователя: {user_query}"""
         if chat_history is None or not chat_history:
-            prompt = get_llama3_template_from_history(system_prompt_clean='Ты объективный семантический оценщик.', chat_history=[{'role': 'user', 'content': user_content_without_history}])
+            # todo: object
+            if 'llama' in MODEL_NAME: prompt_template = Llama3PromptTemplate
+            if 'gemma' in MODEL_NAME: prompt_template = Gemma2PromptTemplate
+            prompt = prompt_template().create_prompt_from_history(system_prompt_clean='Ты объективный семантический оценщик.', chat_history=[{'role': 'user', 'content': user_content_without_history}])
         else:
             # it's very incosistent, but here i construct chat history as a history of messages with roles according to the template
             # an alternative approach is: combine the that history into str, pass it in the user turn:
-            # prompt = get_llama3_template_from_history(system_prompt_clean='Ты объективный семантический оценщик.', chat_history=chat_history)
 
+            # todo: object
+            if 'llama' in MODEL_NAME: prompt_template = Llama3PromptTemplate
+            if 'gemma' in MODEL_NAME: prompt_template = Gemma2PromptTemplate
             str_chat_history = chat_history_list_to_str(chat_history)
             user_query_input = user_content_with_history.format(user_query=user_query, str_chat_history=str_chat_history)
-            prompt = get_llama3_template_from_user_query(system_prompt_clean='Ты объективный семантический оценщик.', user_query=user_query_input)
+            prompt = prompt_template().create_prompt_from_user_query(system_prompt_clean='Ты объективный семантический оценщик.', user_query=user_query_input)
 
         return call_generation_api(prompt=prompt, grammar='root ::= "True"|"False"')
 
