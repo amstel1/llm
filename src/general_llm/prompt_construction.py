@@ -20,11 +20,11 @@ class Gemma2PromptTemplate:
         assert content
         return f"<start_of_turn>{role}\n{content}<end_of_turn>\n"
 
-    def create_prompt_from_history(self, system_prompt=None, chat_history: List[Dict[str, str]] = None, assistant_must_start_with: str = None):
+    def create_prompt_from_history(self, system_prompt_clean=None, chat_history: List[Dict[str, str]] = None, assistant_must_start_with: str = None):
         '''chat history ~ few shot'''
         template = ""
-        if system_prompt:
-            current_template_part = self.create_statement(role='user', content=system_prompt)
+        if system_prompt_clean:
+            current_template_part = self.create_statement(role='user', content=system_prompt_clean)
             template += current_template_part
         if chat_history:
             logger.warning(chat_history)
@@ -100,11 +100,11 @@ class Phi3PromptTemplate:
         assert content
         return f"<|{role}|>\n{content}<|end|>\n"
 
-    def create_prompt_from_history(self, system_prompt=None, chat_history: List[Dict[str, str]] = None, assistant_must_start_with: str = None):
+    def create_prompt_from_history(self, system_prompt_clean=None, chat_history: List[Dict[str, str]] = None, assistant_must_start_with: str = None):
         '''chat history ~ few shot'''
         template = ""
-        if system_prompt:
-            current_template_part = self.create_statement(role='user', content=system_prompt)
+        if system_prompt_clean:
+            current_template_part = self.create_statement(role='user', content=system_prompt_clean)
             template += current_template_part
         if chat_history:
             logger.warning(chat_history)

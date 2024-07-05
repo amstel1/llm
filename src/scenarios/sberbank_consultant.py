@@ -101,6 +101,7 @@ user input:
             )
         logger.debug(f'0407 - router - {generation_result}')
         selected_route_dict = JsonOutputParser().parse(generation_result)
+        # selected_route_dict = json.loads(generation_result)
         selected_route = selected_route_dict.get('route')
         logger.warning(selected_route)
         if isinstance(selected_route, list):
@@ -222,7 +223,7 @@ class SberbankConsultant(BaseScenario):
         system_promt = "Ты - сотрудник Сбер Банка (Беларусь). Ты знаешь только русский язык. Основываясь на контексте ниже, правдиво и полно отвечай на вопросы. "
 
         user_prompt_placeholder = """история разговора: {chat_history_str}\nконтекст:{context}\n\nВопрос:{question}\n
-Ответь ("answer") полно, правдиво и развернуто, используя номера фрагментов ("ids"). Не используй "id:" в "answer". Верни свою реплику в формате {{'ids': list[<int>], 'answer': <str>}}. """
+Ответь на вопрос выше полно, правдиво и развернуто. """
 
         chat_history_str = chat_history_list_to_str(chat_history)
 
@@ -248,31 +249,33 @@ class SberbankConsultant(BaseScenario):
             chat_history_str=chat_history_str,
         )
 
-        assistant_starts_with = '\nJSON:'
+        # assistant_starts_with = '\nJSON:'  # remove citations
         if 'llama' in MODEL_NAME: prompt_template = Llama3PromptTemplate
         if 'gemma' in MODEL_NAME: prompt_template = Gemma2PromptTemplate
         prompt = prompt_template().create_prompt_from_user_query(
             system_prompt_clean=system_promt,
             user_query=user_prompt,
-            assistant_must_start_with=assistant_starts_with,
+            # assistant_must_start_with=assistant_starts_with,
         )
 
         llm_response = call_generation_api(prompt=prompt, grammar_path='/home/amstel/llm/src/grammars/sberbank_rag_citations.gbnf')
         logger.info(f'sberbank consultant response type 1 - {type(llm_response)}')
         logger.info(f'sberbank consultant response - {llm_response}')
-        llm_response = JsonOutputParser().parse(llm_response)
+        # llm_response = JsonOutputParser().parse(llm_response)
+        # llm_response = json.loads(llm_response)  # remove citations, no dict anymore
         logger.info(f'sberbank consultant response type 2 - {type(llm_response)}')
-        assert isinstance(llm_response, dict)
-        response_keys = list(llm_response.keys())
-        answer_key = [x for x in response_keys if 'answer' in x.lower()][0]
-        ids_key = [x for x in response_keys if 'id' in x.lower()][0]
+        assert isinstance(llm_response, str)
+        response = llm_response
+        # response_keys = list(llm_response.keys())
+        # answer_key = [x for x in response_keys if 'answer' in x.lower()][0]
+        # ids_key = [x for x in response_keys if 'id' in x.lower()][0]
         context['current_step'] = 'sberbank_consultant'
         if 'previous_steps' not in context: context['previous_steps'] = []
         context['previous_steps'].append('sberbank_consultant')
         context['scenario_name'] = "just_chatting"   # ? why
-        context['citations_lookup'] = id_2_doc_id_source
-        context['cited_sources'] = llm_response.get(ids_key)
-        response = llm_response.get(answer_key)
+        # context['citations_lookup'] = id_2_doc_id_source
+        # context['cited_sources'] = llm_response.get(ids_key)
+        # response = llm_response.get(answer_key)
         return response, context
 
 

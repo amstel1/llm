@@ -125,10 +125,10 @@ elif 'gemma' in MODEL_NAME.lower():
         global llm
         llm = Llama(
             model_path='/home/amstel/llm/models/bartowski/gemma-2-9b-it-GGUF/gemma-2-9b-it-Q5_K_S.gguf',
-            n_gpu_layers=42,
+            n_gpu_layers=43,
             max_tokens=-1,
-            n_batch=32,
-            n_ctx=1024,
+            n_batch=128,
+            n_ctx=4096,
             f16_kv=True,
             verbose=True,
             temperature=0.0,

@@ -65,7 +65,7 @@ def process(slug='credit'):
     return to_scrape
 
 class SberbankWebsiteSummaryDo(Do):
-    def __init__(self, products: list[str] = ['cards', 'other', 'credits', 'deposits']):
+    def __init__(self, products: list[str] = ['deposits',]):
         self.products = products
 
     def process(self, data: Dict[StepNum, Any] = None) -> Dict[StepNum, list[Dict]]:
@@ -118,8 +118,8 @@ class SberbankWebsiteSummaryDo(Do):
                 user_prompt_placeholder = "\nОписание:\n{input}\n\nВыше - описание банковского продукта или услуги. Извлеки из него все возомжные условия / характеристики. Результат должен быть кратким. Используй только русский язык."
 
             elif product == 'deposits':
-                system_prompt = "Ты эксперт в структурировании и суммаризации информации. Ты отлично распознаешь паттерны, очень внимателен к деталям, великолепен в выделении главного. В суждениях ты опираешься только на предоставленное Описание. "
-                user_prompt_placeholder = "\nОписание:\n{input}\n\nВыше - описание банковского депозита (вклада) или другого банковского продукта для накопления сбережений. Извлеки из него ключевые условия / характеристики, например: точное название, валюта, процентная ставка, срок, где и как открыть, отзывный / безотзывный. Если возможно, результат должен содержать все возможные комбинации валюты, срока, ставки. Результат должен быть кратким. Используй только русский язык. "
+                system_prompt = "Ты эксперт в структурировании информации. Ты отлично распознаешь паттерны, очень внимателен к деталям, великолепен в выделении улучшении структуры текста без искажений сути. В суждениях ты опираешься только на предоставленное Описание."
+                user_prompt_placeholder = "\nОписание:\n{input}\n\nВыше - описание банковского депозита (вклада) или другого банковского продукта для накопления сбережений. Извлеки из него ключевые условия / характеристики, например: точное название, валюта, процентные ставки, срок, где и как открыть, отзывный / безотзывный. Если возможно, результат должен содержать все возможные комбинации валюты, срока, ставки. Результат должен быть кратким. Используй только русский язык. Удели максимальное внимание точности извлечения информации."
 
 
 
@@ -131,19 +131,21 @@ class SberbankWebsiteSummaryDo(Do):
                 logger.debug(content)
 
                 user_prompt = user_prompt_placeholder.format(input=content)
-                formatting_prompt = prompt_template().create_prompt_from_user_query(system_prompt_clean=system_prompt,
-                                                                               user_query=user_prompt)
+                formatting_prompt = prompt_template().create_prompt_from_user_query(
+                   system_prompt_clean=system_prompt,
+                   user_query=user_prompt
+                )
                 r = {}
-                formatting_output = call_generation_api(prompt=formatting_prompt, stop=['<|eot_id|>'])
+                formatting_output = call_generation_api(prompt=formatting_prompt, )
                 r['formatted'] = formatting_output
                 # summarization_prompt = summarize_template.format(input=formatting_output)
-                user_prompt_placeholder = '\nОписание:\n{input}\n\nИз описания выше извлеки название банковского продукта, о котором идет речь. Используй русский язык. Верни только само название продукта и ничего кроме. '
-                user_prompt = user_prompt_placeholder.format(input=formatting_output)
+                user_prompt_placeholder_summarization = '\nОписание:\n{input}\n\nИз описания выше извлеки название банковского продукта, о котором идет речь. Используй русский язык. Верни только само название продукта и ничего кроме. '
+                user_prompt = user_prompt_placeholder_summarization.format(input=formatting_output)
                 summarization_prompt = Llama3PromptTemplate().create_prompt_from_user_query(
                     system_prompt_clean='Ты наилучшим образом делаешь то что тебе говорят.',
                     user_query=user_prompt
                 )
-                summarization_output = call_generation_api(prompt=summarization_prompt, stop=['<|eot_id|>'])
+                summarization_output = call_generation_api(prompt=summarization_prompt,)
                 r['summarized'] = summarization_output
                 results[source_link] = r
                 logger.info(f"{i}, {source_link}")
@@ -152,7 +154,7 @@ class SberbankWebsiteSummaryDo(Do):
                 print()
                 print(r.get('summarized'))
                 print('=========')
-                break
+
 
             with open(f'rag_w_summary_results_{product}.pkl', 'wb') as f:
                 pickle.dump(results, f)

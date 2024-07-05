@@ -63,25 +63,23 @@ def clear_conversation():
         'previous_steps': [None, None, ], }
     st.rerun()
 
-
-@st.experimental_fragment
+# temporarily disable citations
+# @st.experimental_fragment
 def show_sidebar():
-    # if True:
-    #     st.button("Очистить разговор", on_click=clear_conversation)
-    if st.session_state['show_citations'] and (
-            'cited_sources' in st.session_state.context and 'citations_lookup' in st.session_state.context):
-        logger.error('!!! WE ARE IN CITATIONS LOGIC')
-        st.markdown('# Источники')
-        sidebar_citation_columns = st.columns([.25 for x in st.session_state.context['cited_sources']])
-        sources = st.session_state.context['cited_sources']
-        for i, sitebar_citation_column in enumerate(sidebar_citation_columns):
-            with sitebar_citation_column:
-                lookup_ix = sources[i]
-                link = st.session_state.context['citations_lookup'].get(lookup_ix).get('source')
-                logger.warning(f'stylish_citation_link, i+1: {i+1}, {link}')
-                stylish_citation_link(link, f"{i + 1}")
-
-
+    if True:
+        st.button("Очистить разговор", on_click=clear_conversation)
+    # if st.session_state['show_citations'] and (
+    #         'cited_sources' in st.session_state.context and 'citations_lookup' in st.session_state.context):
+    #     logger.error('!!! WE ARE IN CITATIONS LOGIC')
+    #     st.markdown('# Источники')
+    #     sidebar_citation_columns = st.columns([.25 for x in st.session_state.context['cited_sources']])
+    #     sources = st.session_state.context['cited_sources']
+    #     for i, sitebar_citation_column in enumerate(sidebar_citation_columns):
+    #         with sitebar_citation_column:
+    #             lookup_ix = sources[i]
+    #             link = st.session_state.context['citations_lookup'].get(lookup_ix).get('source')
+    #             logger.warning(f'stylish_citation_link, i+1: {i+1}, {link}')
+    #             stylish_citation_link(link, f"{i + 1}")
 
 
 def stylish_citation_link(url, text):
@@ -102,7 +100,6 @@ def stylish_citation_link(url, text):
             """,
             unsafe_allow_html=True
         )
-
 
 
 def render_df(df: pd.DataFrame):
@@ -139,8 +136,11 @@ def render_df(df: pd.DataFrame):
 
 if __name__ == '__main__':
     # Initialize chat history if it doesn't exist
-    if 'show_citations' not in st.session_state:
-        st.session_state['show_citations'] = False
+
+    # temporarily disable citations
+    # if 'show_citations' not in st.session_state:
+    #     st.session_state['show_citations'] = False
+
     if 'chat_history' not in st.session_state:
         st.session_state['chat_history'] = []
     if 'context' not in st.session_state:
@@ -203,8 +203,11 @@ if __name__ == '__main__':
         st.session_state.chat_history.append({"role": "user", "content": prompt})
 
         if prompt:
-            if 'cited_sources' in st.session_state.context: st.session_state.context.pop('cited_sources')
-            if 'citations_lookup' in st.session_state.context: st.session_state.context.pop('citations_lookup')
+
+            # temporarily disable citations
+            # if 'cited_sources' in st.session_state.context: st.session_state.context.pop('cited_sources')
+            # if 'citations_lookup' in st.session_state.context: st.session_state.context.pop('citations_lookup')
+
             non_html_chat_history = ChatHistory.truncate_exclude_last(chat_history=st.session_state.chat_history, n=CHAT_HISTORY_SIZE)
             if ((not 'scenario_name' in st.session_state.context) or
                     (st.session_state.context.get('scenario_name') == 'just_chatting') or
@@ -253,18 +256,20 @@ if __name__ == '__main__':
                 st.session_state.chat_history.append({"role": "assistant", "content": response_text})
                 with st.chat_message("assistant"):
                     st.markdown(response_text)
+
+                # temporarily disable citations
+
                 # if the response comes from the SberbankConsultant scenario, assert
-                if 'current_step' in st.session_state.context and st.session_state.context['current_step'] == 'sberbank_consultant':
-                    st.session_state['show_citations'] = True
-                    logger.warning(f"show citations: {st.session_state['show_citations']}")
-                    assert 'cited_sources' in st.session_state.context and 'citations_lookup' in st.session_state.context
-                else:
-                    st.session_state['show_citations'] = False
+                # if 'current_step' in st.session_state.context and st.session_state.context['current_step'] == 'sberbank_consultant':
+                #     st.session_state['show_citations'] = True
+                #     logger.warning(f"show citations: {st.session_state['show_citations']}")
+                #     assert 'cited_sources' in st.session_state.context and 'citations_lookup' in st.session_state.context
+                # else:
+                #     st.session_state['show_citations'] = False
                 with st.sidebar:
                     show_sidebar()  # rerun sidebar
             elif isinstance(data, pd.DataFrame):
                 render_df(data)
-
 
     # we finished sql-df rendering just now
     # show theses only if ( .get('previous_steps')[-1] == 'sql' and .get('scenario_name') == 'reroute' and .get('current_step') == 'exit' and .get('sql_schema')
@@ -284,9 +289,10 @@ if __name__ == '__main__':
         st.session_state.context.get('current_step') == 'exit' and
         st.session_state.context.get('sql_schema')
     ):
-        if 'cited_sources' in st.session_state.context: st.session_state.context.pop('cited_sources')
-        if 'citations_lookup' in st.session_state.context: st.session_state.context.pop('citations_lookup')
-        st.session_state['show_citations'] = False
+        # temporarily disable citations
+        # if 'cited_sources' in st.session_state.context: st.session_state.context.pop('cited_sources')
+        # if 'citations_lookup' in st.session_state.context: st.session_state.context.pop('citations_lookup')
+        # st.session_state['show_citations'] = False
         # inline_filter = InlineFilter()
         st.markdown('##')
         st.markdown('##')
