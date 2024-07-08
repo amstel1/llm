@@ -378,7 +378,8 @@ class CustomCrawler:
             'FEED_URI': 'output.csv',
             'DEPTH_LIMIT': 2,
             # 'CLOSESPIDER_PAGECOUNT': 3,
-            # 'DOWNLOAD_DELAY': 2,  # minimum download delay
+            'DOWNLOAD_DELAY': 2,  # https://docs.scrapy.org/en/latest/topics/settings.html#std-setting-DOWNLOAD_DELAY
+            'RANDOMIZE_DOWNLOAD_DELAY': True,  # https://docs.scrapy.org/en/latest/topics/settings.html#std-setting-RANDOMIZE_DOWNLOAD_DELAY
         })
 
     def yield_output(self, data):

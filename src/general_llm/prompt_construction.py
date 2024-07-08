@@ -90,7 +90,7 @@ class Llama3PromptTemplate:
 
 ############################################
 
-class Phi3PromptTemplate:
+class ChatMLPromptTemplate:
     final_assistant = "<|assistant|>\n"
 
     # instead of the functios below we can extend:

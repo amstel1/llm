@@ -1,5 +1,5 @@
 MODEL_NAME = 'llama'
-assert MODEL_NAME in ('llama', 'gemma')
+assert MODEL_NAME in ('llama', 'gemma', 'chatml')
 import json
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -13,7 +13,7 @@ from loguru import logger
 
 import sys
 sys.path.append('/home/amstel/llm/src')
-from general_llm.prompt_construction import Llama3PromptTemplate, Gemma2PromptTemplate, parse_markup_chat_history
+from general_llm.prompt_construction import Llama3PromptTemplate, Gemma2PromptTemplate, parse_markup_chat_history, ChatMLPromptTemplate
 from llama_cpp import Llama, LlamaGrammar
 from typing import Union, Optional
 import requests
@@ -140,6 +140,27 @@ elif 'gemma' in MODEL_NAME.lower():
         @app.get("/")
         async def hello() -> dict[str, str]:
             return {"model_name": "gemma2"}
+elif 'chatml' in MODEL_NAME.lower():
+    @app.on_event("startup")
+    async def load_llm():
+        global llm
+        llm = Llama(
+            model_path='/home/amstel/llm/models/bartowski/hermes-llama/Hermes-2-Theta-Llama-3-8B-Q6_K.gguf',
+            n_gpu_layers=33,
+            max_tokens=-1,
+            n_batch=512,
+            n_ctx=8192,
+            f16_kv=True,
+            verbose=True,
+            temperature=0.0,
+            flash_attn=True,
+        )
+        global eot_list
+        eot_list = ['<im_end>']
+
+        @app.get("/")
+        async def hello() -> dict[str, str]:
+            return {"model_name": "hermes"}
 
 @app.post("/generate-from-history")
 async def generate_from_history(input_data: LLMEndpointInput) -> Dict[str, Any]:
@@ -160,6 +181,7 @@ async def generate_from_history(input_data: LLMEndpointInput) -> Dict[str, Any]:
 
     if 'llama' in MODEL_NAME: prompt_template = Llama3PromptTemplate
     if 'gemma' in MODEL_NAME: prompt_template = Gemma2PromptTemplate
+    if 'chatml' in MODEL_NAME: prompt_template = ChatMLPromptTemplate
     prompt_str = prompt_template().create_prompt_from_history(
         system_prompt_clean=system_prompt,
         chat_history=chat_history,
@@ -206,6 +228,7 @@ async def generate_from_query(input_data: LLMEndpointInput) -> Dict[str, Any]:
     # todo: llama 3
     if 'llama' in MODEL_NAME: prompt_template = Llama3PromptTemplate
     if 'gemma' in MODEL_NAME: prompt_template = Gemma2PromptTemplate
+    if 'chatml' in MODEL_NAME: prompt_template = ChatMLPromptTemplate
     prompt_str = prompt_template().create_prompt_from_user_query(
         system_prompt_clean=system_prompt,
         user_query=user_prompt,

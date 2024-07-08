@@ -23,8 +23,10 @@ class DataServer():
 
     def collect_one_item_data(self, name: str) -> Dict:
         results = {}
+        logger.debug(f'{self.sql_details_db}, {name}')
         postgres_reader = PostgresDataFrameRead(table=self.sql_details_db, where=f"name = '{name}'")
         sql_details = postgres_reader.read().get("step_0").sort_values('price', ascending=True).to_dict(orient='records')[0]
+        logger.debug(sql_details)
         if sql_details:
             results.update(sql_details)
         postgres_reader = PostgresDataFrameRead(table=self.sql_render_db, where=f"name = '{name}'")
@@ -62,7 +64,7 @@ class DataServer():
 
 
 if __name__ == '__main__':
-    name = 'Мобильный телефон BQ BQ-2446 Dream Duo'
+    name = 'Смартфон Apple iPhone 15 Pro 256GB'
     schema_name = 'mobile'
     ds = DataServer(schema_name=schema_name)
     item = ds.collect_one_item_data(name=name)

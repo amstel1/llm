@@ -34,7 +34,7 @@ class ScenarioRouter:
         self.system_prompt_without_chat_history = 'You are a state-of-the-art intent classifer.'
         self.system_prompt_with_chat_history = "You are a state-of-the-art intent classifier. When analyzing user input, prioritize the user's most recent message over any previous messages in the chat history. For instance, the input 'What is the weather like?' should not be classified as 'sberbank_consultant'."
         self.user_prompt_without_chat_history_placeholder = """route mapping: 
-just_chatting: разговор на любые темы,  которые напрямую не относятся к подбору потребительских товаров или Сбер Банку (банковским услугам, картам, кредитам, депозитам)
+just_chatting: разговор на любые темы,  которые напрямую не относятся к подбору потребительских товаров или Сбер Банку (банковским услугам, картам, манибэк, кэшбэк, кредитам, депозитам)
 shopping_assistant_washing_machine: поиск, выбор, покупка стиральной или стирально-сушильной машины
 shopping_assistant_fridge: поиск, выбор, покупка холодильника
 shopping_assistant_tv: поиск, выбор, покупка телевизора
@@ -44,13 +44,7 @@ sberbank_consultant: консультация по всем вопросам, с
 user input:
 {user_input}
 
-Given user input and mapping of possible routes and their descriptions select the most appropriate route for the user input.
-
-Use step-by-step reasoning:
-1. Analyze the content of the user input to determine if it essence relates to one of the route descriptions.
-2. If not, assign just_chatting.
-
-Based on your reasoning, decide on the route as JSON."""
+From the provided user input and chat history, identify the route that best matches the user's current intent. Based on your reasoning, decide on the route as JSON."""
 
 
 
@@ -64,7 +58,7 @@ user_input:
 {user_input}
 
 route mapping: 
-sberbank_consultant: консультация по всем вопросам о банке, в том числе, связанным с накоплением и сбережением, банковскими продуктами (карта, депозит, кредит), услугами (покупай валюту, страховка) (Сбер Банк Беларусь) - related to banking services and products
+sberbank_consultant: консультация по всем вопросам о банке, в том числе, связанным с накоплением и сбережением, банковскими продуктами (карта, манибэк, кэшбэк, депозит, кредит), услугами (покупай валюту, страховка) (Сбер Банк Беларусь) - related to banking services and products
 shopping_assistant_washing_machine: поиск, выбор, покупка стиральной или стирально-сушильной машины
 shopping_assistant_fridge: поиск, выбор, покупка холодильника
 shopping_assistant_tv: поиск, выбор, покупка телевизора

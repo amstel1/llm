@@ -7,14 +7,14 @@ from typing import Iterable, Dict, List, Union, Optional, Any
 import requests
 from loguru import logger
 from general_llm.llm_endpoint import call_generation_api, call_generate_from_history_api, call_generate_from_query_api, MODEL_NAME
-from general_llm.prompt_construction import Llama3PromptTemplate, Gemma2PromptTemplate
+from general_llm.prompt_construction import Llama3PromptTemplate, Gemma2PromptTemplate, ChatMLPromptTemplate
 
 def chat_history_list_to_str(chat_history: list):
     str_chat_history = ''
     clean_chat_history = [x for x in chat_history if x.get('role') in ('user', 'assistant')]  # there can also be role==html
     for i, d in enumerate(clean_chat_history):
         if i <= len(clean_chat_history) - 1:
-            str_chat_history += d.get('role').strip('\n') + ': ' + d.get('content').strip('\n') + '\n'
+            str_chat_history += d.get('role').strip('\n') + ': ' + d.get('content').replace('\n\n', '\n').strip('\n') + '\n'
         else:
             # assert d.get('content') == user_query
             pass
@@ -62,6 +62,7 @@ class ShoppingAssistantScenario(BaseScenario):
             # todo: object
             if 'llama' in MODEL_NAME: prompt_template = Llama3PromptTemplate
             if 'gemma' in MODEL_NAME: prompt_template = Gemma2PromptTemplate
+            if 'chatml' in MODEL_NAME: prompt_template = ChatMLPromptTemplate
             prompt = prompt_template().create_prompt_from_history(system_prompt_clean='Ты объективный семантический оценщик.', chat_history=[{'role': 'user', 'content': user_content_without_history}])
         else:
             # it's very incosistent, but here i construct chat history as a history of messages with roles according to the template
@@ -70,6 +71,7 @@ class ShoppingAssistantScenario(BaseScenario):
             # todo: object
             if 'llama' in MODEL_NAME: prompt_template = Llama3PromptTemplate
             if 'gemma' in MODEL_NAME: prompt_template = Gemma2PromptTemplate
+            if 'chatml' in MODEL_NAME: prompt_template = ChatMLPromptTemplate
             str_chat_history = chat_history_list_to_str(chat_history)
             user_query_input = user_content_with_history.format(user_query=user_query, str_chat_history=str_chat_history)
             prompt = prompt_template().create_prompt_from_user_query(system_prompt_clean='Ты объективный семантический оценщик.', user_query=user_query_input)

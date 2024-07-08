@@ -26,7 +26,7 @@ from rag.utils import ExtendedMilvusCollectionHybridSearchRetriever as MilvusCol
 from rag.utils import BGEDocumentCompressor
 from langchain_core.output_parsers import JsonOutputParser
 from general_llm.llm_endpoint import call_generation_api, MODEL_NAME, call_generate_from_query_api
-from general_llm.prompt_construction import Llama3PromptTemplate, Gemma2PromptTemplate
+from general_llm.prompt_construction import Llama3PromptTemplate, Gemma2PromptTemplate, ChatMLPromptTemplate
 import json
 
 from pymilvus import (
@@ -47,9 +47,7 @@ class RetrieverRouter(ScenarioRouter):
     # call with proper grammar
     def __init__(self):
         self.system_prompt = 'You are a state-of-the-art intent classifer.'
-        self.user_prompt_with_chat_history_placeholder = """Based on the user input and the chat history, identify which route the user's input most closely relates to. Your decision should take into account the context provided by the chat history. Respond with the most relevant route name from the given mapping.
-
-route mapping:
+        self.user_prompt_with_chat_history_placeholder = """route mapping:
 full_bge_credits: кредит овердрафт рефинансирование долг
 full_bge_deposits: депозит вклад сбережения накопления pay
 full_bge_cards: карта платежная дебетовая манибэк money-back кэшбэк cash-back сберкарта
@@ -61,7 +59,8 @@ chat history:
 user_input:
 {user_input}
 
-Please respond with the most relevant route name as JSON."""
+Based on the user input and the chat history, identify which route the user's input most closely relates to. Your decision should take into account the context provided by the chat history. Respond with the most relevant route name from the given mapping as JSON."""
+
         self.user_prompt_without_chat_history_placeholder = """Based on the user input identify which route the user's input most closely relates to. Respond with the most relevant route name from the given mapping.
 
 route mapping:
@@ -220,9 +219,9 @@ class SberbankConsultant(BaseScenario):
         retriever = self.retriever_router(input=user_query, chat_history=chat_history)
 
         # edit 2806 - for citations
-        system_promt = "Ты - сотрудник Сбер Банка (Беларусь). Ты знаешь только русский язык. Ты вежливо и приветливо разговариваешь с клиентом, но не повторяешься."
+        system_promt = 'Ты - сотрудник Сбер Банка (Беларусь). По умолчанию "рубль" в реплике клиента означает белорусский рубль (BYN). Ты знаешь только русский язык. Ты вежливо и приветливо разговариваешь с клиентом, но не повторяешься.'
 
-        user_prompt_placeholder = """Контекст:\n{context}\n\nИстория разговора:\n{chat_history_str}\n\nОсновываясь на контексте и истории разговора выше, ответь на вопрос ниже полно и правдиво.\n\nВопрос:{question}"""
+        user_prompt_placeholder = """Контекст:\n{context}\n\nИстория разговора:\n{chat_history_str}\n\nОсновываясь на контексте и истории разговора выше, ответь на вопрос ниже полно и правдиво.\n\nВопрос: {question}"""
 
         chat_history_str = chat_history_list_to_str(chat_history)
 
@@ -251,13 +250,16 @@ class SberbankConsultant(BaseScenario):
         # assistant_starts_with = '\nJSON:'  # remove citations
         if 'llama' in MODEL_NAME: prompt_template = Llama3PromptTemplate
         if 'gemma' in MODEL_NAME: prompt_template = Gemma2PromptTemplate
+        if 'chatml' in MODEL_NAME: prompt_template = ChatMLPromptTemplate
         prompt = prompt_template().create_prompt_from_user_query(
             system_prompt_clean=system_promt,
             user_query=user_prompt,
             # assistant_must_start_with=assistant_starts_with,
         )
 
-        llm_response = call_generation_api(prompt=prompt, grammar_path='/home/amstel/llm/src/grammars/sberbank_rag_citations.gbnf')
+        llm_response = call_generation_api(prompt=prompt
+                                           # , grammar_path='/home/amstel/llm/src/grammars/sberbank_rag_citations.gbnf'
+                                           )
         logger.info(f'sberbank consultant response type 1 - {type(llm_response)}')
         logger.info(f'sberbank consultant response - {llm_response}')
         # llm_response = JsonOutputParser().parse(llm_response)

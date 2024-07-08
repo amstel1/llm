@@ -22,7 +22,7 @@ import json
 from sqlparse.sql import Where
 import sqlparse
 from sqlparse import tokens as T
-from general_llm.prompt_construction import Llama3PromptTemplate, Gemma2PromptTemplate
+from general_llm.prompt_construction import Llama3PromptTemplate, Gemma2PromptTemplate, ChatMLPromptTemplate
 
 def update_sql_statement(sql_statement: str, new_where_clause: str):
     sql_statement = sql_statement.replace('  ', ' ').replace('\n', ' ').replace('\t', ' ')
@@ -123,6 +123,7 @@ class SqlToText:
         uri = f"postgresql://{host}:{port}/{database}?user={user}&password={password}"
         if predefined_sql:
             # disregard user_query, just execute sql statement
+            logger.warning(predefined_sql)
             df = pd.read_sql(
                 sql=predefined_sql,
                 con=uri,
@@ -199,6 +200,7 @@ class SqlToText:
         assistant_must_start_with = '\n```sql'
         if 'llama' in MODEL_NAME: prompt_template = Llama3PromptTemplate
         if 'gemma' in MODEL_NAME: prompt_template = Gemma2PromptTemplate
+        if 'chatml' in MODEL_NAME: prompt_template = ChatMLPromptTemplate
         str_prompt = prompt_template().create_prompt_from_user_query(
             system_prompt_clean=system_prompt,
             user_query=user_prompt,
@@ -232,7 +234,7 @@ if __name__ == '__main__':
     # user_query = 'Недорогая стиральная машина с хорошими характеристиками.'
     user_query = "Суть запроса: холодильник до 2500 руб, фирма lg, высота от 195"
     # user_query = "Суть требований пользователя: стиральная машина с хорошим брендом, узкой и вместительной."
-    response = SqlToText().sql_query(schema_name='fridge', user_query=user_query)
+    response = SqlToText().sql_query(schema_name='washing_machine', user_query='', predefined_sql="SELECT * FROM washing_machine.washing_machine WHERE name ILIKE '%%Electrolux%%' and price <= 3000;")
     print(response)
 
 

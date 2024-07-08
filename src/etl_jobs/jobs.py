@@ -213,7 +213,7 @@ class Step1:
                     table_name='product_item_list_to_fill',  # ! IMPORTANT, 21VEK GOES TO product_item_list_to_fill, NOT product_item_list
                     insert_unique=True,
                     index_column="product_url",
-                    if_exists='append'
+                    if_exists='replace'
                 ),
             )
             this_job.run()

@@ -268,8 +268,13 @@ if __name__ == '__main__':
                 #     st.session_state['show_citations'] = False
                 with st.sidebar:
                     show_sidebar()  # rerun sidebar
-            elif isinstance(data, pd.DataFrame):
+            elif isinstance(data, pd.DataFrame) and data.shape[0] > 0:
                 render_df(data)
+            elif isinstance(data, pd.DataFrame) and data.shape[0] == 0:
+                response_text = "Извините, но я ничего не нашел."
+                st.session_state.chat_history.append({"role": "assistant", "content": response_text})
+                with st.chat_message("assistant"):
+                    st.markdown(response_text)
 
     # we finished sql-df rendering just now
     # show theses only if ( .get('previous_steps')[-1] == 'sql' and .get('scenario_name') == 'reroute' and .get('current_step') == 'exit' and .get('sql_schema')

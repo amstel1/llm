@@ -11,7 +11,7 @@ from langchain_core.documents import Document
 from general_llm.langchain_llama_cpp_api_warpper import LlamaCppApiWrapper
 from general_llm.llm_endpoint import call_generation_api, call_generate_from_history_api, call_generate_from_query_api, MODEL_NAME
 from etl_jobs.base import Do, StepNum
-from general_llm.prompt_construction import Llama3PromptTemplate, Gemma2PromptTemplate
+from general_llm.prompt_construction import Llama3PromptTemplate, Gemma2PromptTemplate, ChatMLPromptTemplate
 
 # def text_cosine_similarity(text_a: str, text_b: str):
 #     a = embedding_model.embed_query(text_a)
@@ -104,7 +104,7 @@ class SberbankWebsiteSummaryDo(Do):
             # todo: llama3 or gemma2
             if 'llama' in MODEL_NAME: prompt_template = Llama3PromptTemplate
             if 'gemma' in MODEL_NAME: prompt_template = Gemma2PromptTemplate
-
+            if 'chatml' in MODEL_NAME: prompt_template = ChatMLPromptTemplate
             if product == 'cards':
                 system_prompt = "Ты эксперт в структурировании и суммаризации информации. Ты отлично распознаешь паттерны, очень внимателен к деталям, великолепен в выделении главного. В суждениях ты опираешься только на предоставленное Описание. "
                 user_prompt_placeholder = "\nОписание:\n{input}\n\nВыше - описание банковской карты (или похожего банковского продукта). Извлеки из него ключевые условия / характеристики, например: точное название, валюта, срок действия, где и как открыть, условия money-back, стоимость оформления и использования. Результат должен быть кратким. Используй только русский язык. "
@@ -141,7 +141,7 @@ class SberbankWebsiteSummaryDo(Do):
                 # summarization_prompt = summarize_template.format(input=formatting_output)
                 user_prompt_placeholder_summarization = '\nОписание:\n{input}\n\nИз описания выше извлеки название банковского продукта, о котором идет речь. Используй русский язык. Верни только само название продукта и ничего кроме. '
                 user_prompt = user_prompt_placeholder_summarization.format(input=formatting_output)
-                summarization_prompt = Llama3PromptTemplate().create_prompt_from_user_query(
+                summarization_prompt = prompt_template().create_prompt_from_user_query(
                     system_prompt_clean='Ты наилучшим образом делаешь то что тебе говорят.',
                     user_query=user_prompt
                 )
