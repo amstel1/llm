@@ -80,7 +80,7 @@ class BGEDocumentCompressor(BaseDocumentCompressor):
         output = []
         logger.warning(df)
         if self.elbow:
-            # self.top_n is ignored
+
             # scores = pd.Series(data=[x[1] for x in sorted_res], index=[x[0] for x in sorted_res])  # data = score, index = ix,
             logger.debug(f'reranking before elbow: {df.score}')
             argmin_1 = df['score'].diff().nsmallest(1).tail(1).index[0]  # second best argmin - less conservative; take everything in SCORES up to this point
@@ -94,7 +94,7 @@ class BGEDocumentCompressor(BaseDocumentCompressor):
                 ixes_to_take = df['ix'].tolist()
                 logger.warning('reranking, elbow - B')
             else:
-                raise AttributeError("не должны были сюда зайьт")
+                raise AttributeError("не должны были сюда зайти")
 
 
         if len(ixes_to_take) > 0:
@@ -108,7 +108,9 @@ class BGEDocumentCompressor(BaseDocumentCompressor):
             output = documents
         if not self.most_relevant_at_the_top:
             output = output[::-1]
-        # argmin = scores.diff().argmin() # first best argmin
+        # decided to limit the number of output items
+        output = output[:self.top_n]
+
         logger.debug(f'reranking argmin, remain: {len(output)} out of {len(documents)}')
         return output
 
@@ -293,6 +295,8 @@ class ExtendedMilvusCollectionHybridSearchRetriever(BaseRetriever):
             logger.debug(f'embedding, n documents: {len(documents)}')
         if not self.most_relevant_at_the_top:
             documents = documents[::-1]
+        # decided to limit the number of output items
+        documents = documents[:self.top_k]
         return documents
 
 # class BM25:

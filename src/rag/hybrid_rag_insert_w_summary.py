@@ -26,7 +26,7 @@ from etl_jobs.base import Write, StepNum
 
 
 class SberbankWebsiteSummaryWrite(Write):
-    def __init__(self, products: list[str] = ['deposits']):
+    def __init__(self, products: list[str] = ['cards', 'other', 'deposits']):
         self.products = products
 
     def write_utility(self, results: dict, slug: str):

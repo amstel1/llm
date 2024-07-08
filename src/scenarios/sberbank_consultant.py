@@ -220,10 +220,9 @@ class SberbankConsultant(BaseScenario):
         retriever = self.retriever_router(input=user_query, chat_history=chat_history)
 
         # edit 2806 - for citations
-        system_promt = "Ты - сотрудник Сбер Банка (Беларусь). Ты знаешь только русский язык. Основываясь на контексте ниже, правдиво и полно отвечай на вопросы. "
+        system_promt = "Ты - сотрудник Сбер Банка (Беларусь). Ты знаешь только русский язык. Ты вежливо и приветливо разговариваешь с клиентом, но не повторяешься."
 
-        user_prompt_placeholder = """история разговора: {chat_history_str}\nконтекст:{context}\n\nВопрос:{question}\n
-Ответь на вопрос выше полно, правдиво и развернуто. """
+        user_prompt_placeholder = """Контекст:\n{context}\n\nИстория разговора:\n{chat_history_str}\n\nОсновываясь на контексте и истории разговора выше, ответь на вопрос ниже полно и правдиво.\n\nВопрос:{question}"""
 
         chat_history_str = chat_history_list_to_str(chat_history)
 
