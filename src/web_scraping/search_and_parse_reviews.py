@@ -3,7 +3,7 @@ executable_path='/home/amstel/.cache/ms-playwright/chromium-1112/chrome-linux/ch
 # executable_path='/home/amstel/.cache/ms-playwright/firefox-1447/firefox/firefox'
 import sys
 sys.path.append('/home/amstel/llm/src')
-IS_HEADLESS = True
+IS_HEADLESS = False
 BROWSER_SELECT = 'chromium'
 import os
 # import sys

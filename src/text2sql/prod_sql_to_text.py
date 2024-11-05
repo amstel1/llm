@@ -106,7 +106,7 @@ class SqlToText:
     def postprocess_df(self, df):
         logger.info(f'sql df - before filters on price and rating -- {df.shape}')
         if 'price' in df.columns: df = df[df.price.notnull()]
-        if 'rating_value' in df.columns: df = df[df.rating_value.notnull()]
+        # if 'rating_value' in df.columns: df = df[df.rating_value.notnull()]  # temporarily disable this while not all phones are scraped
         logger.info(f'sql df - after filters on price and rating -- {df.shape}')
         if 'name' in df.columns:
             if df['name'].nunique() != df.shape[0]:
@@ -119,13 +119,13 @@ class SqlToText:
 
     def sql_query(self, schema_name: str, user_query: str, predefined_sql: str = None) -> pd.DataFrame | str:
         '''returns df with results and sql query'''
-        assert schema_name in ('washing_machine', 'fridge', 'tv', 'mobile')
+        assert schema_name in ('washing_machine', 'fridge', 'tv', 'mobile',)
         uri = f"postgresql://{host}:{port}/{database}?user={user}&password={password}"
         if predefined_sql:
             # disregard user_query, just execute sql statement
             logger.warning(predefined_sql)
             df = pd.read_sql(
-                sql=predefined_sql,
+                    sql=predefined_sql,
                 con=uri,
             )
             df = self.postprocess_df(df)
@@ -133,7 +133,7 @@ class SqlToText:
 
         # index user_query
         dense_embedding_model = HuggingFaceEmbeddings(
-            model_name=EMBEDDING_MODEL_NAME,  # Specify the model name
+            model_name=EMBEDDING_MODEL_NAME,  #
             model_kwargs={'device': 'cpu',}
         )
         # fields = [
@@ -150,8 +150,7 @@ class SqlToText:
         # create table description
         client = MilvusClient(db_name=schema_name)
         attributes_retrieved = client.search(
-            collection_name="postgres_table_attributes",  # Replace with the actual name of your collection
-            # Replace with your query vector
+            collection_name="postgres_table_attributes",  # list of attrs for each
             data=[data],
             limit=N_EMBEDDING_RESULTS,  # Max. number of search results to return
             search_params={"metric_type": "IP", "params": {}},  # Search parameters

@@ -26,12 +26,20 @@ class ItemDisplay:
         self.sql_result_ix = sql_result_ix
 
     def display_item(self, item, upper=False):
+        eng_to_rus_attr_mapper = {
+            'price':'Цена',
+            'rating_value':'Рейтинг',
+            'rating_count':'Количество оценок',
+            'depth':'Глубина, см',
+            'max_load':'Загрузка, кг',
+            'drying':'Есть сушка',
+        }
         if upper:
             description = ''
             for k,v in item.items():
-                if k in ['price', 'rating_value', 'rating_count', 'depth', 'max_load', 'drying']:
+                if k in eng_to_rus_attr_mapper.keys():
                     if v:
-                        description += f'{k}: {v}<br>'
+                        description += f'{eng_to_rus_attr_mapper[k]}: {v}<br>'
             create_preview_card(
                 url=item.get('product_url'),
                 title=item.get('name'),
@@ -43,17 +51,17 @@ class ItemDisplay:
             st.markdown(
                 f"<div style='text-align: left;'><a href='{item.get('product_url')}' style='text-decoration: none; color: black; font-size: 14px;'><strong>{item.get('name')}</strong></a></div>",
                 unsafe_allow_html=True)
-            if item.get('price'): st.write(f"<div style='text-align: left; font-size: 14px;'>price: {item.get('price')}</div>",
+            if item.get('price'): st.write(f"<div style='text-align: left; font-size: 14px;'>Цена: {item.get('price')}</div>",
                                            unsafe_allow_html=True)
             if item.get('rating_value'): st.write(
-                f"<div style='text-align: left; font-size: 14px;'>rating_value: {item.get('rating_value')}</div>", unsafe_allow_html=True)
+                f"<div style='text-align: left; font-size: 14px;'>Рейтинг: {item.get('rating_value')}</div>", unsafe_allow_html=True)
             if item.get('rating_count'): st.write(
-                f"<div style='text-align: left; font-size: 14px;'>rating_count: {item.get('rating_count')}</div>", unsafe_allow_html=True)
-            if item.get('depth'): st.write(f"<div style='text-align: left; font-size: 14px;'>depth: {item.get('depth')}</div>",
+                f"<div style='text-align: left; font-size: 14px;'>Количество оценок: {item.get('rating_count')}</div>", unsafe_allow_html=True)
+            if item.get('depth'): st.write(f"<div style='text-align: left; font-size: 14px;'>лубина, см: {item.get('depth')}</div>",
                                            unsafe_allow_html=True)
-            if item.get('max_load'): st.write(f"<div style='text-align: left; font-size: 14px;'>max_load: {item.get('max_load')}</div>",
+            if item.get('max_load'): st.write(f"<div style='text-align: left; font-size: 14px;'>Загрузка, кг: {item.get('max_load')}</div>",
                                               unsafe_allow_html=True)
-            if item.get('drying'): st.write(f"<div style='text-align: left; font-size: 14px;'>drying: {item.get('drying')}</div>",
+            if item.get('drying'): st.write(f"<div style='text-align: left; font-size: 14px;'>Есть сушка: {item.get('drying')}</div>",
                                             unsafe_allow_html=True)
 
 

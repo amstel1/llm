@@ -1,4 +1,5 @@
 from base import Job
+from etl_jobs.attribute_mappings import washing_machine_mapping
 from web_scraping.utils import EcomItemListRead
 from utils import ItemListDo
 from postgres.utils import PostgresDataFrameWrite
@@ -10,6 +11,17 @@ class Step1:
         # product_name - one of the products below
         # product_name - alias of one of the three shops
         self.name = shop_name
+        washing_machine = {
+            'product_type_name': 'Стиральная машина',
+            'schema_name': 'washing_machine',
+            'shop_slug': 'stiralnye_mashiny',
+            'shop_max_page': 89,
+            'vek21_slug': 'washing_machines',
+            'vek21_max_page': 10,
+            'onliner_slug': 'washingmachine',
+            'onliner_max_page': 109,
+            }
+
         fridge = {
             'product_type_name': 'Холодильник',
             'schema_name': 'fridge',
@@ -23,7 +35,7 @@ class Step1:
         tv = {
             'product_type_name': 'Телевизор',
             'schema_name': 'tv',
-            'shop_slug': 'tv',
+            'shop_slug': 'televizory_zhk',
             'shop_max_page': 106,
             'vek21_slug': 'tv',
             'vek21_max_page': 13,
@@ -178,6 +190,7 @@ class Step1:
             'conditioner': conditioner,
             'waterheater': waterheater,
             'microwave': microwave,
+            'washing_machine':washing_machine,
         }
         self.selected_product = product_mapping[product_name]
 
@@ -213,7 +226,7 @@ class Step1:
                     table_name='product_item_list_to_fill',  # ! IMPORTANT, 21VEK GOES TO product_item_list_to_fill, NOT product_item_list
                     insert_unique=True,
                     index_column="product_url",
-                    if_exists='replace'
+                    if_exists='replace' # it's the first to be launced in the sequence of jobs, so replace
                 ),
             )
             this_job.run()
@@ -229,7 +242,7 @@ class Step1:
                     table_name='product_item_list_to_fill',  # ! IMPORTANT, ONLINER GOES TO product_item_list_to_fill, NOT product_item_list
                     insert_unique=True,
                     index_column="product_url",
-                    if_exists='append')
+                    if_exists='append')  # it's not the first to be launced in the sequence of jobs, so append
             )
             this_job.run()
 

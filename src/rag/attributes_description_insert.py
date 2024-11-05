@@ -58,7 +58,12 @@ if __name__ == '__main__':
         FieldSchema(name="attribute_name_rus_vector", dtype=DataType.FLOAT_VECTOR, dim=1024),
         FieldSchema(name="attribute_type", dtype=DataType.VARCHAR, max_length=4),  # may only be real / text1
     ]
-    for db_name in ( 'fridge', 'tv', 'mobile', 'washing_machine', ):
+    for db_name in (
+            # 'fridge',
+            # 'tv',
+            'mobile',
+            # 'washing_machine',
+    ):
 
         # milvus insert
         CONNECTION_URI = "http://localhost:19530"

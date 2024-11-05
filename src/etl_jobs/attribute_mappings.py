@@ -7,7 +7,7 @@ mobile_mapping = {
             'min_price': 'min_price',
             "Производитель": "manufacturer",
             "Дата выхода": "release_date",
-            "Тип устройства": "device_type",
+            # "Тип устройства": "device_type",  # edit 01 11 2024 - useless
             "Вид устройства": "device_category",
             "Платформа": "platform",
             "Версия ОС": "os_version",
@@ -41,7 +41,7 @@ mobile_mapping = {
             "Ширина, см": "width_cm",
             "Толщина, см": "thickness_cm",
             "Вес, г": "weight_g",
-            "Число пикселей на дюйм, ppi": "ppi",
+            "Разрешение экрана, ppi": "ppi",
             "Соотношение сторон": "aspect_ratio",
             "Сенсорный экран": "touch_screen",
             "Защита от царапин": "scratch_protection",

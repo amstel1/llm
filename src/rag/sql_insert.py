@@ -1,3 +1,4 @@
+# update milvus index for rag in text2sql
 from langchain_community.embeddings import HuggingFaceEmbeddings
 import pandas as pd
 from pymilvus import (
@@ -20,12 +21,16 @@ if __name__ == '__main__':
         FieldSchema(name="q_vector", dtype=DataType.FLOAT_VECTOR, dim=1024),
         FieldSchema(name="a", dtype=DataType.VARCHAR, max_length=1024),
     ]
-    for sheet_name in ('mobile',):
+    for sheet_name in (
+            'mobile',
+            # 'tv',
+            # 'fridge',
+            # 'washing_machine',
+        ):
 
         # milvus insert
         CONNECTION_URI = "http://localhost:19530"
         connections.connect(uri=CONNECTION_URI, db_name=sheet_name)
-
 
         print(sheet_name)
         collection = Collection(name='q_a_index', schema=CollectionSchema(fields=fields, enable_dynamic_field=False),)

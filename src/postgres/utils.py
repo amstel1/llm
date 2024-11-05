@@ -37,7 +37,7 @@ class PostgresDataFrameWrite(Write):
         assert isinstance(data, dict)
         data = data.get("step_0")
         logger.warning(data.shape)
-        logger.info(data.head())
+        logger.info(data.head().T)
 
         try:
             if self.insert_unique:
@@ -156,10 +156,10 @@ class PostgresDataFrameRead(Read):
         assert 'drop' not in self.table.lower()
         assert 'insert' not in self.table.lower()
         assert 'update' not in self.table.lower()
-
-        assert 'drop' not in self.where.lower()
-        assert 'insert' not in self.where.lower()
-        assert 'update' not in self.where.lower()
+        if self.where:
+            assert 'drop' not in self.where.lower()
+            assert 'insert' not in self.where.lower()
+            assert 'update' not in self.where.lower()
         try:
             with engine.connect() as connection_str:
                 df = pd.read_sql(
@@ -173,17 +173,19 @@ class PostgresDataFrameRead(Read):
 
 
 if __name__ == '__main__':
-    data = pd.read_pickle('/home/amstel/llm/src/etl_jobs/datastep_0.pkl')
-    print(data.head(1).T)
-    print('#####')
-    print(data.head(1)['product_type_url'].values)
-    print('#####')
-    print(data.shape)
-    print(data.dtypes)
-    w = PostgresDataFrameWrite(
-        schema_name='scraped_data',
-        table_name='product_item_list_to_fill',
-        insert_unique=True,
-        index_column="product_url",
-    )
-    w.write({"step_0":data})
+    # data = pd.read_pickle('/home/amstel/llm/src/etl_jobs/datastep_0.pkl')
+    # print(data.head(1).T)
+    # print('#####')
+    # print(data.head(1)['product_type_url'].values)
+    # print('#####')
+    # print(data.shape)
+    # print(data.dtypes)
+    # w = PostgresDataFrameWrite(
+    #     schema_name='scraped_data',
+    #     table_name='product_item_list_to_fill',
+    #     insert_unique=True,
+    #     index_column="product_url",
+    # )
+    # w.write({"step_0":data})
+
+    reader = PostgresDataFrameRead()

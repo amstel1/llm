@@ -237,14 +237,19 @@ class ShoppingAssistantScenario(BaseScenario):
             logger.debug(f'current step - {current_step}')
             assert self.schema_name
             logger.debug(f'self.schema_name - {self.schema_name}')
-            df, sql_query = SqlToText().sql_query(schema_name=self.schema_name, user_query=user_query, predefined_sql=context.get('sql_query'))
-            previous_steps.append(current_step)
-            context['previous_steps'] = previous_steps
-            current_step = 'exit'
-            context['current_step'] = current_step
-            context['scenario_name'] = "reroute"
-            context['sql_schema'] = self.schema_name
-            context['sql_query'] = sql_query
+            try:
+                df, sql_query = SqlToText().sql_query(schema_name=self.schema_name, user_query=user_query, predefined_sql=context.get('sql_query'))
+                previous_steps.append(current_step)
+                context['previous_steps'] = previous_steps
+                current_step = 'exit'
+                context['current_step'] = current_step
+                context['scenario_name'] = "reroute"
+                context['sql_schema'] = self.schema_name
+                context['sql_query'] = sql_query
+            except Exception as e:
+                response = f"Произошла непредвиденная ошибка ({e}). Очень жаль."
+                # do not update the context
+                return response, context
             logger.info(f'df end of sql: {df.head()}')
             logger.info(f'df shape: {df.shape}')
             logger.info(f'context end of sql: {context}')

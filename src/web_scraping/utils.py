@@ -132,6 +132,7 @@ class MicrodataExtractor:
                 item_features['min_price'] = _offers_properties.get('lowPrice')
                 _additional_properties = _item_properties.get('additionalProperty')
                 for ap_dict in _additional_properties:
+                    #  10/07/2024 possible bug from wireless
                     kv = ap_dict.get('properties')
                     key = kv.get('name')
                     val = kv.get('value')
@@ -181,7 +182,10 @@ class OnlinerExtractor(HtmlExtractor):
             # maybe a.catalog-form__link_primary-additional.catalog-form__link_base-additional
             item_features['product_url'] = selector.css('a.catalog-form__link_base-additional::attr(href)').get()
             item_features['product_image_url'] = selector.css('img.catalog-form__image::attr(src)').get()
-            item_features['product_name'] = selector.css('a.catalog-form__link_base-additional::text').get().strip()
+            try:
+                item_features['product_name'] = selector.css('a.catalog-form__link_base-additional::text').get().strip()
+            except Exception as e:
+                logger.critical(selector)
             # product_price must be present
             product_price_selector = selector.css('a.catalog-form__link span:not([class^="catalog-form__description"])::text').get()
             if product_price_selector:
@@ -378,8 +382,8 @@ class CustomCrawler:
             'FEED_URI': 'output.csv',
             'DEPTH_LIMIT': 2,
             # 'CLOSESPIDER_PAGECOUNT': 3,
-            'DOWNLOAD_DELAY': 2,  # https://docs.scrapy.org/en/latest/topics/settings.html#std-setting-DOWNLOAD_DELAY
-            'RANDOMIZE_DOWNLOAD_DELAY': True,  # https://docs.scrapy.org/en/latest/topics/settings.html#std-setting-RANDOMIZE_DOWNLOAD_DELAY
+            'DOWNLOAD_DELAY': 0,  # https://docs.scrapy.org/en/latest/topics/settings.html#std-setting-DOWNLOAD_DELAY
+            'RANDOMIZE_DOWNLOAD_DELAY': False,  # https://docs.scrapy.org/en/latest/topics/settings.html#std-setting-RANDOMIZE_DOWNLOAD_DELAY
         })
 
     def yield_output(self, data):

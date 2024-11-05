@@ -152,7 +152,7 @@ if __name__ == '__main__':
 
     scenario_router = ScenarioRouter()
 
-    st.title("Прототип")
+    st.title("Подборщик товаров")
 
     # Clear the conversation using a sidebar button for better accessibility
     # with st.sidebar:
@@ -195,7 +195,7 @@ if __name__ == '__main__':
                 lgc = max(0, len(items) - 1)
                 item_display.display_grid(lower_grid_cols=lgc)
 
-    if prompt := st.chat_input("Enter you question here"):
+    if prompt := st.chat_input("Enter your question here"):
         prompt = prompt.strip()
         logger.critical(f'context checkpoint 1: {st.session_state.context}')
         st.chat_message("user").markdown(prompt)
@@ -317,27 +317,33 @@ if __name__ == '__main__':
             """,
             unsafe_allow_html=True,
         )
-        text_2_where = {
-            'Цена от 3000 руб.': 'WHERE price >= 3000',
-            'Загрузка от 8 до 10 кг.': 'WHERE max_load BETWEEN 8 AND 10',
-            'Рейтинг от 4,9': 'WHERE rating_value >= 4.9',
-        }
-        _, col0, col1, col2, _ = st.columns([0.01, 0.3, 0.3, 0.3, 0.09])
-        button_clicked = False
 
-        button_clicked0 = update_sql_query(col0, *list(text_2_where.items())[0])
-        logger.error(f'col0 - {button_clicked}')
-
-        button_clicked1 = update_sql_query(col1, *list(text_2_where.items())[1])
-        logger.error(f'col1 - {button_clicked}')
-
-        button_clicked2 = update_sql_query(col2, *list(text_2_where.items())[2])
-        logger.error(f'col2 - {button_clicked}')
-
-        if any([button_clicked0, button_clicked1, button_clicked2]):
-            data, context = st.session_state.scenario_object.handle(user_query=None, chat_history=None, context=st.session_state.context)
-            assert isinstance(data, pd.DataFrame)
-            if 'sql_items' in st.session_state:
-                # sql_items must be popped every time sql is executed!
-                st.session_state.pop('sql_items')
-            render_df(data)
+        # below is logic for inline filters
+        # disable it for demo
+        # text_2_where = {
+        #     'Цена от 3000 руб.': 'WHERE price >= 3000',
+        #     'Загрузка от 8 до 10 кг.': 'WHERE max_load BETWEEN 8 AND 10',
+        #     'Рейтинг от 4,9': 'WHERE rating_value >= 4.9',
+        # }
+        # _, col0, col1, col2, _ = st.columns([0.01, 0.3, 0.3, 0.3, 0.09])
+        # button_clicked = False
+        #
+        # button_clicked0 = update_sql_query(col0, *list(text_2_where.items())[0])
+        # logger.error(f'col0 - {button_clicked}')
+        #
+        # button_clicked1 = update_sql_query(col1, *list(text_2_where.items())[1])
+        # logger.error(f'col1 - {button_clicked}')
+        #
+        # button_clicked2 = update_sql_query(col2, *list(text_2_where.items())[2])
+        # logger.error(f'col2 - {button_clicked}')
+        #
+        # if any([button_clicked0, button_clicked1, button_clicked2]):
+        #     data, context = st.session_state.scenario_object.handle(user_query=None, chat_history=None, context=st.session_state.context)
+        #     print(data)
+        #     print(type(data))
+        #     print(context)
+        #     assert isinstance(data, pd.DataFrame)
+        #     if 'sql_items' in st.session_state:
+        #         # sql_items must be popped every time sql is executed!
+        #         st.session_state.pop('sql_items')
+        #     render_df(data)
