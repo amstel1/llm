@@ -5,7 +5,7 @@ from mongodb.utils import MongoRead
 from typing import List, Dict, Iterable
 from loguru import logger
 # read entire tables
-
+from text2sql.prod_sql_to_text import extract_where_attributes
 
 
 class DataServer():
@@ -48,6 +48,9 @@ class DataServer():
         if nosql_summarizations_dict:
             results.update(nosql_summarizations_dict)
         return results
+
+
+
 
     def collect_data(self, names: Iterable) -> List[Dict]:
         results = []

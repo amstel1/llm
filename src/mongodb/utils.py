@@ -122,8 +122,13 @@ class MongoWrite(Write):
         # cursor = MongoConnector(operation='write', db_name='scraped_data', collection_name='product_reviews')
         # cursor.write_many(reviews_details)
 
-def delete_empty():
-    role = 'write'
+def delete_empty(db_name: str = 'mobile'):
+    '''
+    if scraping has been fucked up, there are empty jsons in mongo
+    this code removes them
+    '''
+    assert db_name in ('mobile', 'tv', 'washing_machine', 'fridge')
+    role = 'writer'
     query = {"$and": [{"_id": {"$exists": True}},
                       {"$expr": {"$eq": [{"$objectToArray": "$$ROOT"}, [{"k": "_id", "v": "$_id"}]]}}]}
     CONFIG = {
@@ -139,24 +144,24 @@ def delete_empty():
     client = pymongo.MongoClient(
         f"mongodb://{username}:{password}@{CONFIG.get('host')}:{CONFIG.get('port')}/"
     )
-    db = client['fridge']
+    db = client[db_name]
     collection = db['product_details']
     result = collection.delete_many(query)
     print(result)
 
 
 if __name__ == '__main__':
-
+    # below is code to transfer data from ? to ?
     # READ 1
     # con_product_reviews = MongoConnector(operation='read', db_name='scraped_data', collection_name='product_reviews')
     # cursor_product_reviews = con_product_reviews.read_many({})
     # product_reviews = list(cursor_product_reviews)
     #
     # # READ 2
-    con_product_details = MongoConnector(operation='read', db_name='kettle', collection_name='product_details')
-    cursor_product_details = con_product_details.read_many({})
-    product_details = list(cursor_product_details)
-    a = 1
+    # con_product_details = MongoConnector(operation='read', db_name='kettle', collection_name='product_details')
+    # cursor_product_details = con_product_details.read_many({})
+    # product_details = list(cursor_product_details)
+    # a = 1
     # with open('/home/amstel/llm/out/summarized_reviews.pkl', 'rb') as f:
     #     summarized_reviews = pickle.load(f)
     # con_product_details = MongoConnector(
@@ -166,3 +171,6 @@ if __name__ == '__main__':
     # )
     # cursor_product_details = con_product_details.write_many(summarized_reviews)
     # product_details = list(cursor_product_details)
+
+    delete_empty('fridge')
+

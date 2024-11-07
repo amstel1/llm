@@ -1,3 +1,4 @@
+import sql_metadata
 from loguru import logger
 import sys
 sys.path.append('/home/amstel/llm/src')
@@ -23,6 +24,10 @@ from sqlparse.sql import Where
 import sqlparse
 from sqlparse import tokens as T
 from general_llm.prompt_construction import Llama3PromptTemplate, Gemma2PromptTemplate, ChatMLPromptTemplate
+import sqlparse
+from sqlparse.sql import Where, Identifier, Comparison
+from sqlparse.tokens import Keyword, DML
+import sql_metadata
 
 def update_sql_statement(sql_statement: str, new_where_clause: str):
     sql_statement = sql_statement.replace('  ', ' ').replace('\n', ' ').replace('\t', ' ')
@@ -70,6 +75,20 @@ def update_sql_statement_append_where_condition(sql_statement: str, new_where_cl
     assert 'insert' not in new_sql_statement
     assert 'update' not in new_sql_statement
     return new_sql_statement
+
+def extract_where_attributes(sql_query: str)  -> list[str]:
+    """
+    :param sql_query: valid sql query
+    :return: list of str attributes from WHERE clause
+    """
+    # Parse the SQL statement
+    post_where_list = [x.lower() for x in sql_query[sql_query.lower().find('where'):].split(" ")]
+    attributes = sql_metadata.Parser(sql_query).columns_dict.get('where', [])
+    # do the same for each keyword that matches an sql column name
+    if 'type' in post_where_list and 'type' not in attributes:
+        logger.warning('sql query, where parsing - appending "type"')
+        attributes.append('type')
+    return attributes
 
 class SqlToText:
     # attribute_name_eng, attribute_type, attribute_rus
@@ -146,29 +165,7 @@ class SqlToText:
         # connections.connect(uri=CONNECTION_URI, db_name=schema_name)
 
         data = dense_embedding_model.embed_query(text=user_query)
-
-        # create table description
         client = MilvusClient(db_name=schema_name)
-        attributes_retrieved = client.search(
-            collection_name="postgres_table_attributes",  # list of attrs for each
-            data=[data],
-            limit=N_EMBEDDING_RESULTS,  # Max. number of search results to return
-            search_params={"metric_type": "IP", "params": {}},  # Search parameters
-            output_fields=['attribute_name_eng', 'attribute_name_rus', 'attribute_type']
-        )
-
-        json_attributes_retrieved = attributes_retrieved[0] #json.load(attributes_retrieved)
-        assert isinstance(json_attributes_retrieved, list)
-        fields = []
-        for jsn in json_attributes_retrieved:
-            entity = jsn.get('entity')
-            assert isinstance(entity, dict)
-            if entity.get("attribute_name_eng") not in SqlToText.mandatory_fields_eng:
-                fields.append((entity.get("attribute_name_eng"), entity.get("attribute_type"), entity.get("attribute_name_rus"), ))
-        body_mandatory = self.create_str_description(fields=self.mandatory_fields)
-        body_nonmandatory = self.create_str_description(fields=fields)
-        body = body_mandatory + body_nonmandatory
-        table_description = self.create_table_description(schema_name=schema_name, table_name=schema_name, body=body)
 
         # get most relevant Q&A examples for the few-shots
         examples_retrieved = client.search(
@@ -180,15 +177,60 @@ class SqlToText:
             output_fields=['q', 'q_vector', 'a']
         )
         assert isinstance(examples_retrieved, list)
+        # logger.error(f'0911--examples_retrieved: {examples_retrieved}')
         json_examples_retrieved = examples_retrieved[0]
         assert isinstance(json_examples_retrieved, list)
         # json_examples_retrieved = json.load(examples_retrieved)
         examples = []
+        answers = []
         for jsn in json_examples_retrieved:
             entity = jsn.get('entity')
             assert isinstance(entity, dict)
             examples.append((entity.get("q"), entity.get("a"),))
+            answers.append(entity.get('a'))
         few_shots = self.create_few_shot_examples(qa_pairs=examples)
+
+        where_attributes_few_shots = set()
+        for answer in answers:
+            extracted_where_attributes = extract_where_attributes(answer)
+            logger.critical(f'1211 - answer: {answer}')
+            logger.critical(f'1211 - extracted_where_attributes: {extracted_where_attributes}')
+            where_attributes_few_shots.update(extracted_where_attributes)
+        ###################################### start
+        # create table description
+        # todo: Важно - переделать эту хуйню так:
+        # через sqlparse смотрим все атрибуты where из few-shot и тянем их сюда
+        attributes_retrieved = client.search(
+            collection_name="postgres_table_attributes",  # list of attrs for each
+            data=[data],
+            limit=1000,  # retrieve all
+            search_params={"metric_type": "IP", "params": {}},  # Search parameters
+            output_fields=['attribute_name_eng', 'attribute_name_rus', 'attribute_type']
+        )
+        logger.error(f'0811 - attributes_retrieved: {attributes_retrieved}')
+        json_attributes_retrieved = attributes_retrieved[0] #json.load(attributes_retrieved)
+        assert isinstance(json_attributes_retrieved, list)
+        fields = []
+        for ix, jsn in enumerate(json_attributes_retrieved):
+            # ix is sequence number of items sorted by relevance
+            entity = jsn.get('entity')
+            assert isinstance(entity, dict)
+            if entity.get("attribute_name_eng") in SqlToText.mandatory_fields_eng:
+                continue
+            elif entity.get("attribute_name_eng") in where_attributes_few_shots and \
+               entity.get("attribute_name_eng") not in SqlToText.mandatory_fields_eng:
+                fields.append((entity.get("attribute_name_eng"), entity.get("attribute_type"), entity.get("attribute_name_rus"), ))
+            elif entity.get("attribute_name_eng") not in where_attributes_few_shots and \
+               entity.get("attribute_name_eng") not in SqlToText.mandatory_fields_eng and \
+               ix <= 3:
+                fields.append((entity.get("attribute_name_eng"), entity.get("attribute_type"), entity.get("attribute_name_rus"), ))
+        body_mandatory = self.create_str_description(fields=self.mandatory_fields)
+        body_nonmandatory = self.create_str_description(fields=fields)
+        body = body_mandatory + body_nonmandatory
+        table_description = self.create_table_description(schema_name=schema_name, table_name=schema_name, body=body)
+        ###################################### end
+
+
 
         system_prompt = 'You are a top class business analyst that specializes in translating natural language queries into SQL. Perform the task you are assigned to to the best of your ability.'
         user_prompt_pt1 = '\nGiven a Q, create a valid SQL to run. Access only the attributes present in the table definition.\n\n'

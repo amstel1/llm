@@ -9,6 +9,8 @@ from abc import ABC
 from loguru import logger
 from backend_ops import DataServer
 from api.credit_interset_calculator import InterestCalculator
+from etl_jobs.attribute_mappings import name_2_attribute
+from text2sql.prod_sql_to_text import extract_where_attributes
 
 radiobutton_options = {
                     "12 месяцев": 12,
@@ -19,50 +21,80 @@ radiobutton_options = {
 
 class ItemDisplay:
 
-    def __init__(self, items: list[dict], duration_2_terms: dict[int, str], sql_result_ix: int):
+    def __init__(self, items: list[dict], duration_2_terms: dict[int, str], sql_result_ix: int, necessary_product_attributes_list:list[str]):
         self.items = items
         self.duration_2_terms = duration_2_terms
         self.loan_terms_defined = False
         self.sql_result_ix = sql_result_ix
+        self.necessary_product_attributes_list = necessary_product_attributes_list
+        if not self.necessary_product_attributes_list:
+            self.necessary_product_attributes_list = []
+        for col in ['price', 'rating_value', 'rating_count', 'name', 'product_image_url', 'product_url']:
+            if col not in self.necessary_product_attributes_list:
+                self.necessary_product_attributes_list.append(col)
 
-    def display_item(self, item, upper=False):
-        eng_to_rus_attr_mapper = {
+    def display_item(self, old_item, upper=False):
+        inverse_product_attributes_dict = name_2_attribute.get(
+            st.session_state.context['sql_schema'])  # dict {rus property name: eng property name}
+        all_product_attributes_dict = {v: k for k, v in inverse_product_attributes_dict.items()}
+        all_product_attributes_dict.update({
+            'name': 'Название',
             'price':'Цена',
             'rating_value':'Рейтинг',
             'rating_count':'Количество оценок',
-            'depth':'Глубина, см',
-            'max_load':'Загрузка, кг',
-            'drying':'Есть сушка',
-        }
+        })
+        assert all_product_attributes_dict
+        # logger.info(f'collect_data: {items}')
+
+        item = {}
+        for k,v in old_item.items():
+            if k in self.necessary_product_attributes_list and k in all_product_attributes_dict and v and k not in item:
+                logger.info(f'0611: remap {k}, {all_product_attributes_dict[k]}, {v}')
+                item[all_product_attributes_dict[k]] = v
+            elif k in self.necessary_product_attributes_list and v and k not in item:
+                item[k] = v
+                logger.info(f'0611: no remap {k}, {v}')
+
+        logger.debug(f'0611 item: {item}')
+        logger.debug(f'0611 necessary_product_attributes_list: {self.necessary_product_attributes_list}')
+
+
         if upper:
             description = ''
             for k,v in item.items():
-                if k in eng_to_rus_attr_mapper.keys():
+                if k in all_product_attributes_dict.keys() and k not in ('product_url', 'product_image_url', 'Название',):
+                    logger.debug(f'k: 0711 -- {k}, {v}')
                     if v:
-                        description += f'{eng_to_rus_attr_mapper[k]}: {v}<br>'
+                        description += f'{all_product_attributes_dict[k]}: {v}<br>'
+                elif k not in ('product_url', 'product_image_url', 'Название',):
+                    description += f'{k}: {v}<br>'
+            logger.critical(f'0711-2 {description}')
             create_preview_card(
                 url=item.get('product_url'),
-                title=item.get('name'),
+                title=item.get('Название'),
                 image_url=item.get('product_image_url'),
                 description=description,
             )
         else:
-            st.markdown(f"""<img src="{item.get('product_image_url')}" alt="{item.get('name')}" style="border-radius: 4px; width: 100%; max-width: 110px; height: auto; object-fit: cover;">""", unsafe_allow_html=True)
+            st.markdown(f"""<img src="{item.get('product_image_url')}" alt="{item.get('Название')}" style="border-radius: 4px; width: 100%; max-width: 110px; height: auto; object-fit: cover;">""", unsafe_allow_html=True)
             st.markdown(
-                f"<div style='text-align: left;'><a href='{item.get('product_url')}' style='text-decoration: none; color: black; font-size: 14px;'><strong>{item.get('name')}</strong></a></div>",
+                f"<div style='text-align: left;'><a href='{item.get('product_url')}' style='text-decoration: none; color: black; font-size: 14px;'><strong>{item.get('Название')}</strong></a></div>",
                 unsafe_allow_html=True)
-            if item.get('price'): st.write(f"<div style='text-align: left; font-size: 14px;'>Цена: {item.get('price')}</div>",
+            if item.get('Цена'): st.write(f"<div style='text-align: left; font-size: 14px;'>Цена: {item.get('Цена')}</div>",
                                            unsafe_allow_html=True)
-            if item.get('rating_value'): st.write(
-                f"<div style='text-align: left; font-size: 14px;'>Рейтинг: {item.get('rating_value')}</div>", unsafe_allow_html=True)
-            if item.get('rating_count'): st.write(
-                f"<div style='text-align: left; font-size: 14px;'>Количество оценок: {item.get('rating_count')}</div>", unsafe_allow_html=True)
-            if item.get('depth'): st.write(f"<div style='text-align: left; font-size: 14px;'>лубина, см: {item.get('depth')}</div>",
-                                           unsafe_allow_html=True)
-            if item.get('max_load'): st.write(f"<div style='text-align: left; font-size: 14px;'>Загрузка, кг: {item.get('max_load')}</div>",
-                                              unsafe_allow_html=True)
-            if item.get('drying'): st.write(f"<div style='text-align: left; font-size: 14px;'>Есть сушка: {item.get('drying')}</div>",
-                                            unsafe_allow_html=True)
+            if item.get('Рейтинг'): st.write(
+                f"<div style='text-align: left; font-size: 14px;'>Рейтинг: {item.get('Рейтинг')}</div>", unsafe_allow_html=True)
+            if item.get('Количество оценок'): st.write(
+                f"<div style='text-align: left; font-size: 14px;'>Количество оценок: {item.get('Количество оценок')}</div>", unsafe_allow_html=True)
+            for k, v in item.items():
+                if k not in ('product_url', 'product_image_url', 'Название', 'Цена', 'Рейтинг', 'Количество оценок', ):
+                    st.write(f"<div style='text-align: left; font-size: 14px;'>{k}: {v}</div>", unsafe_allow_html=True)
+            # if item.get('depth'): st.write(f"<div style='text-align: left; font-size: 14px;'>лубина, см: {item.get('depth')}</div>",
+            #                                unsafe_allow_html=True)
+            # if item.get('max_load'): st.write(f"<div style='text-align: left; font-size: 14px;'>Загрузка, кг: {item.get('max_load')}</div>",
+            #                                   unsafe_allow_html=True)
+            # if item.get('drying'): st.write(f"<div style='text-align: left; font-size: 14px;'>Есть сушка: {item.get('drying')}</div>",
+            #                                 unsafe_allow_html=True)
 
 
     def display_upper_row(self):
@@ -172,6 +204,7 @@ def create_preview_card(
         image_url="https://shop.by/images/lg_f2j3ws2w_1.webp",
         description="Custom description"
 ):
+    logger.error(f'1211 - create_preview_card, description: {description}')
     """Function to create a website preview card in Streamlit."""
     card_html = f"""
     <div style="display: flex; flex-direction: row; align-items: flex-start; gap: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 8px; box-shadow: 0 4px 6px 0 rgba(0,0,0,0.1);">

@@ -9,17 +9,18 @@ from pymilvus import (
     WeightedRanker,
     connections,
 )
+from rag_config import EMBEDDING_MODEL_NAME
 
 if __name__ == '__main__':
 
     # Specify the device to use, e.g., 'cpu' or 'cuda:0'
     # Specify whether to use fp16. Set to `False` if `device` is `cpu`.
-    dense_embedding_model = HuggingFaceEmbeddings(model_name='BAAI/bge-m3', model_kwargs={'device': 'cpu',})
+    dense_embedding_model = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME, model_kwargs={'device': 'cpu',})
 
     fields = [
-        FieldSchema(name="q", dtype=DataType.VARCHAR, is_primary=True, max_length=1024,),
+        FieldSchema(name="q", dtype=DataType.VARCHAR, is_primary=True, max_length=2048,),
         FieldSchema(name="q_vector", dtype=DataType.FLOAT_VECTOR, dim=1024),
-        FieldSchema(name="a", dtype=DataType.VARCHAR, max_length=1024),
+        FieldSchema(name="a", dtype=DataType.VARCHAR, max_length=2048),
     ]
     for sheet_name in (
             'mobile',

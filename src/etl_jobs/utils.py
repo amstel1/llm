@@ -68,6 +68,18 @@ class ItemDetailsDo(Do):
                 df[col] = df[col].astype(float)
             except Exception as e:
                 df[col] = df[col].replace({'Есть': 'Да'})
+
+        # manual data corrections:
+        if  'num_sim_cards' in df.columns: df['num_sim_cards'] = df['num_sim_cards'].str.replace('Нет','0').str.replace(' SIM','').str.replace(' ', '').astype(float).fillna(1)
+        if  'optical_zoom' in df.columns: df['optical_zoom'] = df['optical_zoom'].str.replace('x','').str.replace('х','').str.replace(' ', '').astype(float).fillna(0)
+        if  'internal_storage_gb' in df.columns:
+            df['internal_storage_gb'].replace({'1 ТБ': '1024 Гб', '2 ТБ': '2048 Гб', '1 Тб': '1024 Гб', '2 Тб': '2048 Гб'})
+            df['internal_storage_gb'] = df['internal_storage_gb'].str.replace('меньше','').str.replace(' Гб','').str.replace(' ', '').astype(float).fillna(0)
+        if  'ram_gb' in df.columns:
+            df['ram_gb'] = df['ram_gb'].str.replace('меньше', '').str.replace(' ', '')
+            df['ram_gb'].replace({'256 Мб': '0.25 Гб', '512 Мб': '0.5 Гб', '768 Мб': '0.75 Гб'})
+            df['ram_gb'] = df['ram_gb'].str.replace(' Гб','').str.replace(' ', '').astype(float)
+        if  'refresh_rate_hz' in df.columns: df['refresh_rate_hz'] = df['refresh_rate_hz'].str.replace(' Гц','').str.replace(' ', '').astype(float).fillna(0)
         return df
 
 
@@ -78,6 +90,7 @@ class ItemDetailsDo(Do):
         if isinstance(data, list) and not (isinstance(data[0], list) or isinstance(data[0], tuple)):
             df = pd.DataFrame(data)
             df = self.handler(df)
+            df['scraped_datetime'] = datetime.now()  # added scraped_datetime to postgres.item_details to track prices correctly
             return {"step_0": df}
         else:
             return {"step_0": None}

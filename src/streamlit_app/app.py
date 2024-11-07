@@ -16,6 +16,7 @@ from api.credit_interset_calculator import InterestCalculator
 from general_llm.utils import ChatHistory
 CHAT_HISTORY_SIZE = 6
 from text2sql.prod_sql_to_text import update_sql_statement, update_sql_statement_append_where_condition
+from text2sql.prod_sql_to_text import extract_where_attributes
 
 # link to the selected product / products
 # todo: routing between scenarios
@@ -102,7 +103,12 @@ def stylish_citation_link(url, text):
         )
 
 
-def render_df(df: pd.DataFrame):
+
+
+
+
+
+def render_df(df: pd.DataFrame, necessary_product_attributes_list: list[str]):
     # sql results - show table
     # todo: get product_type_name from context variables
     # logger.warning(f'! important: {st.session_state.context}')
@@ -115,20 +121,22 @@ def render_df(df: pd.DataFrame):
     if 'sql_items' not in st.session_state:
         # sql_items must be updated every time sql is executed!
         items = data_server.collect_data(data['name'])
-        # logger.info(f'collect_data: {items}')
         items = items[:4]
         st.session_state['sql_items'] = items
         st.session_state.chat_history.append({"role": "html", "items": items})
+
+
     items = st.session_state['sql_items']
     # show loan terms for the top option
     top_item = items[0]
+    logger.critical(f'0511 top item: {top_item}')
     top_item_price = top_item.get('price')
     calculator = InterestCalculator()
     duration_2_terms = {}
     for month_duration in radiobutton_options.values():
         loan_terms = calculator.gpt4o(top_item_price, month_duration)
         duration_2_terms[month_duration] = loan_terms
-    item_display = ItemDisplay(items, duration_2_terms=duration_2_terms, sql_result_ix=sql_result_ix)
+    item_display = ItemDisplay(items, duration_2_terms=duration_2_terms, sql_result_ix=sql_result_ix, necessary_product_attributes_list=necessary_product_attributes_list)
     lgc = max(0, len(items) - 1)
     item_display.display_grid(lower_grid_cols=lgc)
     st.rerun()
@@ -190,7 +198,9 @@ if __name__ == '__main__':
                     duration_2_terms[month_duration] = loan_terms
 
                 # display here
-                item_display = ItemDisplay(items, duration_2_terms=duration_2_terms, sql_result_ix=sql_result_ix)
+                necessary_product_attributes_list = extract_where_attributes(
+                    sql_query=st.session_state.context.get('sql_query'))
+                item_display = ItemDisplay(items, duration_2_terms=duration_2_terms, sql_result_ix=sql_result_ix, necessary_product_attributes_list=necessary_product_attributes_list)
                 sql_result_ix += 1
                 lgc = max(0, len(items) - 1)
                 item_display.display_grid(lower_grid_cols=lgc)
@@ -244,6 +254,7 @@ if __name__ == '__main__':
             logger.debug(f'context-- {st.session_state.context}')
             # universal scenario logic
             data, context = st.session_state.scenario_object.handle(user_query=prompt, chat_history=non_html_chat_history, context=st.session_state.context)
+            logger.critical(f'05112024 does this have sql query?: {context}')
             st.session_state.context = context
             assert 'scenario_name' in st.session_state.context
             if st.session_state.context.get('current_step') in ('sql','exit') and 'sql_items' in st.session_state:
@@ -269,7 +280,9 @@ if __name__ == '__main__':
                 with st.sidebar:
                     show_sidebar()  # rerun sidebar
             elif isinstance(data, pd.DataFrame) and data.shape[0] > 0:
-                render_df(data)
+                necessary_product_attributes_list = extract_where_attributes(sql_query=st.session_state.context.get('sql_query'))
+                logger.error(f'1011 - necessary_product_attributes_list - {necessary_product_attributes_list}')
+                render_df(data, necessary_product_attributes_list=necessary_product_attributes_list)
             elif isinstance(data, pd.DataFrame) and data.shape[0] == 0:
                 response_text = "Извините, но я ничего не нашел."
                 st.session_state.chat_history.append({"role": "assistant", "content": response_text})

@@ -594,5 +594,13 @@ microwave_mapping = {'name': 'name',
     "Вес, кг": "weight_kg"
 }
 
+
+name_2_attribute = {
+            'washing_machine': washing_machine_mapping,
+            'fridge': fridge_mapping,
+            'mobile': mobile_mapping,
+            'tv': tv_mapping
+        }
+
 if __name__ == '__main__':
     pass

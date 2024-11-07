@@ -10,6 +10,9 @@ from pymilvus import (
 )
 import numpy as np
 import sys
+
+from rag.rag_config import EMBEDDING_MODEL_NAME
+
 sys.path.append('/home/amstel/llm/src')
 from postgres.utils import PostgresDataFrameRead
 from etl_jobs import attribute_mappings
@@ -18,12 +21,7 @@ from etl_jobs import attribute_mappings
 class DescriptionMaker:
     def __init__(self, schema_name: str):
         assert schema_name in ('washing_machine', 'fridge', 'mobile', 'tv', )
-        name_2_attribute = {
-            'washing_machine': attribute_mappings.washing_machine_mapping,
-            'fridge': attribute_mappings.fridge_mapping,
-            'mobile': attribute_mappings.mobile_mapping,
-            'tv': attribute_mappings.tv_mapping
-        }
+        name_2_attribute = attribute_mappings.name_2_attribute
         self.attribute_mapping = name_2_attribute[schema_name]  # key (rus), value (eng)
         self.attribute_mapping.update({"цена":"min_price", "name":"название товара"})
         self.postgres_reader = PostgresDataFrameRead(table=f'{schema_name}.{schema_name}')
@@ -50,7 +48,7 @@ if __name__ == '__main__':
 
     # Specify the device to use, e.g., 'cpu' or 'cuda:0'
     # Specify whether to use fp16. Set to `False` if `device` is `cpu`.
-    dense_embedding_model = HuggingFaceEmbeddings(model_name='BAAI/bge-m3', model_kwargs={'device': 'cpu',})
+    dense_embedding_model = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME, model_kwargs={'device': 'cpu',})
 
     fields = [
         FieldSchema(name="attribute_name_eng", dtype=DataType.VARCHAR, max_length=1024),
