@@ -426,7 +426,7 @@ class ReviewSpider(CrawlSpider):
                 'https://reviews.yandex.ru/product/samsung-galaxy-a55--341777076',
             ]
         for url in self.urls:
-            yield scrapy.Request(url=url, callback=self.parse)
+            yield scrapy.Request(url=url, callback=self.parse, meta={'original_url': url})  # , cb_kwargs={'original_url': url}
 
     @logger.catch
     def parse(self, response):
@@ -434,11 +434,11 @@ class ReviewSpider(CrawlSpider):
             raise CloseSpider('Recieve 404 response')
         mdata = MicrodataExtractor.get_mdata_jsonld(response.body).get('json-ld')[0]  # now it's a dict
         product = MicrodataExtractor.yandex_review_extractor(mdata,)  # dict with 4 keys - 2 str, 2 dicts
-        link = response.url
-        if 'redirect' in link:
-            link = link[:link.find('redirect')]
-            link = link.strip('?')
-        product['product_details_yandex_link'] = link  # key for join later
+        # link = response.url
+        # if 'redirect' in link:
+        #     link = link[:link.find('redirect')]
+        #     link = link.strip('?')
+        product['product_details_yandex_link'] = response.meta.get('original_url')  # key for join later
         self.products.append(product)
 
     def close(self, spider, reason):
@@ -584,11 +584,12 @@ class ParseRead(Read):
         df = data.get('step_0')
         assert isinstance(df, pd.DataFrame)
         df = df[df['product_details_yandex_link'].notnull()]
+        df = df[df['product_details_yandex_link'].str.startswith('http')]
         df.drop_duplicates(subset='product_details_yandex_link', inplace=True)
         # urls = ["https://reviews.yandex.ru/product/samsung-galaxy-a13--1754167695"]
         urls = df['product_details_yandex_link'].values.tolist()
-        if DEBUG:
-            urls = urls[:2]
+        # if DEBUG:
+        #     urls = urls[:2]
         yandex_reviews_reader = YandexReviewsRead()
         some_output = yandex_reviews_reader.read(urls=urls)
         # data = extruct.extract(soup.prettify(), syntaxes=['microdata']).get('microdata')

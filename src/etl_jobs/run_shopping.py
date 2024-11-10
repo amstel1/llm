@@ -459,24 +459,24 @@ if __name__ == '__main__':
     # correct_queue.run()
 
     # step 2.6.6 - good - parse yandex 09 11 2024
-    parse_yandex_scrapy = Job(
-        reader=ReadChainSearchParsePart2(readers=[PostgresDataFrameRead(f'{SCHEMA_NAME}.new_search_queue', where='searched = 1 and scraped = 0'), ParseRead()]),
-        processor=DoChainGlobal(processors=[
-            SetSearchQueueProcessedDo(),
-            YandexMarketDo()
-        ]),
-        writer=WriteChain(writers=[
-            PostgresDataFrameWrite(
-                schema_name=SCHEMA_NAME,
-                table_name='new_search_queue',
-                insert_unique=True,  #
-                index_column='clean_search_query',  # column to check uniqueness against,
-                if_exists = 'replace',  # what to do
-            ),
-            MongoWrite(operation='write', db_name=SCHEMA_NAME, collection_name='details_reviews'),
-        ])
-    )
-    parse_yandex_scrapy.run()
+    # parse_yandex_scrapy = Job(
+    #     reader=ReadChainSearchParsePart2(readers=[PostgresDataFrameRead(f'{SCHEMA_NAME}.new_search_queue', where='searched = 1 and scraped = 0'), ParseRead()]),
+    #     processor=DoChainGlobal(processors=[
+    #         SetSearchQueueProcessedDo(),
+    #         YandexMarketDo()
+    #     ]),
+    #     writer=WriteChain(writers=[
+    #         PostgresDataFrameWrite(
+    #             schema_name=SCHEMA_NAME,
+    #             table_name='new_search_queue',
+    #             insert_unique=True,  #
+    #             index_column='clean_search_query',  # column to check uniqueness against,
+    #             if_exists = 'replace',  # what to do
+    #         ),
+    #         MongoWrite(operation='write', db_name=SCHEMA_NAME, collection_name='details_reviews'),
+    #     ])
+    # )
+    # parse_yandex_scrapy.run()
     # #
     #         # step 2.7 - delete
     # parse_yandex = Job(
@@ -508,19 +508,19 @@ if __name__ == '__main__':
 
     #
     # Job 5 - Mongo Details -> PostgresDetails
-    # ReviewsProductDetails = Job(
-    #     reader=MongoRead(operation='read', db_name=SCHEMA_NAME, collection_name='details_reviews'),
-    #     processor=ReviewsProductDetailsDo(),
-    #     writer=PostgresDataFrameWrite(
-    #         schema_name=SCHEMA_NAME,
-    #         table_name='reviews_product_details',
-    #         insert_unique=True,
-    #         index_column='product_name',
-    #         if_exists='replace'
-    #     )
-    # )
-    # ReviewsProductDetails.run()
-    #
+    ReviewsProductDetails = Job(
+        reader=MongoRead(operation='read', db_name=SCHEMA_NAME, collection_name='details_reviews'),
+        processor=ReviewsProductDetailsDo(),
+        writer=PostgresDataFrameWrite(
+            schema_name=SCHEMA_NAME,
+            table_name='reviews_product_details',
+            insert_unique=True,
+            index_column='product_name',
+            if_exists='replace'
+        )
+    )
+    ReviewsProductDetails.run()
+
     # # todo: correct empty rating from postgres view - decide in Job 3 what to scrape based on that
     #
     # # Job 6 - to complete -
