@@ -29,7 +29,7 @@ class ItemDisplay:
         self.necessary_product_attributes_list = necessary_product_attributes_list
         if not self.necessary_product_attributes_list:
             self.necessary_product_attributes_list = []
-        for col in ['price', 'rating_value', 'rating_count', 'name', 'product_image_url', 'product_url']:
+        for col in ['price', 'rating_value', 'rating_count', 'name', 'product_image_url', 'product_url', 'offer_count']:
             if col not in self.necessary_product_attributes_list:
                 self.necessary_product_attributes_list.append(col)
 
@@ -62,11 +62,11 @@ class ItemDisplay:
         if upper:
             description = ''
             for k,v in item.items():
-                if k in all_product_attributes_dict.keys() and k not in ('product_url', 'product_image_url', 'Название',):
+                if k in all_product_attributes_dict.keys() and k not in ('product_url', 'product_image_url', 'Название', 'offer_count'):
                     logger.debug(f'k: 0711 -- {k}, {v}')
                     if v:
                         description += f'{all_product_attributes_dict[k]}: {v}<br>'
-                elif k not in ('product_url', 'product_image_url', 'Название',):
+                elif k not in ('product_url', 'product_image_url', 'Название', 'offer_count'):
                     description += f'{k}: {v}<br>'
             logger.critical(f'0711-2 {description}')
             create_preview_card(
@@ -76,6 +76,7 @@ class ItemDisplay:
                 description=description,
             )
         else:
+            item.pop('offer_count')
             st.markdown(f"""<img src="{item.get('product_image_url')}" alt="{item.get('Название')}" style="border-radius: 4px; width: 100%; max-width: 110px; height: auto; object-fit: cover;">""", unsafe_allow_html=True)
             st.markdown(
                 f"<div style='text-align: left;'><a href='{item.get('product_url')}' style='text-decoration: none; color: black; font-size: 14px;'><strong>{item.get('Название')}</strong></a></div>",
@@ -197,7 +198,6 @@ class ItemDisplay:
         self.display_lower_row(lower_grid_cols)
 
 
-
 def create_preview_card(
         url="https://shop.by/stiralnye_mashiny/lg_f2j3ws2w/",
         title="Стиральная машина LG F2J3WS2W",
@@ -218,7 +218,6 @@ def create_preview_card(
 </div>
     """
     st.markdown(card_html, unsafe_allow_html=True)
-
 
 
 class Renderer(ABC):
@@ -270,11 +269,6 @@ class WashingMachineRenderer(Renderer):
                 s += measurement_unit
             results.append(s)
         return results
-
-
-
-
-
 
 
 # def generate_features(features):

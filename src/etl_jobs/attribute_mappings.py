@@ -41,7 +41,7 @@ mobile_mapping = {
             "Ширина, см": "width_cm",
             "Толщина, см": "thickness_cm",
             "Вес, г": "weight_g",
-            "Разрешение экрана, ppi": "ppi",
+            "Число пикселей на дюйм, ppi": "ppi",
             "Соотношение сторон": "aspect_ratio",
             "Сенсорный экран": "touch_screen",
             "Защита от царапин": "scratch_protection",

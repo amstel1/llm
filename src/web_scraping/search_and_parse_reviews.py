@@ -3,7 +3,7 @@ executable_path='/home/amstel/.cache/ms-playwright/chromium-1112/chrome-linux/ch
 # executable_path='/home/amstel/.cache/ms-playwright/firefox-1447/firefox/firefox'
 import sys
 sys.path.append('/home/amstel/llm/src')
-IS_HEADLESS = False
+IS_HEADLESS = True
 BROWSER_SELECT = 'chromium'
 import os
 # import sys
@@ -234,8 +234,9 @@ def google_find_link(soup, user_query) -> str:
             article_text = article.find('h3').text
             # step 1 - check if link is good
             # logger.debug(f'candidate reviews link: {article_href}')
-            if ('market.yandex.' in article_href) and \
-                    ('/reviews' in article_href) and \
+            if ('reviews.yandex.' in article_href) and \
+                    ('/product' in article_href) and \
+                    ('--' in article_href) and \
                     ('text?search' not in article_href) and \
                     ('search?text' not in article_href):
                 # primary search branch - contains reviews
@@ -245,23 +246,23 @@ def google_find_link(soup, user_query) -> str:
                 # https://rapidfuzz.github.io/RapidFuzz/Usage/fuzz.html
                 id_2_score_primary[article_id] = rapidfuzz.fuzz.token_set_ratio(
                     user_query,
-                    article_href,  # seacrh against href because in google end text is truncated with dots
+                    article_text.replace('отзывы покупателей', '').replace('—', '').strip(),  # seacrh against href because in google end text is truncated with dots
                     processor=rapidfuzz.utils.default_process
                 )
-            elif ('market.yandex.' in article_href) and \
-                    ('/reviews' not in article_href) and \
-                    ('text?search' not in article_href) and \
-                    ('search?text' not in article_href):
-                # secondary seatch branch
-                # logger.debug(f'passed SECONDARY the check for reviews: {article_href} -- {article_text}', )
-                id_2_href[article_id] = article_href
-                id_2_text_secondary[article_id] = article_text
-                # https://rapidfuzz.github.io/RapidFuzz/Usage/fuzz.html
-                id_2_score_secondary[article_id] = rapidfuzz.fuzz.token_set_ratio(
-                    user_query,
-                    article_href,  # seacrh against href because in google end text is truncated with dots
-                    processor=rapidfuzz.utils.default_process
-                )
+            # elif ('market.yandex.' in article_href) and \
+            #         ('/reviews' not in article_href) and \
+            #         ('text?search' not in article_href) and \
+            #         ('search?text' not in article_href):
+            #     # secondary seatch branch
+            #     # logger.debug(f'passed SECONDARY the check for reviews: {article_href} -- {article_text}', )
+            #     id_2_href[article_id] = article_href
+            #     id_2_text_secondary[article_id] = article_text
+            #     # https://rapidfuzz.github.io/RapidFuzz/Usage/fuzz.html
+            #     id_2_score_secondary[article_id] = rapidfuzz.fuzz.token_set_ratio(
+            #         user_query,
+            #         article_href,  # seacrh against href because in google end text is truncated with dots
+            #         processor=rapidfuzz.utils.default_process
+            #     )
         except:
             pass
     if len(id_2_score_primary) > 0:
@@ -297,7 +298,7 @@ def search_google(user_query: str) -> str:
     # google
     url = 'https://google.com/search'
     params = {
-        'q': f'site:market.yandex.by {user_query} отзывы',
+        'q': f'site:reviews.yandex.ru {user_query} отзывы покупателей',  #  'q': f'site:reviews.yandex.ru {user_query} отзывы',
     }
 
     for i, (k, v) in enumerate(params.items()):
@@ -388,9 +389,11 @@ def search_google_parse_results(user_query: str) -> str:
         if '/reviews' in some_url:
             logger.info('branch reviews')
             logger.info(user_query, )
-            product_url = some_url[:some_url.find('/reviews')]
-            product_url = product_url[:product_url.find('?sku=')]
-            reviews_url = some_url[:some_url.find('/reviews')] + '/reviews'
+            # product_url = some_url[:some_url.find('/reviews')]
+            # product_url = product_url[:product_url.find('?sku=')]
+            # reviews_url = some_url[:some_url.find('/reviews')] + '/reviews'
+            product_url = some_url
+            reviews_url = None
             logger.info(f'input_url: {some_url}')
             logger.info(f'reviews_url: {reviews_url}')
             logger.info(f'product_url: {product_url}')

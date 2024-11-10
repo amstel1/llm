@@ -25,7 +25,7 @@ class DataServer():
         results = {}
         logger.debug(f'{self.sql_details_db}, {name}')
         postgres_reader = PostgresDataFrameRead(table=self.sql_details_db, where=f"name = '{name}'")
-        sql_details = postgres_reader.read().get("step_0").sort_values('price', ascending=True).to_dict(orient='records')[0]
+        sql_details = postgres_reader.read().get("step_0").sort_values('offer_count', ascending=False).head(5).sort_values('price', ascending=True).to_dict(orient='records')[0]
         logger.debug(sql_details)
         if sql_details:
             results.update(sql_details)

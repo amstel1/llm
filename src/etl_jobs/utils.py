@@ -58,6 +58,7 @@ class ItemDetailsDo(Do):
         return s
 
     def handler(self, df: pd.DataFrame):
+        df.to_pickle('debug08112024.pkl')
         shop_mapping = self.handler_mapping[self.product_type_name]
         cols = [x for x in shop_mapping.keys() if x in df.columns]
         df = df[cols]
@@ -70,16 +71,35 @@ class ItemDetailsDo(Do):
                 df[col] = df[col].replace({'Есть': 'Да'})
 
         # manual data corrections:
-        if  'num_sim_cards' in df.columns: df['num_sim_cards'] = df['num_sim_cards'].str.replace('Нет','0').str.replace(' SIM','').str.replace(' ', '').astype(float).fillna(1)
-        if  'optical_zoom' in df.columns: df['optical_zoom'] = df['optical_zoom'].str.replace('x','').str.replace('х','').str.replace(' ', '').astype(float).fillna(0)
-        if  'internal_storage_gb' in df.columns:
-            df['internal_storage_gb'].replace({'1 ТБ': '1024 Гб', '2 ТБ': '2048 Гб', '1 Тб': '1024 Гб', '2 Тб': '2048 Гб'})
-            df['internal_storage_gb'] = df['internal_storage_gb'].str.replace('меньше','').str.replace(' Гб','').str.replace(' ', '').astype(float).fillna(0)
-        if  'ram_gb' in df.columns:
-            df['ram_gb'] = df['ram_gb'].str.replace('меньше', '').str.replace(' ', '')
-            df['ram_gb'].replace({'256 Мб': '0.25 Гб', '512 Мб': '0.5 Гб', '768 Мб': '0.75 Гб'})
-            df['ram_gb'] = df['ram_gb'].str.replace(' Гб','').str.replace(' ', '').astype(float)
-        if  'refresh_rate_hz' in df.columns: df['refresh_rate_hz'] = df['refresh_rate_hz'].str.replace(' Гц','').str.replace(' ', '').astype(float).fillna(0)
+        try:
+            if  'num_sim_cards' in df.columns: df['num_sim_cards'] = df['num_sim_cards'].str.replace('Нет','0').str.replace(' SIM','').str.replace(' ', '').astype(float).fillna(1)
+        except:
+            logger.error('num_sim_cards')
+
+        try:
+            if  'optical_zoom' in df.columns: df['optical_zoom'] = df['optical_zoom'].str.replace('x','').str.replace('х','').str.replace(' ', '').fillna('0').astype(float).fillna(0)
+        except:
+            logger.error('optical_zoom')
+
+        try:
+            if  'internal_storage_gb' in df.columns:
+                df['internal_storage_gb'] = df['internal_storage_gb'].replace({'1 ТБ': '1024 Гб', '2 ТБ': '2048 Гб', '1 Тб': '1024 Гб', '1Тб': '1024 Гб', '2 Тб': '2048 Гб'})
+                df['internal_storage_gb'] = df['internal_storage_gb'].str.replace('меньше','').str.replace(' Гб','').str.replace(' ', '').astype(float).fillna(0)
+        except:
+            logger.error('internal_storage_gb')
+
+        try:
+            if  'ram_gb' in df.columns:
+                df['ram_gb'] = df['ram_gb'].str.replace('меньше', '').str.replace(' ', '')
+                df['ram_gb'].replace({'256 Мб': '0.25 Гб', '512 Мб': '0.5 Гб', '768 Мб': '0.75 Гб'})
+                df['ram_gb'] = df['ram_gb'].str.replace(' Гб','').str.replace('Гб','').str.replace(' ', '').astype(float)
+        except:
+            logger.error('ram_gb')
+
+        try:
+            if  'refresh_rate_hz' in df.columns: df['refresh_rate_hz'] = df['refresh_rate_hz'].str.replace(' Гц','').str.replace(' ', '').astype(float).fillna(0)
+        except:
+            logger.error('refresh_rate_hz')
         return df
 
 
@@ -106,6 +126,14 @@ class PickleDataRead(Read):
             data = pickle.load(f)
         return data
 
+class ExcelDataRead(Read):
+    def __init__(self, filepath: str):
+        self.filepath = filepath
+
+    def read(self, data=None) -> Any:
+        # RETURNS ANY - CORRECT
+        data = pd.read_excel(self.filepath)
+        return data
 
 class PickleDataWrite(Write):
     def __init__(self, filepath: str):
@@ -167,11 +195,9 @@ class SetSearchQueueProcessedDo(Do):
         # the output must be df for fridge.search_queue with scraped = 1
         search_queue_df = data.get('step_0').get('step_0')  # dataframe
 
-        triplets = data.get('step_1')  # dict
-        triplets_search_queries = [key for key, value in triplets.items() if value[1]]   # not empty triplet
+        scraped_data = data.get('step_1')  # dict
+        product_details_yandex_links = [d.get('product_details_yandex_link') for d in scraped_data]   # not empty triplet
 
-        product_details_yandex_link = search_queue_df[search_queue_df['search_query'].isin(triplets_search_queries)]['product_details_yandex_link']
-
-        search_queue_df.loc[search_queue_df['product_details_yandex_link'].isin(product_details_yandex_link), 'scraped'] = 1
+        search_queue_df.loc[search_queue_df['product_details_yandex_link'].isin(product_details_yandex_links), 'scraped'] = 1
         return {'step_0': search_queue_df}
 

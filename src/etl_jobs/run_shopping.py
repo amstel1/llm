@@ -3,11 +3,13 @@ import sys
 from datetime import datetime
 import pandas as pd
 import sqlalchemy.types
+from openpyxl.reader.excel import ExcelReader
 from polyfuzz.models import TFIDF
 import numpy as np
 sys.path.append('/home/amstel/llm/src')
 from typing import Optional, Dict, Any, List, Set, Tuple, Iterable
 from base import Job, Read, Do, Write, ReadChain, WriteChain, DoChain, StepNum, DoChainGlobal
+from utils import ExcelDataRead
 import yaml
 from loguru import logger
 from jobs import Step1
@@ -18,7 +20,7 @@ import time
 
 
 # step 1
-from web_scraping.utils import EcomItemListRead
+from web_scraping.utils import EcomItemListRead, ParseRead
 from postgres.utils import PostgresDataFrameWrite
 from utils import ItemListDo
 
@@ -36,7 +38,7 @@ from postgres.utils import PostgresDataFrameWrite, PostgresDataFrameUpdate
 
 # step 2.6
 from postgres.utils import PostgresDataFrameRead
-from web_scraping.utils import ParseRead   # parse details' pages of yandex market
+# from web_scraping.utils import ParseRead   # parse details' pages of yandex market
 from utils import SetSearchQueueProcessedDo
 from mongodb.utils import MongoWrite
 
@@ -56,49 +58,53 @@ class SearchDo(Do):
         return {'step_0': df}
 
 class YandexMarketDo(Do):
-    #-> Tuple[Dict,List[Dict]]:
-    def process(self, data: Dict[str, Tuple[str, Tuple[str, Dict], Tuple[str, List[Dict]]]]) -> Dict[str, List[Dict[str, List[Dict]]]]:
-        '''all the logic to process scraping results from yandex market'''
-        if 'step_1' in data:
-            data = data.get('step_1')
-        assert isinstance(data, dict)
-        user_queries = list(data.keys())
-        results = []
-        for user_query in user_queries:
-            triple = data.get(user_query)
-            logger.critical(triple)
-            try:
-                assert len(triple) == 3
-                item_name = triple[0]
-                if triple[1]:
-                    # product_details
-                    # triple[1]: (url, {details_dict})
-                    assert len(triple[1]) == 3
-                    details_to_mongo = triple[1][1]
-                    details_to_mongo.update({'query_url': triple[1][0], 'query_item_name': item_name})
-                    # triple[2] contains bool - interrupted by captcha
-                    if triple[2]:
-                        # product_reviews
-                        # triple[2]: (reviews_url, [{'review1_key1':'review1_value1'}, {'review2_key1':'review2_value1'}])
-                        assert len(triple[2]) == 3
-                        reviews_url = triple[2][0]
-                        init_reviews_list = triple[2][1]
-                        for review in init_reviews_list:
-                            review.update(
-                                {"reviews_url": reviews_url,
-                                 "item_name": item_name}
-                            )
-                    else:
-                        init_reviews_list = []
-            except Exception as e:
-                logger.error(e)
-                details_to_mongo = {}
-                init_reviews_list = []
-            try:
-                results.append({"step_0": [details_to_mongo], "step_1": init_reviews_list})
-            except Exception as e:
-                results.append({"step_0": [[]], "step_1": []})
-        return {"step_0": [x.get('step_0') for x in results], "step_1": [x.get("step_1") for x in results]}
+    def process(self, data: Dict[StepNum, Any]) -> Dict[StepNum, Any]:
+        return data.get('step_1')
+
+# class YandexMarketDo_del(Do):
+#     #-> Tuple[Dict,List[Dict]]:
+#     def process(self, data: Dict[str, Tuple[str, Tuple[str, Dict], Tuple[str, List[Dict]]]]) -> Dict[str, List[Dict[str, List[Dict]]]]:
+#         '''all the logic to process scraping results from yandex market'''
+#         if 'step_1' in data:
+#             data = data.get('step_1')
+#         assert isinstance(data, dict)
+#         user_queries = list(data.keys())
+#         results = []
+#         for user_query in user_queries:
+#             triple = data.get(user_query)
+#             logger.critical(triple)
+#             try:
+#                 assert len(triple) == 3
+#                 item_name = triple[0]
+#                 if triple[1]:
+#                     # product_details
+#                     # triple[1]: (url, {details_dict})
+#                     assert len(triple[1]) == 3
+#                     details_to_mongo = triple[1][1]
+#                     details_to_mongo.update({'query_url': triple[1][0], 'query_item_name': item_name})
+#                     # triple[2] contains bool - interrupted by captcha
+#                     if triple[2]:
+#                         # product_reviews
+#                         # triple[2]: (reviews_url, [{'review1_key1':'review1_value1'}, {'review2_key1':'review2_value1'}])
+#                         assert len(triple[2]) == 3
+#                         reviews_url = triple[2][0]
+#                         init_reviews_list = triple[2][1]
+#                         for review in init_reviews_list:
+#                             review.update(
+#                                 {"reviews_url": reviews_url,
+#                                  "item_name": item_name}
+#                             )
+#                     else:
+#                         init_reviews_list = []
+#             except Exception as e:
+#                 logger.error(e)
+#                 details_to_mongo = {}
+#                 init_reviews_list = []
+#             try:
+#                 results.append({"step_0": [details_to_mongo], "step_1": init_reviews_list})
+#             except Exception as e:
+#                 results.append({"step_0": [[]], "step_1": []})
+#         return {"step_0": [x.get('step_0') for x in results], "step_1": [x.get("step_1") for x in results]}
 
 class AttemptProductsDo(Do):  # trace decendants after lunch
     def process(self, data: Iterable) -> Dict[StepNum, pd.DataFrame]:
@@ -155,7 +161,6 @@ class ReadChainSearchParsePart1:
         assert len(product_names_to_scrape) > 0
         return {'step_0': product_names_to_scrape}
 
-
 class ReadChainSearchParsePart2:
     def __init__(self, readers: List[Read]):
         self.data = {}
@@ -167,6 +172,18 @@ class ReadChainSearchParsePart2:
             data=self.data[f'step_0']
         )
         return self.data
+
+class CleanSearchQueueDo(Do):
+    def process(self, data: Dict[StepNum, Any]) -> Dict[StepNum, Any]:
+        df_search_queue = data.get('step_0').get('step_0')
+        df_stopwords = data.get('step_1')
+        trash_tokens = df_stopwords[(df_stopwords['stopword'] > 0)]['index'].values.tolist()
+        good_tokens = set(df_stopwords['index']) - set(trash_tokens)
+        def filter_good_tokens(s: str):
+            return ' '.join([x for x in s.split(" ") if x in good_tokens])
+        # clean_search_query is new column to be searched on
+        df_search_queue['clean_search_query'] = df_search_queue['search_query'].apply(lambda x: filter_good_tokens(x))
+        return {'step_0': df_search_queue}
 
 
 class FillInDo(Do):
@@ -281,7 +298,19 @@ class ReviewsProductDetailsDo(Do):
     def process(self, data: Dict[StepNum, Any]) -> Dict[StepNum, Any]:
         assert isinstance(data, dict)
         data = data.get('step_0')
-        df = pd.DataFrame(data)
+        # flatten
+        container = []
+        for item in data:
+            d = {}
+            d['product_details_yandex_link'] = item.get('product_details_yandex_link')
+            d['product_name'] = item.get('product_name')
+            d['product_summary'] = item.get('product_summary')
+            d['product_rating_count'] = item.get('product_rating_dict', {}).get('ratingCount')
+            d['product_review_count'] = item.get('product_rating_dict', {}).get('reviewCount')
+            d['product_rating_value'] = item.get('product_rating_dict', {}).get('ratingValue')
+            container.append(d)
+        df = pd.DataFrame(container)
+
         df['product_rating_value'] = df['product_rating_value'].astype(float)
         df['product_rating_count'] = df['product_rating_count'].fillna(0).astype(int)
         df['product_review_count'] = df['product_review_count'].fillna(0).astype(int)
@@ -293,14 +322,10 @@ class ReviewsProductDetailsDo(Do):
         return {"step_0": df}
 
 
-
-
-
-
 if __name__ == '__main__':
     # config part
-    SCHEMA_NAME = 'washing_machine'
-    # PRODUCT_TYPE_NAME = 'Стиральная машина'  # Стиральная машина, Холодильник, Телевизор, 'Мобильный телефон'
+    SCHEMA_NAME = 'mobile'
+    PRODUCT_TYPE_NAME = 'Мобильный телефон'  # Стиральная машина, Холодильник, Телевизор, 'Мобильный телефон'
 
     # step 1. ItemList from sites to Postgres. Not: all three for each new product
 
@@ -328,7 +353,7 @@ if __name__ == '__main__':
     #         schema_name=SCHEMA_NAME,
     #         table_name=f'item_details_{SCHEMA_NAME}',
     #         insert_unique=True,
-    #         if_exists='append'),
+    #         if_exists='replace'),
     # )
     # ItemDetails_2_Postgres.run()
     # logger.warning('End - Job 2')
@@ -400,29 +425,60 @@ if __name__ == '__main__':
     #     )
     #     create_queue_table.run()
 
-    #
-    #
-    # step 2.6 - populate with google search
-    #
+
+    # step 2.6 - populate with google search -- good
+
     # populate_queue_table = Job(
     #     reader=ReadChain(
     #         readers=[
-    #             PostgresDataFrameRead(table=f'{SCHEMA_NAME}.search_queue', where=f""" searched is null or searched = 0 and search_query in (select name from {SCHEMA_NAME}.item_details_{SCHEMA_NAME} where COALESCE(CAST (offer_count AS FLOAT),0) > 25 ) """), # /*and (search_query ILIKE '%%LG%%' OR search_query ILIKE '%%SAMSUNG%%' OR search_query ILIKE '%%ELECTROLUX%%' OR search_query ILIKE '%%INDESIT%%'))*/
+    #             PostgresDataFrameRead(table=f'{SCHEMA_NAME}.new_search_queue', where=f""" searched = 0 /*and clean_search_query ilike '%%xiaomi%%'*/ and search_query in (select name from {SCHEMA_NAME}.item_details_{SCHEMA_NAME} where COALESCE(CAST (offer_count AS FLOAT),0) > 5 ) limit 10000 """), # /*and (search_query ILIKE '%%LG%%' OR search_query ILIKE '%%SAMSUNG%%' OR search_query ILIKE '%%ELECTROLUX%%' OR search_query ILIKE '%%INDESIT%%'))*/
     #             SearchRead()  # output: Dict[user_query, tuple(fridge.search_queue attributes)]
     #         ]),
     #     processor=SearchDo(),
     #     writer=PostgresDataFrameUpdate(
     #         schema_name=SCHEMA_NAME,
-    #         table_name='search_queue',
-    #         where_postgres_attribute='search_query',
+    #         table_name='new_search_queue',
+    #         where_postgres_attribute='search_query',  # must be unique, dirty search field
     #         where_dataframe_column_name='search_query',
     #     )
     # )
     # populate_queue_table.run()
-    # # general_llm.reload_router.reload()
+
+
+    # step 2.6.5 - correct search queue - delete
+    # correct_queue = Job(
+    #     reader=ReadChain(
+    #         readers=[
+    #             PostgresDataFrameRead(table=f'{SCHEMA_NAME}.search_queue',),
+    #             ExcelDataRead(filepath='/home/amstel/llm/sandbox/sq.xlsx'),
+    #         ]
+    #     ),
+    #     processor=CleanSearchQueueDo(),
+    #     writer=PostgresDataFrameWrite(schema_name=f'{SCHEMA_NAME}',table_name='search_queue', if_exists='replace'),
+    # )
+    # correct_queue.run()
+
+    # step 2.6.6 - good - parse yandex 09 11 2024
+    parse_yandex_scrapy = Job(
+        reader=ReadChainSearchParsePart2(readers=[PostgresDataFrameRead(f'{SCHEMA_NAME}.new_search_queue', where='searched = 1 and scraped = 0'), ParseRead()]),
+        processor=DoChainGlobal(processors=[
+            SetSearchQueueProcessedDo(),
+            YandexMarketDo()
+        ]),
+        writer=WriteChain(writers=[
+            PostgresDataFrameWrite(
+                schema_name=SCHEMA_NAME,
+                table_name='new_search_queue',
+                insert_unique=True,  #
+                index_column='clean_search_query',  # column to check uniqueness against,
+                if_exists = 'replace',  # what to do
+            ),
+            MongoWrite(operation='write', db_name=SCHEMA_NAME, collection_name='details_reviews'),
+        ])
+    )
+    parse_yandex_scrapy.run()
     # #
-    # #
-    #         # step 2.7
+    #         # step 2.7 - delete
     # parse_yandex = Job(
     #     reader=ReadChainSearchParsePart2(readers=[
     #         PostgresDataFrameRead(
@@ -448,24 +504,19 @@ if __name__ == '__main__':
     #     )
     # )
     # parse_yandex.run()
-    # # general_llm.reload_router.reload()
-    # print('Sleeping')
 
-    # time.sleep(1)
-    # except:
-    #     time.sleep(1)
 
     #
     # Job 5 - Mongo Details -> PostgresDetails
     # ReviewsProductDetails = Job(
-    #     reader=MongoRead(operation='read', db_name=SCHEMA_NAME, collection_name='product_details'),
+    #     reader=MongoRead(operation='read', db_name=SCHEMA_NAME, collection_name='details_reviews'),
     #     processor=ReviewsProductDetailsDo(),
     #     writer=PostgresDataFrameWrite(
     #         schema_name=SCHEMA_NAME,
     #         table_name='reviews_product_details',
     #         insert_unique=True,
     #         index_column='product_name',
-    #         if_exists='append'
+    #         if_exists='replace'
     #     )
     # )
     # ReviewsProductDetails.run()

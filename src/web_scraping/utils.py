@@ -1,5 +1,5 @@
 # todo: ? save html bodies to mongo
-
+DEBUG = False
 import sys
 
 import pandas as pd
@@ -51,6 +51,29 @@ class MicrodataExtractor:
     @staticmethod
     def get_mdata(body):
         return extruct.extract(body, syntaxes=['microdata'])
+
+    @staticmethod
+    def get_mdata_jsonld(body):
+        return extruct.extract(body, syntaxes=['json-ld'])
+
+    @staticmethod
+    def yandex_review_extractor(mdata: Dict) -> Dict[str, str]:
+        product_summary = mdata.get('description') # str
+        product_name = mdata.get('name')  # str
+        product_rating_dict = mdata.get('aggregateRating')
+        reviews = mdata.get('review')
+        product_reviews = dict((str(i), {}) for i, _ in enumerate(reviews))
+        for i, review in enumerate(reviews):
+            product_reviews[str(i)]['ratingValue'] = review.get('reviewRating', {}).get('ratingValue')
+            product_reviews[str(i)]['reviewBody'] = review.get('reviewBody', {})
+            product_reviews[str(i)]['positiveNotes'] = review.get('positiveNotes', {}).get('itemListElement', {}).get('name')
+            product_reviews[str(i)]['negativeNotes'] = review.get('negativeNotes', {}).get('itemListElement', {}).get('name')
+        return {
+            'product_summary': product_summary,  # str
+            'product_name': product_name,  # str
+            'product_rating_dict': product_rating_dict,  # dict
+            'product_reviews': product_reviews,  # dict
+        }
 
     @staticmethod
     def breadcrumbs(mdata: Dict) -> List[Dict[str, str]]:
@@ -125,7 +148,7 @@ class MicrodataExtractor:
             if el.get('type') == 'https://schema.org/Product':
                 _item_properties = el['properties']
                 item_features['name'] = _item_properties.get('name')
-                item_features['product_url'] = _item_properties.get('url')
+                item_features['product_url'] = 'https://shop.by' + _item_properties.get('url')
                 # item_features['image_url'] = _item_properties.get('image')  # let's get image url from item_list
                 _offers_properties = _item_properties.get('offers').get('properties')
                 item_features['offer_count'] = _offers_properties.get('offerCount')
@@ -371,19 +394,69 @@ class ProductSpider(CrawlSpider):
     def close(self, spider, reason):
         self.output_callback(self.products)
 
+class ReviewSpider(CrawlSpider):
+    name = 'product'
+
+    def __init__(self, *a, **kw):
+        logger.critical(kw)
+        # get_url_from_db = kw.get('args').get('get_url_from_db')
+        # sql_from_table = kw.get('args').get('sql_from_table')
+        # where_clause = kw.get('args').get('where_clause')
+        #
+        # logger.info(f'get_url_from_db: {get_url_from_db}')
+
+        super(ReviewSpider, self).__init__(*a, **kw)
+        self.products = []
+        self.output_callback = kw.get('args').get('callback')
+
+        if kw.get('args').get('urls'):
+            self.urls = kw.get('args').get('urls')
+            # assert sql_from_table
+            # assert where_clause
+            # logger.debug(sql_from_table, where_clause)
+            # df = select_data(table=sql_from_table, where=where_clause)
+            # if df.shape[0] > 0:
+            #     self.urls = df['product_url'].tolist()
+        else:
+            self.urls = []
+
+    def start_requests(self):
+        if not self.urls:
+            self.urls = [
+                'https://reviews.yandex.ru/product/samsung-galaxy-a55--341777076',
+            ]
+        for url in self.urls:
+            yield scrapy.Request(url=url, callback=self.parse)
+
+    @logger.catch
+    def parse(self, response):
+        if response.status == 404:
+            raise CloseSpider('Recieve 404 response')
+        mdata = MicrodataExtractor.get_mdata_jsonld(response.body).get('json-ld')[0]  # now it's a dict
+        product = MicrodataExtractor.yandex_review_extractor(mdata,)  # dict with 4 keys - 2 str, 2 dicts
+        link = response.url
+        if 'redirect' in link:
+            link = link[:link.find('redirect')]
+            link = link.strip('?')
+        product['product_details_yandex_link'] = link  # key for join later
+        self.products.append(product)
+
+    def close(self, spider, reason):
+        self.output_callback(self.products)
+
 class CustomCrawler:
     def __init__(self, **kwargs):
         self.output = None
         self.crawl_args_update = kwargs
-        # logger.warning(f'kwargs: {kwargs}')
+        logger.warning(f'kwargs: {kwargs}')
         self.process = CrawlerProcess({
-            'USER_AGENT': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/34.0.1847.131 Safari/537.36',
+            'USER_AGENT': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
             'FEED_FORMAT': 'csv',
             'FEED_URI': 'output.csv',
             'DEPTH_LIMIT': 2,
             # 'CLOSESPIDER_PAGECOUNT': 3,
-            'DOWNLOAD_DELAY': 0,  # https://docs.scrapy.org/en/latest/topics/settings.html#std-setting-DOWNLOAD_DELAY
-            'RANDOMIZE_DOWNLOAD_DELAY': False,  # https://docs.scrapy.org/en/latest/topics/settings.html#std-setting-RANDOMIZE_DOWNLOAD_DELAY
+            'DOWNLOAD_DELAY': 2,  # https://docs.scrapy.org/en/latest/topics/settings.html#std-setting-DOWNLOAD_DELAY
+            'RANDOMIZE_DOWNLOAD_DELAY': True,  # https://docs.scrapy.org/en/latest/topics/settings.html#std-setting-RANDOMIZE_DOWNLOAD_DELAY
         })
 
     def yield_output(self, data):
@@ -433,6 +506,13 @@ class EcomProductRead(Read):
         )
         return out
 
+class YandexReviewsRead(Read):
+    def read(self, urls: List[str]) -> Dict[StepNum, Any]:
+        out = crawl_static(
+            ReviewSpider,
+            urls=urls
+        )
+        return out
     # def read_threading(self, product_names_to_scrape: Set) -> Any:
     #     ex = pool.ThreadPoolExecutor(max_workers=1,
     #                                  thread_name_prefix='thread_',
@@ -476,11 +556,13 @@ class SearchRead(Read):
     def read(self, data: Dict[StepNum, str]) -> Dict[StepNum, Dict[str, tuple]]:
         assert isinstance(data, dict)
 
+        #
         # cols: search_query, product_yandex_name, processed, product_details_yandex_link, product_reviews_yandex_link
         product_url_2_details = {}
         search_queue_df = data.get('step_0').get('step_0')
+        search_queue_df = search_queue_df.drop_duplicates(subset='clean_search_query').drop('search_query', axis=1)
         logger.debug(search_queue_df.columns)
-        for user_query in search_queue_df['search_query'].unique():
+        for user_query in search_queue_df['clean_search_query'].unique():
             try:
                 product_url, reviews_url, product_yandex_name, interrupt = search_google_parse_results(user_query)
             except Exception as e:
@@ -494,9 +576,27 @@ class SearchRead(Read):
         return {'step_0': product_url_2_details}
 
 
-
-
 class ParseRead(Read):
+    def read(self, data: Dict[StepNum, str]={'step_0':pd.DataFrame()}) -> Tuple[str, Tuple[str, Dict], Tuple[str, List[Dict]]]:
+        assert isinstance(data, dict)
+        self.triplets = {}
+        logger.debug(type(data))
+        df = data.get('step_0')
+        assert isinstance(df, pd.DataFrame)
+        df = df[df['product_details_yandex_link'].notnull()]
+        df.drop_duplicates(subset='product_details_yandex_link', inplace=True)
+        # urls = ["https://reviews.yandex.ru/product/samsung-galaxy-a13--1754167695"]
+        urls = df['product_details_yandex_link'].values.tolist()
+        if DEBUG:
+            urls = urls[:2]
+        yandex_reviews_reader = YandexReviewsRead()
+        some_output = yandex_reviews_reader.read(urls=urls)
+        # data = extruct.extract(soup.prettify(), syntaxes=['microdata']).get('microdata')
+        # parsing_output = parse_func(mdata)
+        return some_output
+
+
+class ParseRead_delete(Read):
     def read(self, data: Dict[StepNum, str]) -> Tuple[str, Tuple[str, Dict], Tuple[str, List[Dict]]]:
         assert isinstance(data, dict)
         self.triplets = {}

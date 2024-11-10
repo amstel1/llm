@@ -1,4 +1,6 @@
 import sys
+
+
 sys.path.append('/home/amstel/llm/src')
 import pickle
 import pandas as pd
@@ -51,8 +53,14 @@ class PostgresDataFrameWrite(Write):
                             con=connection_str,
                         )
                         if self.index_column in df.columns and self.index_column in data.columns:
-                            data = data[~data[self.index_column].isin(df[self.index_column])]  # only unique remain
-                            data = data[data[self.index_column].notnull()]
+                            old_df = df
+                            new_df = data
+                            data = pd.concat([
+                                old_df[~old_df[self.index_column].isin(new_df[self.index_column])],
+                                new_df
+                            ], axis=0)
+                            # data = data[~data[self.index_column].isin(df[self.index_column])]  # only unique remain
+                            # data = data[data[self.index_column].notnull()]
                             logger.warning(f'after unique -- {data.shape}')
                     except Exception as e:
                         logger.error(f"error -- insertion uniqueness not satisfied: {e}")
@@ -84,7 +92,7 @@ class PostgresDataFrameWrite(Write):
             logger.critical(f'Sorry failed to connect: {ex}')
 
 class PostgresDataFrameUpdate(Write):
-    # update is delete + insert
+    # update is __read__ delete + insert
     def __init__(self,
                 schema_name: str,
                 table_name: str,
@@ -95,9 +103,10 @@ class PostgresDataFrameUpdate(Write):
             schema_name=schema_name,
             table_name=table_name,
             insert_unique=False,
-            index_column='search_query',
+            index_column='clean_search_query',
             if_exists='append',
         )
+        self.reader = PostgresDataFrameRead(table=f'{schema_name}.{table_name}')
         self.schema_name = schema_name
         self.table_name = table_name
         self.where_postgres_attribute = where_postgres_attribute
@@ -109,9 +118,39 @@ class PostgresDataFrameUpdate(Write):
             data: Dict[StepNum, pd.DataFrame],
     ):
         assert isinstance(data, dict)
-        data = data.get("step_0")
+        data = data.get("step_0")  # to be written
+        if 'product_reviews_yandex_link' in data.columns: data.drop('product_reviews_yandex_link', axis=1, inplace=True)
+        data.rename(columns={
+            'search_query':'clean_search_query',
+            'product_yandex_name':'product_yandex_name_incoming',
+            'searched': 'searched_incoming',
+            'product_details_yandex_link': 'product_details_yandex_link_incoming',
+            'scraped': 'scraped_incoming',
+        }, inplace=True)  # clean_search_query (key), product_yandex_name +', 'searched +', 'product_details_yandex_link +', 'product_reviews_yandex_link', 'scraped +'
         logger.warning(data.shape)
         logger.info(data.head())
+        init_data = self.reader.read().get("step_0") # cnt_clean_search_query, clean_search_query (key), search_query, searched,discard, product_details_yandex_link, scraped
+        init_data_cols = init_data.columns
+        init_data.rename(columns={
+            'product_yandex_name':'product_yandex_name_present',
+            'searched': 'searched_present',
+            'product_details_yandex_link': 'product_details_yandex_link_present',
+            'scraped': 'scraped_present',
+        }, inplace=True)
+        init_data = init_data.merge(data, 'left', on='clean_search_query')
+        def combine(df: pd.DataFrame, col_name:str):
+            df[col_name] = df[f'{col_name}_incoming'].combine_first(df[f'{col_name}_present'])
+            df.drop([f'{col_name}_incoming', f'{col_name}_present'], axis=1, inplace=True)
+            return df
+        for col in [
+            'product_yandex_name',
+            'searched',
+            'product_details_yandex_link',
+            'scraped'
+        ]:
+            init_data = combine(init_data, col)
+        init_data = init_data[init_data_cols]
+        data = init_data.drop_duplicates()
         try:
             connection_str = f'postgresql://{user}:{password}@{host}:{port}/{database}'
             engine = create_engine(connection_str)
