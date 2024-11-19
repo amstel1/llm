@@ -59,8 +59,8 @@ if __name__ == '__main__':
     for db_name in (
             # 'fridge',
             # 'tv',
-            'mobile',
-            # 'washing_machine',
+            # 'mobile',
+            'washing_machine',
     ):
 
         # milvus insert

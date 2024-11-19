@@ -84,15 +84,15 @@ class ItemDetailsDo(Do):
         try:
             if  'internal_storage_gb' in df.columns:
                 df['internal_storage_gb'] = df['internal_storage_gb'].replace({'1 ТБ': '1024 Гб', '2 ТБ': '2048 Гб', '1 Тб': '1024 Гб', '1Тб': '1024 Гб', '2 Тб': '2048 Гб'})
-                df['internal_storage_gb'] = df['internal_storage_gb'].str.replace('меньше','').str.replace(' Гб','').str.replace(' ', '').astype(float).fillna(0)
+                df['internal_storage_gb'] = df['internal_storage_gb'].str.replace('Нет','').str.replace('меньше','').str.replace(' Гб','').str.replace(' ', '').astype(float).fillna(0)
         except:
             logger.error('internal_storage_gb')
 
         try:
             if  'ram_gb' in df.columns:
-                df['ram_gb'] = df['ram_gb'].str.replace('меньше', '').str.replace(' ', '')
+                df['ram_gb'] = df['ram_gb'].str.replace('меньше', '')
                 df['ram_gb'].replace({'256 Мб': '0.25 Гб', '512 Мб': '0.5 Гб', '768 Мб': '0.75 Гб'})
-                df['ram_gb'] = df['ram_gb'].str.replace(' Гб','').str.replace('Гб','').str.replace(' ', '').astype(float)
+                df['ram_gb'] = df['ram_gb'].str.replace('Нет','').str.replace(' ', '').str.replace(' Гб','').str.replace('Гб','').str.replace(' ', '').astype(float)
         except:
             logger.error('ram_gb')
 

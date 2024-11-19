@@ -342,20 +342,20 @@ if __name__ == '__main__':
     # step 2. Read: ItemList from Postgres, Do: Scrapy ProductDetails, Write: to Postgres
 
     # logger.warning('Start - Job 2')
-    # ItemDetails_2_Postgres = Job(
-    #     reader=ItemDetailsRead(
-    #         step1__table=f'{SCHEMA_NAME}.product_item_list',
-    #         step1__where="product_url ilike '%%shop.by%%'",
-    #         step1_urls_attribute='product_url'
-    #     ),
-    #     processor=ItemDetailsDo(product_type_name=PRODUCT_TYPE_NAME),
-    #     writer=PostgresDataFrameWrite(
-    #         schema_name=SCHEMA_NAME,
-    #         table_name=f'item_details_{SCHEMA_NAME}',
-    #         insert_unique=True,
-    #         if_exists='replace'),
-    # )
-    # ItemDetails_2_Postgres.run()
+    ItemDetails_2_Postgres = Job(
+        reader=ItemDetailsRead(
+            step1__table=f'{SCHEMA_NAME}.product_item_list',
+            step1__where="product_url ilike '%%shop.by%%'",
+            step1_urls_attribute='product_url'
+        ),
+        processor=ItemDetailsDo(product_type_name=PRODUCT_TYPE_NAME),
+        writer=PostgresDataFrameWrite(
+            schema_name=SCHEMA_NAME,
+            table_name=f'item_details_{SCHEMA_NAME}',
+            insert_unique=True,
+            if_exists='replace'),
+    )
+    ItemDetails_2_Postgres.run()
     # logger.warning('End - Job 2')
 
 
@@ -508,18 +508,18 @@ if __name__ == '__main__':
 
     #
     # Job 5 - Mongo Details -> PostgresDetails
-    ReviewsProductDetails = Job(
-        reader=MongoRead(operation='read', db_name=SCHEMA_NAME, collection_name='details_reviews'),
-        processor=ReviewsProductDetailsDo(),
-        writer=PostgresDataFrameWrite(
-            schema_name=SCHEMA_NAME,
-            table_name='reviews_product_details',
-            insert_unique=True,
-            index_column='product_name',
-            if_exists='replace'
-        )
-    )
-    ReviewsProductDetails.run()
+    # ReviewsProductDetails = Job(
+    #     reader=MongoRead(operation='read', db_name=SCHEMA_NAME, collection_name='details_reviews'),
+    #     processor=ReviewsProductDetailsDo(),
+    #     writer=PostgresDataFrameWrite(
+    #         schema_name=SCHEMA_NAME,
+    #         table_name='reviews_product_details',
+    #         insert_unique=True,
+    #         index_column='product_name',
+    #         if_exists='replace'
+    #     )
+    # )
+    # ReviewsProductDetails.run()
 
     # # todo: correct empty rating from postgres view - decide in Job 3 what to scrape based on that
     #

@@ -23,10 +23,10 @@ if __name__ == '__main__':
         FieldSchema(name="a", dtype=DataType.VARCHAR, max_length=2048),
     ]
     for sheet_name in (
-            'mobile',
+            # 'mobile',
             # 'tv',
             # 'fridge',
-            # 'washing_machine',
+            'washing_machine',
         ):
 
         # milvus insert

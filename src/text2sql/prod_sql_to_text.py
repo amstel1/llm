@@ -129,8 +129,8 @@ class SqlToText:
         logger.info(f'sql df - after filters on price and rating -- {df.shape}')
         if 'name' in df.columns:
             if df['name'].nunique() != df.shape[0]:
-                if 'rating_count' in df.columns:
-                    df.sort_values(['rating_count',], ascending=[False,], inplace=True)
+                # if 'rating_count' in df.columns:
+                #     df.sort_values(['rating_count',], ascending=[False,], inplace=True)
                 df.drop_duplicates(subset=['name'], keep='first', inplace=True)
         logger.warning(f'{df.shape}')
         logger.warning(f'{df.head()}')

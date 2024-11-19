@@ -1,5 +1,5 @@
 class InterestCalculator:
-    annual_interest_rate = 0.1722
+    annual_interest_rate = 0.1771
     def gpt4o(self, loan_sum, month_duration):
         payments = {}
         principal_payment = round((loan_sum / month_duration), 2)
