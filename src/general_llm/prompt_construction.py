@@ -134,3 +134,36 @@ class ChatMLPromptTemplate:
         return template
 
 ############################################
+
+from typing import List, Dict
+
+# more: https://ollama.com/sammcj/qwen2.5-coder-7b-instruct:q8_0/blobs/2126f41f4efd
+class Qwen25PromptTemplate:
+    def create_statement(self, role: str, content: str):
+        assert role in ('system', 'user', 'assistant')
+        assert content
+        return f"<|im_start|>{role}\n{content}<|im_end|>\n"
+
+    def create_prompt_from_history(self, system_prompt_clean: str, chat_history: List[Dict[str, str]], assistant_must_start_with: str = None):
+        template = ""
+        if system_prompt_clean:
+            template += self.create_statement(role='system', content=system_prompt_clean)
+        if chat_history:
+            for message in chat_history:
+                role = message.get('role')
+                content = message.get('content')
+                template += self.create_statement(role=role, content=content)
+        template += "<|im_start|>assistant"
+        if assistant_must_start_with:
+            template += f"\n{assistant_must_start_with}"
+        return template
+
+    def create_prompt_from_user_query(self, system_prompt_clean: str, user_query: str, assistant_must_start_with: str = None):
+        template = ""
+        if system_prompt_clean:
+            template += self.create_statement(role='system', content=system_prompt_clean)
+        template += self.create_statement(role='user', content=user_query)
+        template += "<|im_start|>assistant"
+        if assistant_must_start_with:
+            template += f"\n{assistant_must_start_with}"
+        return template

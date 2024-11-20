@@ -1,5 +1,5 @@
-MODEL_NAME = 'llama'
-assert MODEL_NAME in ('llama', 'gemma', 'chatml')
+MODEL_NAME = 'qwen'
+assert MODEL_NAME in ('llama', 'gemma', 'chatml', 'qwen', 'qwen-coder')
 import json
 from fastapi import FastAPI
 from pydantic import BaseModel
@@ -13,7 +13,7 @@ from loguru import logger
 
 import sys
 sys.path.append('/home/amstel/llm/src')
-from general_llm.prompt_construction import Llama3PromptTemplate, Gemma2PromptTemplate, parse_markup_chat_history, ChatMLPromptTemplate
+from general_llm.prompt_construction import Llama3PromptTemplate, Gemma2PromptTemplate, parse_markup_chat_history, ChatMLPromptTemplate, Qwen25PromptTemplate
 from llama_cpp import Llama, LlamaGrammar
 from typing import Union, Optional
 import requests
@@ -103,7 +103,8 @@ if 'llama' in MODEL_NAME.lower():
     async def load_llm():
         global llm
         llm = Llama(
-            model_path='/home/amstel/llm/models/Publisher/Repository/Meta-Llama-3-8B-Instruct-Q6_K.gguf',
+            # model_path='/home/amstel/llm/models/Publisher/Repository/Meta-Llama-3-8B-Instruct-Q6_K.gguf',
+            model_path='/home/amstel/llm/models/lmstudio-community/Meta-Llama-3.1-8B-Instruct-GGUF/Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf',
             n_gpu_layers=33,
             max_tokens=-1,
             n_batch=512,
@@ -161,6 +162,48 @@ elif 'chatml' in MODEL_NAME.lower():
         @app.get("/")
         async def hello() -> dict[str, str]:
             return {"model_name": "hermes"}
+elif 'qwen' in MODEL_NAME.lower() and 'coder' not in MODEL_NAME.lower():
+    @app.on_event("startup")
+    async def load_llm():
+        global llm
+        llm = Llama(
+            model_path='/home/amstel/llm/models/lmstudio-community/Qwen2.5-7B-Instruct-GGUF/Qwen2.5-7B-Instruct-Q4_K_M.gguf',
+            n_gpu_layers=28,
+            max_tokens=-1,
+            n_batch=512,
+            n_ctx=8192,
+            f16_kv=True,
+            verbose=True,
+            temperature=0.0,
+            flash_attn=True,
+        )
+        global eot_list
+        eot_list = ['<im_end>']
+
+        @app.get("/")
+        async def hello() -> dict[str, str]:
+            return {"model_name": "qwen"}
+elif 'qwen' in MODEL_NAME.lower() and 'coder' in MODEL_NAME.lower():
+    @app.on_event("startup")
+    async def load_llm():
+        global llm
+        llm = Llama(
+            model_path='/home/amstel/llm/models/lmstudio-community/Qwen2.5-Coder-7B-Instruct-GGUF/Qwen2.5-Coder-7B-Instruct-Q4_K_M.gguf',
+            n_gpu_layers=28,
+            max_tokens=-1,
+            n_batch=512,
+            n_ctx=8192,
+            f16_kv=True,
+            verbose=True,
+            temperature=0.0,
+            flash_attn=True,
+        )
+        global eot_list
+        eot_list = ['<im_end>']
+
+        @app.get("/")
+        async def hello() -> dict[str, str]:
+            return {"model_name": "qwen-coder"}
 
 @app.post("/generate-from-history")
 async def generate_from_history(input_data: LLMEndpointInput) -> Dict[str, Any]:
@@ -182,6 +225,8 @@ async def generate_from_history(input_data: LLMEndpointInput) -> Dict[str, Any]:
     if 'llama' in MODEL_NAME: prompt_template = Llama3PromptTemplate
     if 'gemma' in MODEL_NAME: prompt_template = Gemma2PromptTemplate
     if 'chatml' in MODEL_NAME: prompt_template = ChatMLPromptTemplate
+    if 'qwen' in MODEL_NAME: prompt_template = Qwen25PromptTemplate
+    # qwen25
     prompt_str = prompt_template().create_prompt_from_history(
         system_prompt_clean=system_prompt,
         chat_history=chat_history,
@@ -229,6 +274,7 @@ async def generate_from_query(input_data: LLMEndpointInput) -> Dict[str, Any]:
     if 'llama' in MODEL_NAME: prompt_template = Llama3PromptTemplate
     if 'gemma' in MODEL_NAME: prompt_template = Gemma2PromptTemplate
     if 'chatml' in MODEL_NAME: prompt_template = ChatMLPromptTemplate
+    if 'qwen' in MODEL_NAME: prompt_template = Qwen25PromptTemplate
     prompt_str = prompt_template().create_prompt_from_user_query(
         system_prompt_clean=system_prompt,
         user_query=user_prompt,

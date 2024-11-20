@@ -23,7 +23,7 @@ import json
 from sqlparse.sql import Where
 import sqlparse
 from sqlparse import tokens as T
-from general_llm.prompt_construction import Llama3PromptTemplate, Gemma2PromptTemplate, ChatMLPromptTemplate
+from general_llm.prompt_construction import Llama3PromptTemplate, Gemma2PromptTemplate, ChatMLPromptTemplate, Qwen25PromptTemplate
 import sqlparse
 from sqlparse.sql import Where, Identifier, Comparison
 from sqlparse.tokens import Keyword, DML
@@ -242,6 +242,7 @@ class SqlToText:
         if 'llama' in MODEL_NAME: prompt_template = Llama3PromptTemplate
         if 'gemma' in MODEL_NAME: prompt_template = Gemma2PromptTemplate
         if 'chatml' in MODEL_NAME: prompt_template = ChatMLPromptTemplate
+        if 'qwen' in MODEL_NAME: prompt_template = Qwen25PromptTemplate
         str_prompt = prompt_template().create_prompt_from_user_query(
             system_prompt_clean=system_prompt,
             user_query=user_prompt,
