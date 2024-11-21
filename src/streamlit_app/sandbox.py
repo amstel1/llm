@@ -70,8 +70,14 @@ def on_toggle_change(toggle_state):
 
 
 def create_grid(products: list):
-    logger.critical(len(products))
-    logger.critical(products[0])
+    # logger.critical(len(products))
+    # logger.critical(products[0])
+    item_display = ItemDisplay(
+        duration_2_terms=None,  # legacy, unused
+        sql_result_ix=None, # legacy, unused
+        items=products,
+        necessary_product_attributes_list=[],
+    )
     # wildberries grid
     with st.container():
         grid_container = st.container()
@@ -80,9 +86,10 @@ def create_grid(products: list):
             with grid_container:
                 for j, product in enumerate(products[i*5:(i+1)*5]):
                     with cols[j]:
-                        st.image(product["product_image_url"], width=100)
-                        st.write(f"**{product['name']}**")
-                        st.write(product["price"])
+                        item_display.display_item(old_item=product, upper=False)
+                        # st.image(product["product_image_url"], width=100)
+                        # st.write(f"**{product['name']}**")
+                        # st.write(product["price"])
 
 
 

@@ -33,7 +33,7 @@ class ItemDisplay:
             if col not in self.necessary_product_attributes_list:
                 self.necessary_product_attributes_list.append(col)
 
-    def display_item(self, old_item, upper=False):
+    def display_item(self, old_item: dict, upper=False):
         inverse_product_attributes_dict = name_2_attribute.get(
             st.session_state.context['sql_schema'])  # dict {rus property name: eng property name}
         all_product_attributes_dict = {v: k for k, v in inverse_product_attributes_dict.items()}
