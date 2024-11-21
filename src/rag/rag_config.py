@@ -1,13 +1,13 @@
 # EMBEDDING
 EMBEDDING_MODEL_NAME = 'BAAI/bge-m3'
-N_EMBEDDING_RESULTS = 4  # 20 for sberbank consultant, 5 for sql rag
+N_EMBEDDING_RESULTS = 25  # 20 for sberbank consultant, 5 for sql rag
 ELBOW_EMBEDDING = True
 # RERANKING
 RERANKING_MODEL = 'BAAI/bge-reranker-v2-m3' # 'ms-marco-MultiBERT-L-12'  # ms-marco-MultiBERT-L-12 / rank-T5-flan
 USE_RERANKER = True
-N_RERANK_RESULTS = 3
+N_RERANK_RESULTS = 10
 ELBOW_RERANKING = True
-RERANKING_THRESHOLD = 0.09
+RERANKING_THRESHOLD = 0.01
 
 MOST_RELEVANT_AT_THE_TOP = True  # False means relevant result are close to the output, seems to work better
 

@@ -10,7 +10,7 @@ from langchain_core.documents import BaseDocumentCompressor, Document
 from langchain_core.pydantic_v1 import Extra, root_validator
 from langchain_core.utils import get_from_dict_or_env
 from loguru import logger
-from .rag_config import RERANKING_THRESHOLD
+from .rag_config import RERANKING_THRESHOLD, N_RERANK_RESULTS, USE_RERANKER, RERANKING_MODEL
 
 class MarkdownTextSplitter(TextSplitter):
     def __init__(self, patterns = [r"\*\*(.*?)\*\*"]):
@@ -36,10 +36,10 @@ class MarkdownTextSplitter(TextSplitter):
 from FlagEmbedding import FlagReranker
 
 class BGEDocumentCompressor(BaseDocumentCompressor):
-    model_name_or_path: str = 'BAAI/bge-reranker-v2-m3'
+    model_name_or_path: str = RERANKING_MODEL
     use_fp16: bool = False
     device: str = 'cpu'
-    top_n: int = 5
+    top_n: int = N_RERANK_RESULTS
     top_n = max(1, top_n)
     client = FlagReranker(
         model_name_or_path=model_name_or_path,
@@ -332,3 +332,5 @@ class ExtendedMilvusCollectionHybridSearchRetriever(BaseRetriever):
 #     def load_bse_model(self, filepath='router_bm25_model.pkl'):
 #         with open(filepath, 'rb') as f:
 #             self.bse = pickle.load(f)
+
+

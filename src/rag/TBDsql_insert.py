@@ -12,6 +12,7 @@ from pymilvus import (
 from rag_config import EMBEDDING_MODEL_NAME
 
 if __name__ == '__main__':
+    raise DeprecationWarning  # устарело
 
     # Specify the device to use, e.g., 'cpu' or 'cuda:0'
     # Specify whether to use fp16. Set to `False` if `device` is `cpu`.

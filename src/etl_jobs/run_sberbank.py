@@ -3,7 +3,7 @@ import sys
 sys.path.append('/home/amstel/llm/src')
 from web_scraping.bank_scraper.sberbank_scraper import SberbankWebsiteRead
 from rag.make_summary import SberbankWebsiteSummaryDo
-from rag.hybrid_rag_insert_w_summary import SberbankWebsiteSummaryWrite
+from rag.hybrid_rag_insert_to_milvus import SberbankWebsiteSummaryWrite
 from loguru import logger
 
 class DoWriteJob(Job):

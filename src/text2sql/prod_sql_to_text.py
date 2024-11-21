@@ -1,12 +1,15 @@
 import sql_metadata
 from loguru import logger
 import sys
+import pickle
+# from scripts.trash.chatbot_quickstart import retriever
+
 sys.path.append('/home/amstel/llm/src')
 from postgres.config import user, password, host, port, database
 from typing import List
 from general_llm.llm_endpoint import call_generate_from_query_api, call_generation_api, call_generate_from_history_api, MODEL_NAME
 from sqlalchemy.sql import text
-from rag.rag_config import N_EMBEDDING_RESULTS, EMBEDDING_MODEL_NAME, ELBOW_EMBEDDING, MOST_RELEVANT_AT_THE_TOP
+
 from langchain_community.embeddings import HuggingFaceEmbeddings
 import re
 import pandas as pd
@@ -17,7 +20,8 @@ from pymilvus import (
     FieldSchema,
     WeightedRanker,
     connections,
-    MilvusClient
+    MilvusClient,
+    RRFRanker,
 )
 import json
 from sqlparse.sql import Where
@@ -28,6 +32,13 @@ import sqlparse
 from sqlparse.sql import Where, Identifier, Comparison
 from sqlparse.tokens import Keyword, DML
 import sql_metadata
+
+from rag.utils import ExtendedMilvusCollectionHybridSearchRetriever as MilvusCollectionHybridSearchRetriever
+from rag.utils import BGEDocumentCompressor
+from rag.rag_config import N_RERANK_RESULTS, USE_RERANKER, RERANKING_MODEL, ELBOW_RERANKING
+from langchain.retrievers import ContextualCompressionRetriever
+from rag.rag_config import N_EMBEDDING_RESULTS, EMBEDDING_MODEL_NAME, ELBOW_EMBEDDING, MOST_RELEVANT_AT_THE_TOP
+
 
 def update_sql_statement(sql_statement: str, new_where_clause: str):
     sql_statement = sql_statement.replace('  ', ' ').replace('\n', ' ').replace('\t', ' ')
@@ -136,8 +147,76 @@ class SqlToText:
         logger.warning(f'{df.head()}')
         return df
 
+    def _get_retiever(self, schema_name:str, user_query:str):
+        user_query = user_query.lower()  # need this decide if we can use nybrid instead of dense retriever
+
+        sparse_search_params = {"metric_type": "IP"}
+        dense_search_params = {"metric_type": "IP", "params": {}}
+
+        CONNECTION_URI = "http://localhost:19530"
+        connections.connect(uri=CONNECTION_URI, db_name=schema_name)
+        # these are fields in milvus Q(user says in russian)&A(sql query) few shot prompt
+        fields = [
+            FieldSchema(name="q", dtype=DataType.VARCHAR, is_primary=True, max_length=2048, ),
+            FieldSchema(name="q_dense_vector", dtype=DataType.FLOAT_VECTOR, dim=1024),
+            FieldSchema(name="q_sparse_vector", dtype=DataType.SPARSE_FLOAT_VECTOR),
+            FieldSchema(name="a", dtype=DataType.VARCHAR, max_length=2048),
+        ]
+        schema = CollectionSchema(fields=fields, enable_dynamic_field=False)  # зачем?
+        collection = Collection(name='q_a_index', schema=schema)  # schema Schema type must be schema.CollectionSchema
+        if not self.sparse_embedding_model.embed_query(user_query):
+            # empty bm25
+            retriever = MilvusCollectionHybridSearchRetriever(
+                collection=collection,
+                rerank=WeightedRanker(1.0),
+                anns_fields=['q_dense_vector'],
+                field_embeddings=[self.dense_embedding_model],
+                field_search_params=[dense_search_params],
+                top_k=N_EMBEDDING_RESULTS,
+                text_field="a",
+                use_elbow_for_embedding=ELBOW_EMBEDDING,
+            )
+        else:
+            retriever = MilvusCollectionHybridSearchRetriever(
+                collection=collection,
+                rerank=WeightedRanker(0.75, 0.25),
+                # rerank=RRFRanker(k=60),
+                anns_fields=['q_dense_vector', 'q_sparse_vector'],
+                field_embeddings=[self.dense_embedding_model, self.sparse_embedding_model],
+                field_search_params=[dense_search_params, sparse_search_params],
+                top_k=N_EMBEDDING_RESULTS,
+                text_field="a",
+                use_elbow_for_embedding=ELBOW_EMBEDDING,
+            )
+
+
+        if USE_RERANKER:
+            compressor = BGEDocumentCompressor(
+                top_n=N_RERANK_RESULTS,
+                model_name_or_path=RERANKING_MODEL,
+                elbow=ELBOW_RERANKING,
+                most_relevant_at_the_top=MOST_RELEVANT_AT_THE_TOP,
+            )
+            compression_retriever = ContextualCompressionRetriever(
+                base_compressor=compressor, base_retriever=retriever
+            )
+            return compression_retriever
+        return retriever
+
     def sql_query(self, schema_name: str, user_query: str, predefined_sql: str = None) -> pd.DataFrame | str:
         '''returns df with results and sql query'''
+
+        # load dense and sparse retrieval models for this schema
+        self.dense_embedding_model = HuggingFaceEmbeddings(
+            model_name=EMBEDDING_MODEL_NAME,  #
+            model_kwargs={'device': 'cpu',}
+        )
+        with open(f'/home/amstel/llm/src/rag/FewShotQA_{schema_name}.pkl', 'rb') as f:
+            self.sparse_embedding_model = pickle.load(f)
+        assert self.dense_embedding_model
+        assert self.sparse_embedding_model
+
+        user_query = user_query.lower()
         assert schema_name in ('washing_machine', 'fridge', 'tv', 'mobile',)
         uri = f"postgresql://{host}:{port}/{database}?user={user}&password={password}"
         if predefined_sql:
@@ -150,44 +229,19 @@ class SqlToText:
             df = self.postprocess_df(df)
             return df, predefined_sql
 
-        # index user_query
-        dense_embedding_model = HuggingFaceEmbeddings(
-            model_name=EMBEDDING_MODEL_NAME,  #
-            model_kwargs={'device': 'cpu',}
-        )
-        # fields = [
-        #     FieldSchema(name="attribute_name_eng", dtype=DataType.VARCHAR, max_length=1024),
-        #     FieldSchema(name="attribute_name_rus", dtype=DataType.VARCHAR, is_primary=True, max_length=1024, ),
-        #     FieldSchema(name="attribute_name_rus_vector", dtype=DataType.FLOAT_VECTOR, dim=1024),
-        #     FieldSchema(name="attribute_type", dtype=DataType.VARCHAR, max_length=4),  # may only be real / text1
-        # ]
-        # CONNECTION_URI = "http://localhost:19530"
-        # connections.connect(uri=CONNECTION_URI, db_name=schema_name)
 
-        data = dense_embedding_model.embed_query(text=user_query)
-        client = MilvusClient(db_name=schema_name)
 
-        # get most relevant Q&A examples for the few-shots
-        examples_retrieved = client.search(
-            collection_name="q_a_index",  # Replace with the actual name of your collection
-            # Replace with your query vector
-            data=[data],
-            limit=N_EMBEDDING_RESULTS,  # Max. number of search results to return
-            search_params={"metric_type": "IP", "params": {}},  # Search parameters
-            output_fields=['q', 'q_vector', 'a']
-        )
-        assert isinstance(examples_retrieved, list)
-        # logger.error(f'0911--examples_retrieved: {examples_retrieved}')
-        json_examples_retrieved = examples_retrieved[0]
+        retriever = self._get_retiever(schema_name=schema_name, user_query=user_query)
+        json_examples_retrieved = retriever.invoke(user_query)
         assert isinstance(json_examples_retrieved, list)
         # json_examples_retrieved = json.load(examples_retrieved)
         examples = []
         answers = []
         for jsn in json_examples_retrieved:
-            entity = jsn.get('entity')
-            assert isinstance(entity, dict)
-            examples.append((entity.get("q"), entity.get("a"),))
-            answers.append(entity.get('a'))
+            q = jsn.metadata.get("q")
+            a = jsn.page_content
+            examples.append((q, a))
+            answers.append(jsn.page_content)
         few_shots = self.create_few_shot_examples(qa_pairs=examples)
 
         where_attributes_few_shots = set()
@@ -198,8 +252,13 @@ class SqlToText:
             where_attributes_few_shots.update(extracted_where_attributes)
         ###################################### start
         # create table description
-        # todo: Важно - переделать эту хуйню так:
+
+        # 21 11 2024 - нет необходимости подтягивать атрибуты для описания таблицы гибридом, dense достаточно
         # через sqlparse смотрим все атрибуты where из few-shot и тянем их сюда
+
+        data = self.dense_embedding_model.embed_query(text=user_query.lower())
+        client = MilvusClient(db_name=schema_name)
+
         attributes_retrieved = client.search(
             collection_name="postgres_table_attributes",  # list of attrs for each
             data=[data],
@@ -255,6 +314,7 @@ class SqlToText:
         response = call_generation_api(prompt=str_prompt, grammar=None, stop=['<|eot_id|>', '```', '```\n',])
         response_query = re.sub(r'(?i)\blike\b', 'ilike', response.strip().replace('\n', ' '))
         response_query = text(response_query)
+        response_query = 'SELECT * ' + response_query[response_query.upper().find('FROM'):]  # user might ask for specific attribute, we get all
         # replace like with ilike, but not ilike
 
         logger.warning(response_query)
@@ -276,7 +336,9 @@ if __name__ == '__main__':
     # user_query = 'Недорогая стиральная машина с хорошими характеристиками.'
     user_query = "Суть запроса: холодильник до 2500 руб, фирма lg, высота от 195"
     # user_query = "Суть требований пользователя: стиральная машина с хорошим брендом, узкой и вместительной."
-    response = SqlToText().sql_query(schema_name='washing_machine', user_query='', predefined_sql="SELECT * FROM washing_machine.washing_machine WHERE name ILIKE '%%Electrolux%%' and price <= 3000;")
+    response = SqlToText().sql_query(schema_name='fridge', user_query=user_query,
+                                     # predefined_sql="SELECT * FROM washing_machine.washing_machine WHERE name ILIKE '%%Electrolux%%' and price <= 3000;"
+                                     )
     print(response)
 
 
