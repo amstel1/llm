@@ -9,7 +9,7 @@ from text2sql.prod_sql_to_text import extract_where_attributes
 
 
 class DataServer():
-    max_items = 4
+    max_items = 100
     def __init__(self, schema_name: str):
         product_type_name = schema_name
         assert product_type_name in ('washing_machine', 'fridge', 'tv', 'mobile')
@@ -23,10 +23,10 @@ class DataServer():
 
     def collect_one_item_data(self, name: str) -> Dict:
         results = {}
-        logger.debug(f'{self.sql_details_db}, {name}')
+        # logger.debug(f'{self.sql_details_db}, {name}')
         postgres_reader = PostgresDataFrameRead(table=self.sql_details_db, where=f"name = '{name}'")
         sql_details = postgres_reader.read().get("step_0").sort_values('offer_count', ascending=False).head(5).sort_values('price', ascending=True).to_dict(orient='records')[0]
-        logger.debug(sql_details)
+        # logger.debug(sql_details)
         if sql_details:
             results.update(sql_details)
         postgres_reader = PostgresDataFrameRead(table=self.sql_render_db, where=f"name = '{name}'")

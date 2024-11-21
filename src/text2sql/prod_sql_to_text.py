@@ -97,7 +97,7 @@ def extract_where_attributes(sql_query: str)  -> list[str]:
     attributes = sql_metadata.Parser(sql_query).columns_dict.get('where', [])
     # do the same for each keyword that matches an sql column name
     if 'type' in post_where_list and 'type' not in attributes:
-        logger.warning('sql query, where parsing - appending "type"')
+        # logger.warning('sql query, where parsing - appending "type"')
         attributes.append('type')
     return attributes
 
@@ -111,6 +111,29 @@ class SqlToText:
         ('review_count', 'real', 'количество отзывов'),
     ]
     mandatory_fields_eng = [x[0] for x in mandatory_fields]
+
+    @classmethod
+    def replace_equals_with_ilike(cls, query):
+        # Regular expression pattern to identify conditions with "="
+        # This pattern matches: column_name = 'string_value' or column_name = number
+        pattern = re.compile(r"(\b\w+\b)\s*=\s*('[^']*'|\d+)")
+
+        # Function to replace '=' with 'ILIKE' when the value is a string (i.e., enclosed in single quotes)
+        def replace_match(match):
+            column = match.group(1)
+            value = match.group(2)
+
+            if value.startswith("'") and value.endswith("'"):  # Check if it's a string (enclosed in single quotes)
+                new_value = value.replace("'","")
+                new_value = "'%" + new_value + "%'"
+                return f"{column} ILIKE {new_value}"
+            else:
+                return f"{column} = {value}"  # Keep the original for numbers
+
+        # Replace occurrences based on the pattern and the condition
+        result = pattern.sub(replace_match, query)
+
+        return result
 
     def create_str_description(self, fields: list):
         result = ""
@@ -134,17 +157,17 @@ class SqlToText:
         return prefix + table_description + body + postfix
 
     def postprocess_df(self, df):
-        logger.info(f'sql df - before filters on price and rating -- {df.shape}')
+        # logger.info(f'sql df - before filters on price and rating -- {df.shape}')
         if 'price' in df.columns: df = df[df.price.notnull()]
         # if 'rating_value' in df.columns: df = df[df.rating_value.notnull()]  # temporarily disable this while not all phones are scraped
-        logger.info(f'sql df - after filters on price and rating -- {df.shape}')
+        # logger.info(f'sql df - after filters on price and rating -- {df.shape}')
         if 'name' in df.columns:
             if df['name'].nunique() != df.shape[0]:
                 # if 'rating_count' in df.columns:
                 #     df.sort_values(['rating_count',], ascending=[False,], inplace=True)
                 df.drop_duplicates(subset=['name'], keep='first', inplace=True)
-        logger.warning(f'{df.shape}')
-        logger.warning(f'{df.head()}')
+        # logger.warning(f'{df.shape}')
+        # logger.warning(f'{df.head()}')
         return df
 
     def _get_retiever(self, schema_name:str, user_query:str):
@@ -221,7 +244,7 @@ class SqlToText:
         uri = f"postgresql://{host}:{port}/{database}?user={user}&password={password}"
         if predefined_sql:
             # disregard user_query, just execute sql statement
-            logger.warning(predefined_sql)
+            # logger.warning(predefined_sql)
             df = pd.read_sql(
                     sql=predefined_sql,
                 con=uri,
@@ -247,8 +270,8 @@ class SqlToText:
         where_attributes_few_shots = set()
         for answer in answers:
             extracted_where_attributes = extract_where_attributes(answer)
-            logger.critical(f'1211 - answer: {answer}')
-            logger.critical(f'1211 - extracted_where_attributes: {extracted_where_attributes}')
+            # logger.critical(f'1211 - answer: {answer}')
+            # logger.critical(f'1211 - extracted_where_attributes: {extracted_where_attributes}')
             where_attributes_few_shots.update(extracted_where_attributes)
         ###################################### start
         # create table description
@@ -266,7 +289,7 @@ class SqlToText:
             search_params={"metric_type": "IP", "params": {}},  # Search parameters
             output_fields=['attribute_name_eng', 'attribute_name_rus', 'attribute_type']
         )
-        logger.error(f'0811 - attributes_retrieved: {attributes_retrieved}')
+        # logger.error(f'0811 - attributes_retrieved: {attributes_retrieved}')
         json_attributes_retrieved = attributes_retrieved[0] #json.load(attributes_retrieved)
         assert isinstance(json_attributes_retrieved, list)
         fields = []
@@ -308,16 +331,18 @@ class SqlToText:
             assistant_must_start_with=assistant_must_start_with,
         )
 
-        logger.warning('str_prompt')
-        logger.warning(str_prompt)
+        # logger.warning('str_prompt')
+        # logger.warning(str_prompt)
         #api call from string
         response = call_generation_api(prompt=str_prompt, grammar=None, stop=['<|eot_id|>', '```', '```\n',])
+
         response_query = re.sub(r'(?i)\blike\b', 'ilike', response.strip().replace('\n', ' '))
-        response_query = text(response_query)
+        response_query = self.replace_equals_with_ilike(response_query)  # replace "=" with ilike '% ... %' for strings
         response_query = 'SELECT * ' + response_query[response_query.upper().find('FROM'):]  # user might ask for specific attribute, we get all
+        response_query = text(response_query)
         # replace like with ilike, but not ilike
 
-        logger.warning(response_query)
+        logger.warning(response_query)  # sql query
 
 
         df = pd.read_sql(
