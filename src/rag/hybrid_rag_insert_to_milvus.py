@@ -244,9 +244,9 @@ if __name__ == '__main__':
 
 
     w = FewShotQAWrite(schema_names=[
-        'tv',
+        # 'tv',
         'mobile',
-        'fridge',
-        'washing_machine',
+        # 'fridge',
+        # 'washing_machine',
     ])
     w.write(data=None)

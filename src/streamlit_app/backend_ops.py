@@ -15,10 +15,10 @@ class DataServer():
         assert product_type_name in ('washing_machine', 'fridge', 'tv', 'mobile')
         self.product_type_name = product_type_name
         self.sql_details_db = f'{product_type_name}.{product_type_name}'
-        self.sql_render_db = f'{product_type_name}.render_{product_type_name}'  # render_washing_machine
+        # self.sql_render_db = f'{product_type_name}.render_{product_type_name}'  # render_washing_machine
         self.nosql_summarizations_db = f'{product_type_name}.product_review_summarizations'
         assert self.sql_details_db is not None
-        assert self.sql_render_db is not None
+        # assert self.sql_render_db is not None
         assert self.nosql_summarizations_db is not None
 
     def collect_one_item_data(self, name: str) -> Dict:
@@ -29,7 +29,7 @@ class DataServer():
         # logger.debug(sql_details)
         if sql_details:
             results.update(sql_details)
-        postgres_reader = PostgresDataFrameRead(table=self.sql_render_db, where=f"name = '{name}'")
+        # postgres_reader = PostgresDataFrameRead(table=self.sql_render_db, where=f"name = '{name}'")
         try:
             postgres_reader_results = postgres_reader.read().get("step_0")
             assert len(postgres_reader_results) > 0

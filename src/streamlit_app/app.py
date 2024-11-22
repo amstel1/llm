@@ -31,30 +31,7 @@ from text2sql.prod_sql_to_text import extract_where_attributes
 
 # create_preview_card()
 
-def update_sql_query(column, rus_text, sql_where_clause):
-    with column:
-        if column.button(rus_text, type='primary', key=rus_text):
-            logger.error(sql_where_clause)
-            st.session_state.chat_history.append({"role": "user", "content": rus_text})
 
-            # replace where condition
-            # new_sql_value = update_sql_statement(
-            #     sql_statement=st.session_state.context['sql_query'],
-            #     new_where_clause=sql_where_clause
-            # )
-
-            # append new where
-            new_sql_value = update_sql_statement_append_where_condition(
-                    sql_statement=st.session_state.context['sql_query'],
-                    new_where_clause=sql_where_clause
-                )
-
-            st.session_state.context['sql_query'] = new_sql_value
-            st.session_state.context['current_step'] = 'sql'
-            button_clicked = True
-        else:
-            button_clicked = False
-        return button_clicked
 
 def clear_conversation():
     st.session_state.chat_history = []

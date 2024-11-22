@@ -227,7 +227,10 @@ class SqlToText:
         return retriever
 
     def sql_query(self, schema_name: str, user_query: str, predefined_sql: str = None) -> pd.DataFrame | str:
-        '''returns df with results and sql query'''
+        '''
+        ! if predefined_sql is passed only it will be executed
+        returns df with results and sql query
+        '''
 
         # load dense and sparse retrieval models for this schema
         self.dense_embedding_model = HuggingFaceEmbeddings(
@@ -313,8 +316,7 @@ class SqlToText:
         ###################################### end
 
 
-
-        system_prompt = 'You are a top class business analyst that specializes in translating natural language queries into SQL. Perform the task you are assigned to to the best of your ability.'
+        system_prompt = 'You are a top class business analyst that specializes in translating natural language queries into SQL. Perform the task you are assigned to to the best of your ability. You can use the attributes provided in the table description only.'
         user_prompt_pt1 = '\nGiven a Q, create a valid SQL to run. Access only the attributes present in the table definition.\n\n'
         user_prompt_pt2 = table_description
         user_prompt_pt3 = few_shots

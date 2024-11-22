@@ -13,8 +13,45 @@ from scenarios.shopping_assistant import ShoppingAssistantScenario
 from scenarios.just_chatting import JustChattingScenario
 from text2sql.prod_sql_to_text import extract_where_attributes
 st.set_page_config(layout="wide")
+from text2sql.prod_sql_to_text import update_sql_statement, update_sql_statement_append_where_condition
+
+
+def update_sql_query(rus_text: str, previous_sql:str, new_sql:str):
+    '''
+    идея такая
+    1. у нас есть старый скл запрос, результаты которого отрендерены (st.session_state.context['sql_query'])
+    2. у нас есть новый запрос пользователя, переведенный в скл ()
+    3. мы хотим добавить (2) к (1), т.е новым запросом уточнить, а не overwrite, результаты старого
+    4. эта функция возвращет результаты (3)
+
+    :param rus_text: user query
+    :param sql_where_clause: previous sql statement
+    :return:
+    '''
+    logger.error(new_sql)
+    st.session_state.chat_history.append({"role": "user", "content": rus_text})
+
+    # replace where condition
+    # new_sql_value = update_sql_statement(
+    #     sql_statement=st.session_state.context['sql_query'],
+    #     new_where_clause=sql_where_clause
+    # )
+
+    # append new where
+    new_sql_value = update_sql_statement_append_where_condition(
+            sql_statement=previous_sql,
+            new_where_clause=new_sql
+        )
+
+    st.session_state.context['sql_query'] = new_sql_value
+    st.session_state.context['current_step'] = 'sql'
+
+    return new_sql_value
+
 
 def sort_products(products, criterion):
+    if not products:
+        return []
     if criterion == 'Сначала дороже':
         key = 'price'
         valid_products = [p for p in products if p.get(key) is not None]
@@ -50,7 +87,7 @@ def render_df(items: list,
     # sort and display data
     sorted_products = sort_products(items, sort_criterion)
     logger.critical(f'{type(sorted_products)}')  # continue from here!!!!
-    create_grid(sorted_products)
+    create_grid(products=sorted_products, necessary_product_attributes_list=necessary_product_attributes_list)
     # sql results - show table
     # todo: get product_type_name from context variables
     # logger.warning(f'! important: {st.session_state.context}')
@@ -69,14 +106,14 @@ def on_toggle_change(toggle_state):
     print(toggle_state)
 
 
-def create_grid(products: list):
+def create_grid(products: list, necessary_product_attributes_list: list = []):
     # logger.critical(len(products))
     # logger.critical(products[0])
     item_display = ItemDisplay(
         duration_2_terms=None,  # legacy, unused
         sql_result_ix=None, # legacy, unused
         items=products,
-        necessary_product_attributes_list=[],
+        necessary_product_attributes_list=necessary_product_attributes_list,
     )
     # wildberries grid
     with st.container():
@@ -119,16 +156,17 @@ if __name__ == '__main__':
         with main_column:
             # toggle SQL: add or replace
             with st.container():
-                toggle_column, toggle_text_column = st.columns([0.2, 0.75])
+                toggle_column, toggle_text_column = st.columns([0.2, 0.25])
                 with toggle_column:
-                    toggle_state = st.toggle("Enable Feature", value=False, )
+                    update_current_sql = st.toggle("To do: Уточнять предыдущий запрос", value=False, )
+                    st.session_state.context['update_current_sql'] = update_current_sql
                 with toggle_text_column:
                     pass
 
             # instruction
-            st.title("Internet Shop")
-            with st.expander(label="Instruction"):
-                st.write("Here comes the instruction")
+            st.title("Подборщик товаров")
+            with st.expander(label="Инструкция"):
+                st.write("Здесь вы можете подобрать мобильный телефон, телевизор, холодильник, стиральную машину. Данные с shop.by, onliner.by, 21vek.by.")
 
             # sorting
             with st.container():
@@ -182,9 +220,10 @@ if __name__ == '__main__':
             # logger.debug(f'chat_history-- {non_html_chat_history}')
             # logger.debug(f'context-- {st.session_state.context}')
             # universal scenario logic
-            data, context = st.session_state.scenario_object.handle(user_query=prompt, chat_history=non_html_chat_history,
+            data, context = st.session_state.scenario_object.handle(user_query=prompt,
+                                                                    chat_history=non_html_chat_history,
                                                                     context=st.session_state.context)
-            # logger.critical(f'05112024 does this have sql query?: {context}')
+            logger.critical(f'22112024 does this have sql_query? - it must: {context}')
             st.session_state['data'] = data
             st.session_state.context = context
             assert 'scenario_name' in st.session_state.context
@@ -197,14 +236,15 @@ if __name__ == '__main__':
         data = st.session_state['data']
         response_text = data
         st.session_state.chat_history.append({"role": "assistant", "content": response_text})
-        with st.chat_message("assistant"):
-            st.markdown(response_text)
+        with aux_column:
+            with st.chat_message("assistant"):
+                st.markdown(response_text)
 
-    elif (isinstance(st.session_state['data'], pd.DataFrame) and st.session_state['data'].shape[0] > 0) or (st.session_state['sql_items']):
+    elif (isinstance(st.session_state['data'], pd.DataFrame) and st.session_state['data'].shape[0] > 0) or (st.session_state.get('sql_items')):
         data = st.session_state['data']
         necessary_product_attributes_list = extract_where_attributes(
             sql_query=st.session_state.context.get('sql_query'))
-        # logger.error(f'1011 - necessary_product_attributes_list - {necessary_product_attributes_list}')
+        logger.error(f'sandbox 2211 - necessary_product_attributes_list - {necessary_product_attributes_list}')
         assert st.session_state.context['sql_schema']  # must always exist
         data_server = DataServer(schema_name=st.session_state.context['sql_schema'])  # must pass this from scenario
         assert 'name' in data.columns
@@ -225,5 +265,6 @@ if __name__ == '__main__':
         data = st.session_state['data']
         response_text = "Извините, но я ничего не нашел."
         st.session_state.chat_history.append({"role": "assistant", "content": response_text})
-        with st.chat_message("assistant"):
-            st.markdown(response_text)
+        with aux_column:
+            with st.chat_message("assistant"):
+                st.markdown(response_text)

@@ -49,14 +49,14 @@ class ItemDisplay:
         item = {}
         for k,v in old_item.items():
             if k in self.necessary_product_attributes_list and k in all_product_attributes_dict and v and k not in item:
-                logger.info(f'0611: remap {k}, {all_product_attributes_dict[k]}, {v}')
+                # logger.info(f'0611: remap {k}, {all_product_attributes_dict[k]}, {v}')
                 item[all_product_attributes_dict[k]] = v
             elif k in self.necessary_product_attributes_list and v and k not in item:
                 item[k] = v
-                logger.info(f'0611: no remap {k}, {v}')
+                # logger.info(f'0611: no remap {k}, {v}')
 
         logger.debug(f'0611 item: {item}')
-        logger.debug(f'0611 necessary_product_attributes_list: {self.necessary_product_attributes_list}')
+        # logger.debug(f'0611 necessary_product_attributes_list: {self.necessary_product_attributes_list}')
 
 
         if upper:

@@ -138,7 +138,7 @@ class ShoppingAssistantScenario(BaseScenario):
         str_chat_history = chat_history_list_to_str(chat_history)
         # неясно как сделать чтобы соблюсти баланс между (реплика = новое требование независимо от старого) и (реплика = уточнение старого требования)
         # maybe switch to eng?
-        user_prompt = f"""На основе информации ниже сформулируй суть требований пользователя кратко, но сохраняя все важные детали. Если история и последний запрос содержат информацию о разных товарах, используй только последний запрос. Требования могут касаться только одного типа товаров.
+        user_prompt = f"""Переформулируй запрос пользователя. Не искажай его суть. Не теряй никаких деталей. Не добавляй информацию от себя.
 
 История чата:\n{str_chat_history}
 
@@ -146,12 +146,14 @@ class ShoppingAssistantScenario(BaseScenario):
 
         return call_generate_from_query_api(
             user_prompt=user_prompt,
-            system_prompt='Ты вежливый, умный и эффективный ИИ-помощник. Ты всегда стараешься выполнять пожелания пользователя наилучшим образом.'
+            # system_prompt='Perform the task at hand to the best of your ability.'
+            system_prompt='Ты внимательный, точный, умный и эффективный ИИ-помощник. Твоя задача - из запроса пользователя сформулировать суть его пожеланий в выборе какого-то потребительского товара. Cохраняй все важные детали: фильтры, уточнения и т.д. Если пользователь уточняет и или ссылается на предыдущие запросы, учитывай их содержание при выполнении задачи. Если история и последний запрос содержат информацию о разных товарах, используй только последний запрос. Требования могут касаться только одного типа товаров.'
         )
 
 
     def handle(self, user_query: str, chat_history: list, context: dict) -> [Any, Dict]:
         current_step = context.get('current_step')
+        update_current_sql = context.get('update_current_sql')
         # logger.debug(f'current_step - {current_step}')
         assert current_step in ('verify', 'ask', 'sql', 'reformulate',)
         previous_steps = context.get('previous_steps')
@@ -173,14 +175,20 @@ class ShoppingAssistantScenario(BaseScenario):
                 current_step = 'sql'
                 logger.debug(f'current step - {current_step}')
                 context['current_step'] = current_step
+                if update_current_sql:
+                    logger.critical(f'update_current_sql: {context}')
+
                 df, sql_query = SqlToText().sql_query(schema_name=self.schema_name, user_query=response, predefined_sql=context.get('sql_query'))  # pass reformulated response here, no need to pass history - already done at reformulate step
+                context['sql_query'] = sql_query
+
+
                 previous_steps.append(current_step)
                 context['previous_steps'] = previous_steps
                 current_step = 'exit'
                 context['current_step'] = current_step
                 context['scenario_name'] = "reroute"  #
                 context['sql_schema'] = self.schema_name
-                context['sql_query'] = sql_query
+
                 return df, context
             else:
                 current_step = 'ask'

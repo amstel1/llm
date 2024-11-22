@@ -1,4 +1,4 @@
-MODEL_NAME = 'qwen'
+MODEL_NAME = 'qwen-coder'
 assert MODEL_NAME in ('llama', 'gemma', 'chatml', 'qwen', 'qwen-coder')
 import json
 from fastapi import FastAPI
@@ -167,7 +167,7 @@ elif 'qwen' in MODEL_NAME.lower() and 'coder' not in MODEL_NAME.lower():
     async def load_llm():
         global llm
         llm = Llama(
-            model_path='/home/amstel/llm/models/lmstudio-community/Qwen2.5-7B-Instruct-GGUF/Qwen2.5-7B-Instruct-Q4_K_M.gguf',
+            model_path='/home/amstel/llm/models/bartowski/Qwen2.5-7B-Instruct-GGUF/Qwen2.5-7B-Instruct-Q4_K_M.gguf',
             n_gpu_layers=28,
             max_tokens=-1,
             n_batch=512,
